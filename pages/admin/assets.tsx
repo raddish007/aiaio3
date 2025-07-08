@@ -19,6 +19,10 @@ interface Asset {
     child_name?: string;
     template?: 'lullaby' | 'name-video' | 'letter-hunt' | 'general';
     volume?: number; // Added volume to metadata interface
+    audio_data?: string; // Added audio_data for base64 audio content
+    script?: string; // Added script for audio content
+    voice?: string; // Added voice for audio content
+    speed?: number; // Added speed for audio content
     review?: {
       safe_zone?: 'left_safe' | 'right_safe' | 'center_safe' | 'all_ok';
       approval_notes?: string;
@@ -127,6 +131,10 @@ export default function AssetManagement() {
     }
   }, [assets]);
 
+  const isAudioOrVideo = (type: string): boolean => {
+    return ['audio', 'video'].includes(type);
+  };
+
   const checkAdminAccess = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
@@ -156,6 +164,21 @@ export default function AssetManagement() {
       console.error('Error fetching assets:', error);
     } else {
       console.log('Fetched assets:', data);
+      
+      // Log audio assets specifically
+      const audioAssets = data?.filter(asset => asset.type === 'audio') || [];
+      console.log('Audio assets found:', audioAssets.length);
+      audioAssets.forEach((asset, index) => {
+        console.log(`Audio asset ${index + 1}:`, {
+          id: asset.id,
+          theme: asset.theme,
+          has_audio_data: !!asset.metadata?.audio_data,
+          has_file_url: !!asset.file_url,
+          metadata_keys: asset.metadata ? Object.keys(asset.metadata) : [],
+          file_url: asset.file_url
+        });
+      });
+      
       setAssets(data || []);
     }
     setLoading(false);
@@ -359,6 +382,32 @@ export default function AssetManagement() {
     }
     
     return pendingAssets[currentIndex + 1];
+  };
+
+  const handleGenerateAsset = async (assetId: string) => {
+    try {
+      const response = await fetch('/api/assets/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ assetId })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('Asset generation started:', result);
+        
+        // Refresh assets to show updated status
+        setTimeout(() => {
+          fetchAssets();
+        }, 2000);
+      } else {
+        console.error('Failed to generate asset');
+        alert('Failed to generate asset. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error generating asset:', error);
+      alert('Error generating asset. Please try again.');
+    }
   };
 
   const openNextAsset = (currentAssetId: string) => {
@@ -615,6 +664,12 @@ export default function AssetManagement() {
               <h1 className="text-2xl font-bold text-gray-900">Asset Management</h1>
               <div className="flex space-x-3">
                 <button
+                  onClick={() => router.push('/admin/ai-generator')}
+                  className="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 text-sm"
+                >
+                  Generate with AI
+                </button>
+                <button
                   onClick={() => setShowUploadModal(true)}
                   className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 text-sm"
                 >
@@ -852,9 +907,45 @@ export default function AssetManagement() {
                             </div>
                           )}
                           {asset.type === 'audio' && (
-                            <div className="flex flex-col items-center justify-center h-full text-gray-500">
-                              <div className="text-3xl mb-2">🎵</div>
-                              <div className="text-xs text-center">Audio File</div>
+                            <div className="flex flex-col items-center justify-center h-full p-4">
+                              <div className="text-2xl mb-2">🎵</div>
+                              <div className="text-xs text-center mb-3 text-gray-500">Audio File</div>
+                              
+                              {/* Debug info - remove this later */}
+                              <div className="text-xs text-gray-400 mb-2">
+                                Debug: {asset.metadata?.audio_data ? 'Has audio_data' : 'No audio_data'} | 
+                                {asset.file_url ? 'Has file_url' : 'No file_url'}
+                              </div>
+                              
+                              {asset.metadata?.audio_data && (
+                                <audio 
+                                  controls 
+                                  className="w-full max-w-full"
+                                  preload="metadata"
+                                  data-asset-id={asset.id}
+                                >
+                                  <source src={asset.metadata.audio_data} type="audio/mpeg" />
+                                  <source src={asset.metadata.audio_data} type="audio/wav" />
+                                  Your browser does not support the audio element.
+                                </audio>
+                              )}
+                              {asset.file_url && !asset.metadata?.audio_data && (
+                                <audio 
+                                  controls 
+                                  className="w-full max-w-full"
+                                  preload="metadata"
+                                  data-asset-id={asset.id}
+                                >
+                                  <source src={asset.file_url} type="audio/mpeg" />
+                                  <source src={asset.file_url} type="audio/wav" />
+                                  Your browser does not support the audio element.
+                                </audio>
+                              )}
+                              {!asset.metadata?.audio_data && !asset.file_url && (
+                                <div className="text-xs text-red-500">
+                                  No audio source found
+                                </div>
+                              )}
                             </div>
                           )}
                           {asset.type === 'prompt' && (
@@ -952,6 +1043,12 @@ export default function AssetManagement() {
                         {/* Action Buttons */}
                         {asset.status === 'pending' && (view === 'review' || view === 'all') && (
                           <div className="flex space-x-2">
+                            <button
+                              onClick={() => handleGenerateAsset(asset.id)}
+                              className="flex-1 bg-purple-600 text-white px-3 py-2 rounded-md text-sm hover:bg-purple-700"
+                            >
+                              Generate
+                            </button>
                             <button
                               onClick={() => {
                                 console.log('Review button clicked for asset:', asset);

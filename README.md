@@ -83,9 +83,59 @@ AIAIO is a personalized video content platform for children, featuring:
 
 ## Admin Features
 - **Asset Management**: Upload, review, and approve content assets
-- **Content Creation**: Generate personalized videos
+- **Content Creation**: Generate personalized videos with AI-powered asset generation
 - **Job Monitoring**: Track video generation progress
 - **Analytics**: View platform usage and performance
+
+## 🎯 Asset Generation System
+
+The platform includes a complete asset generation system that creates images and audio content for video production.
+
+### Features
+
+- **AI-Powered Image Generation**: Uses fal.ai (Imagen) for high-quality, child-friendly images
+- **Smart Prompt Generation**: OpenAI GPT-4 generates contextual prompts for different asset types
+- **Project-Based Workflow**: Organize assets by content projects with themes and age targeting
+- **Batch Processing**: Generate multiple assets simultaneously for a project
+- **Review System**: Approve/reject generated assets with detailed feedback
+- **Status Tracking**: Real-time status updates (pending → generating → completed)
+
+### Asset Types
+
+- **Background Images**: Scenes and environments
+- **Character Images**: Friendly, animated characters  
+- **Props & Objects**: Items and elements
+- **Voiceover Scripts**: Narrative content (placeholder for TTS integration)
+- **Background Music**: Mood and style (placeholder for music generation)
+
+### Quick Start
+
+1. **Create a Content Project**:
+   - Go to Admin → Content Creation
+   - Create a new project with theme, target age, and duration
+   - Click "Generate All Assets" to create asset records
+
+2. **Generate Assets**:
+   - Assets are automatically queued for generation
+   - Monitor status in the Asset Management dashboard
+   - Individual assets can be regenerated if needed
+
+3. **Review & Approve**:
+   - Review generated assets in the Asset Management page
+   - Approve or reject with feedback
+   - Approved assets are ready for video assembly
+
+### API Endpoints
+
+- `POST /api/assets/generate` - Generate assets by ID or project ID
+- Supports individual asset generation or batch project generation
+
+### Testing
+
+Run the asset generation test:
+```bash
+node scripts/test-asset-generation.js
+```
 
 ## Getting Started
 

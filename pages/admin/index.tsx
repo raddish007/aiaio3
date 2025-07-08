@@ -109,24 +109,37 @@ export default function AdminDashboard() {
       </header>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Asset Management Tools - Prominent Section */}
-        <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-8 mb-8 border border-blue-200">
+        {/* Content Creation Tools */}
+        <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-xl p-8 mb-8 border border-green-200">
           <div className="text-center mb-6">
-            <h2 className="text-3xl font-bold text-gray-900 mb-2">Asset Management Tools</h2>
-            <p className="text-gray-600">Quick access to content creation and management</p>
+            <h2 className="text-3xl font-bold text-gray-900 mb-2">Content Creation Tools</h2>
+            <p className="text-gray-600">AI-powered tools for generating content and assets</p>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
             <button
-              onClick={() => router.push('/admin/assets')}
-              className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-200 border border-gray-200 hover:border-blue-300 group"
+              onClick={() => router.push('/admin/prompt-generator')}
+              className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-200 border border-gray-200 hover:border-indigo-300 group"
             >
               <div className="text-center">
-                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-blue-200 transition-colors">
-                  <span className="text-3xl">📋</span>
+                <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-indigo-200 transition-colors">
+                  <span className="text-3xl">🤖</span>
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Asset Review</h3>
-                <p className="text-sm text-gray-600">Review and approve submitted assets</p>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">AI Prompts</h3>
+                <p className="text-sm text-gray-600">Generate high-quality prompts</p>
+              </div>
+            </button>
+
+            <button
+              onClick={() => router.push('/admin/ai-generator')}
+              className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-200 border border-gray-200 hover:border-purple-300 group"
+            >
+              <div className="text-center">
+                <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-purple-200 transition-colors">
+                  <span className="text-3xl">🎨</span>
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Image Generator</h3>
+                <p className="text-sm text-gray-600">Generate images with fal.ai</p>
               </div>
             </button>
 
@@ -157,6 +170,42 @@ export default function AdminDashboard() {
             </button>
 
             <button
+              onClick={() => router.push('/admin/audio-generator')}
+              className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-200 border border-gray-200 hover:border-green-300 group"
+            >
+              <div className="text-center">
+                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-green-200 transition-colors">
+                  <span className="text-3xl">🎵</span>
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Audio Generator</h3>
+                <p className="text-sm text-gray-600">Generate audio with ElevenLabs</p>
+              </div>
+            </button>
+          </div>
+        </div>
+
+        {/* Content Management Tools */}
+        <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-8 mb-8 border border-blue-200">
+          <div className="text-center mb-6">
+            <h2 className="text-3xl font-bold text-gray-900 mb-2">Content Management Tools</h2>
+            <p className="text-gray-600">Manage and review existing content and assets</p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <button
+              onClick={() => router.push('/admin/assets')}
+              className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-200 border border-gray-200 hover:border-blue-300 group"
+            >
+              <div className="text-center">
+                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-blue-200 transition-colors">
+                  <span className="text-3xl">📋</span>
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Asset Review</h3>
+                <p className="text-sm text-gray-600">Review and approve submitted assets</p>
+              </div>
+            </button>
+
+            <button
               onClick={() => router.push('/admin/analytics')}
               className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-200 border border-gray-200 hover:border-purple-300 group"
             >
@@ -170,15 +219,28 @@ export default function AdminDashboard() {
             </button>
 
             <button
-              onClick={() => router.push('/admin/prompt-generator')}
-              className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-200 border border-gray-200 hover:border-indigo-300 group"
+              onClick={() => router.push('/admin/users')}
+              className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-200 border border-gray-200 hover:border-orange-300 group"
             >
               <div className="text-center">
-                <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-indigo-200 transition-colors">
-                  <span className="text-3xl">🤖</span>
+                <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-orange-200 transition-colors">
+                  <span className="text-3xl">👥</span>
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">AI Prompts</h3>
-                <p className="text-sm text-gray-600">Generate high-quality prompts</p>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">User Management</h3>
+                <p className="text-sm text-gray-600">Manage users and permissions</p>
+              </div>
+            </button>
+
+            <button
+              onClick={() => router.push('/admin/audio-trimmer')}
+              className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-200 border border-gray-200 hover:border-red-300 group"
+            >
+              <div className="text-center">
+                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-red-200 transition-colors">
+                  <span className="text-3xl">✂️</span>
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Audio Trimmer</h3>
+                <p className="text-sm text-gray-600">Trim and edit audio files</p>
               </div>
             </button>
           </div>
@@ -240,6 +302,24 @@ export default function AdminDashboard() {
           <h2 className="text-xl font-semibold text-gray-900 mb-4">Quick Actions</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <button
+              onClick={() => router.push('/admin/ai-generator')}
+              className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 text-left"
+            >
+              <div className="text-2xl mb-2">🎨</div>
+              <h3 className="font-medium text-gray-900">Generate Images</h3>
+              <p className="text-sm text-gray-600">Create images with AI</p>
+            </button>
+
+            <button
+              onClick={() => router.push('/admin/prompt-generator')}
+              className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 text-left"
+            >
+              <div className="text-2xl mb-2">🤖</div>
+              <h3 className="font-medium text-gray-900">AI Prompts</h3>
+              <p className="text-sm text-gray-600">Generate high-quality prompts</p>
+            </button>
+
+            <button
               onClick={() => router.push('/admin/assets')}
               className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 text-left"
             >
@@ -258,21 +338,12 @@ export default function AdminDashboard() {
             </button>
 
             <button
-              onClick={() => router.push('/admin/jobs')}
+              onClick={() => router.push('/admin/audio-trimmer')}
               className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 text-left"
             >
-              <div className="text-2xl mb-2">⚙️</div>
-              <h3 className="font-medium text-gray-900">Monitor Jobs</h3>
-              <p className="text-sm text-gray-600">Track video generation progress</p>
-            </button>
-
-            <button
-              onClick={() => router.push('/admin/analytics')}
-              className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 text-left"
-            >
-              <div className="text-2xl mb-2">📊</div>
-              <h3 className="font-medium text-gray-900">Analytics</h3>
-              <p className="text-sm text-gray-600">View platform statistics</p>
+              <div className="text-2xl mb-2">✂️</div>
+              <h3 className="font-medium text-gray-900">Audio Trimmer</h3>
+              <p className="text-sm text-gray-600">Trim and edit audio files</p>
             </button>
           </div>
         </div>

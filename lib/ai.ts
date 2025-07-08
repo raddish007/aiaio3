@@ -81,6 +81,52 @@ export class AIService {
     }
   }
 
+  // Generate enhanced prompts for different asset types
+  static async generateAssetPrompts(project: any) {
+    const systemPrompt = `You are an expert content creator for children's educational videos. Generate specific, detailed prompts for different types of assets needed for a video project.`;
+
+    const userPrompt = `Create prompts for a ${project.theme} video targeting ${project.target_age} year olds with ${project.duration} seconds duration.
+
+    Generate separate prompts for:
+    1. Background images (scenes and environments)
+    2. Character images (friendly, animated characters)
+    3. Props and objects (items and elements)
+    4. Voiceover script (narrative content)
+    5. Background music (mood and style)
+
+    Requirements:
+    - Age-appropriate and safe
+    - Engaging and educational
+    - Consistent with the theme
+    - Suitable for ${project.duration} seconds of content
+
+    Return as JSON with keys: backgrounds, characters, props, voiceover, music`;
+
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ],
+      max_tokens: 1000,
+      temperature: 0.7,
+    });
+
+    try {
+      const content = completion.choices[0]?.message?.content || '';
+      return JSON.parse(content);
+    } catch (error) {
+      // Fallback to template prompts if JSON parsing fails
+      return {
+        backgrounds: `Create a colorful, child-friendly background for a ${project.theme} story targeting ${project.target_age} year olds`,
+        characters: `Design friendly, animated characters for a ${project.theme} story for ${project.target_age} year olds`,
+        props: `Generate fun props and objects related to ${project.theme} for children aged ${project.target_age}`,
+        voiceover: `Create a warm, engaging voiceover script for a ${project.theme} story for ${project.target_age} year olds`,
+        music: `Compose cheerful background music suitable for a ${project.theme} story for ${project.target_age} year olds`
+      };
+    }
+  }
+
   // Generate personalized voiceover script
   static async generateVoiceoverScript(
     childName: string,
