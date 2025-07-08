@@ -116,7 +116,7 @@ export default function AdminDashboard() {
             <p className="text-gray-600">Quick access to content creation and management</p>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
             <button
               onClick={() => router.push('/admin/assets')}
               className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-200 border border-gray-200 hover:border-blue-300 group"
@@ -166,6 +166,19 @@ export default function AdminDashboard() {
                 </div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">Analytics</h3>
                 <p className="text-sm text-gray-600">View platform statistics</p>
+              </div>
+            </button>
+
+            <button
+              onClick={() => router.push('/admin/prompt-generator')}
+              className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-200 border border-gray-200 hover:border-indigo-300 group"
+            >
+              <div className="text-center">
+                <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-indigo-200 transition-colors">
+                  <span className="text-3xl">🤖</span>
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">AI Prompts</h3>
+                <p className="text-sm text-gray-600">Generate high-quality prompts</p>
               </div>
             </button>
           </div>

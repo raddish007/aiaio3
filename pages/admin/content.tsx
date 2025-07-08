@@ -31,12 +31,16 @@ export default function ContentCreation() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  // New project form state
+  // Add new state for safe zones, prompt count, and aspect ratio
+  const [safeZones, setSafeZones] = useState<string[]>(['center_safe']);
+  const [promptCount, setPromptCount] = useState<number>(1);
+  const [aspectRatio, setAspectRatio] = useState<'16:9' | '9:16'>('16:9');
+
+  // Update newProject state to default target_age to '2-4' and remove duration
   const [newProject, setNewProject] = useState({
     title: '',
     theme: '',
-    target_age: '3-5',
-    duration: 60
+    target_age: '2-4',
   });
 
   // Asset generation state
@@ -56,10 +60,23 @@ export default function ContentCreation() {
 
   const checkUser = async () => {
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user || user.user_metadata?.role !== 'admin') {
+    if (!user) {
       router.push('/login');
       return;
     }
+
+    // Check user role from database
+    const { data: userData } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+
+    if (!userData || !['content_manager', 'asset_creator', 'video_ops'].includes(userData.role)) {
+      router.push('/dashboard');
+      return;
+    }
+
     setUser(user);
   };
 
@@ -92,14 +109,14 @@ export default function ContentCreation() {
         title: newProject.title,
         theme: newProject.theme,
         target_age: newProject.target_age,
-        duration: newProject.duration,
+        duration: 60, // Keep default duration for new projects
         status: 'planning'
       }])
       .select();
 
     if (data) {
       setProjects([data[0], ...projects]);
-      setNewProject({ title: '', theme: '', target_age: '3-5', duration: 60 });
+      setNewProject({ title: '', theme: '', target_age: '2-4' }); // Reset new project form
       setActiveTab('projects');
     }
     setLoading(false);
@@ -107,48 +124,164 @@ export default function ContentCreation() {
 
   const generateAssets = async () => {
     if (!selectedProject) return;
-    
     setLoading(true);
-    
-    // Generate asset prompts using AI
-    const prompts = await generateAssetPrompts(selectedProject);
-    
-    // Create asset records
-    const assetData = [
-      { project_id: selectedProject.id, type: 'image', prompt: prompts.backgrounds, status: 'pending' },
-      { project_id: selectedProject.id, type: 'image', prompt: prompts.characters, status: 'pending' },
-      { project_id: selectedProject.id, type: 'image', prompt: prompts.props, status: 'pending' },
-      { project_id: selectedProject.id, type: 'audio', prompt: prompts.voiceover, status: 'pending' },
-      { project_id: selectedProject.id, type: 'audio', prompt: prompts.music, status: 'pending' }
-    ];
-
-    const { data, error } = await supabase
-      .from('assets')
-      .insert(assetData)
-      .select();
-
-    if (data) {
-      setAssets([...data, ...assets]);
-      // Update project status
-      await supabase
-        .from('content_projects')
-        .update({ status: 'generating' })
-        .eq('id', selectedProject.id);
+    try {
+      // Generate asset prompts using AI
+      const promptGroups = await generateAssetPrompts(selectedProject); // now returns array of groups
+      const assetData = [];
+      // Each group: { safeZone, aspectRatio, prompts }
+      for (const group of promptGroups) {
+        const { safeZone, aspectRatio, prompts } = group;
+        // backgrounds
+        (prompts.backgrounds || []).forEach((prompt: string, index: number) => {
+          assetData.push({
+            project_id: selectedProject.id,
+            type: 'image',
+            prompt,
+            status: 'pending',
+            metadata: {
+              category: 'background',
+              index,
+              template: 'name-video',
+              safeZone,
+              aspectRatio
+            }
+          });
+        });
+        // characters
+        (prompts.characters || []).forEach((prompt: string, index: number) => {
+          assetData.push({
+            project_id: selectedProject.id,
+            type: 'image',
+            prompt,
+            status: 'pending',
+            metadata: {
+              category: 'character',
+              index,
+              template: 'name-video',
+              safeZone,
+              aspectRatio
+            }
+          });
+        });
+        // props
+        (prompts.props || []).forEach((prompt: string, index: number) => {
+          assetData.push({
+            project_id: selectedProject.id,
+            type: 'image',
+            prompt,
+            status: 'pending',
+            metadata: {
+              category: 'prop',
+              index,
+              template: 'name-video',
+              safeZone,
+              aspectRatio
+            }
+          });
+        });
+        // voiceover
+        if (prompts.voiceover) {
+          assetData.push({
+            project_id: selectedProject.id,
+            type: 'audio',
+            prompt: prompts.voiceover,
+            status: 'pending',
+            metadata: {
+              category: 'voiceover',
+              template: 'name-video',
+              safeZone,
+              aspectRatio
+            }
+          });
+        }
+        // music
+        if (prompts.music) {
+          assetData.push({
+            project_id: selectedProject.id,
+            type: 'audio',
+            prompt: prompts.music,
+            status: 'pending',
+            metadata: {
+              category: 'music',
+              template: 'name-video',
+              safeZone,
+              aspectRatio
+            }
+          });
+        }
+      }
+      const { data, error } = await supabase
+        .from('assets')
+        .insert(assetData)
+        .select();
+      if (data) {
+        setAssets([...data, ...assets]);
+        // Update project status
+        await supabase
+          .from('content_projects')
+          .update({ status: 'generating' })
+          .eq('id', selectedProject.id);
+        // Trigger asset generation
+        try {
+          const response = await fetch('/api/assets/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ projectId: selectedProject.id })
+          });
+          if (response.ok) {
+            const result = await response.json();
+            console.log('Asset generation started:', result);
+            setTimeout(() => {
+              loadAssets(selectedProject.id);
+            }, 2000);
+          } else {
+            console.error('Failed to trigger asset generation');
+          }
+        } catch (error) {
+          console.error('Error triggering asset generation:', error);
+        }
+      }
+    } catch (error) {
+      console.error('Error generating assets:', error);
+    } finally {
+      setLoading(false);
     }
-    
-    setLoading(false);
   };
 
   const generateAssetPrompts = async (project: ContentProject) => {
-    // This would integrate with OpenAI to generate specific prompts
-    // For now, return template prompts
-    return {
-      backgrounds: `Create a colorful, child-friendly background for a ${project.theme} story targeting ${project.target_age} year olds`,
-      characters: `Design friendly, animated characters for a ${project.theme} story for ${project.target_age} year olds`,
-      props: `Generate fun props and objects related to ${project.theme} for children aged ${project.target_age}`,
-      voiceover: `Create a warm, engaging voiceover script for a ${project.theme} story for ${project.target_age} year olds`,
-      music: `Compose cheerful background music suitable for a ${project.theme} story for ${project.target_age} year olds`
-    };
+    try {
+      const response = await fetch('/api/prompts/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          theme: project.theme,
+          ageRange: project.target_age,
+          template: 'name-video', // or make configurable
+          personalization: 'general',
+          safeZones, // pass array
+          promptCount,
+          aspectRatio,
+          projectId: project.id
+        })
+      });
+      if (response.ok) {
+        const result = await response.json();
+        return result.prompts;
+      } else {
+        throw new Error('Failed to generate prompts');
+      }
+    } catch (error) {
+      console.error('Error generating AI prompts:', error);
+      // Fallback to template prompts
+      return {
+        backgrounds: [`Create a colorful, child-friendly background for a ${project.theme} story targeting ${project.target_age} year olds`],
+        characters: [`Design friendly, animated characters for a ${project.theme} story for ${project.target_age} year olds`],
+        props: [`Generate fun props and objects related to ${project.theme} for children aged ${project.target_age}`],
+        voiceover: `Create a warm, engaging voiceover script for a ${project.theme} story for ${project.target_age} year olds`,
+        music: `Compose cheerful background music suitable for a ${project.theme} story for ${project.target_age} year olds`
+      };
+    }
   };
 
   const approveAsset = async (assetId: string) => {
@@ -287,22 +420,69 @@ export default function ContentCreation() {
                       onChange={(e) => setNewProject({...newProject, target_age: e.target.value})}
                       className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
                     >
-                      <option value="1-2">1-2 years</option>
+                      <option value="2-4">2-4 years</option>
                       <option value="3-5">3-5 years</option>
-                      <option value="6-8">6-8 years</option>
-                      <option value="9-12">9-12 years</option>
+                      <option value="4-6">4-6 years</option>
+                      <option value="5-7">5-7 years</option>
                     </select>
                   </div>
+                  {/* Safe Zone Selection */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Duration (seconds)</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Safe Zones</label>
+                    <div className="flex flex-wrap gap-4">
+                      {['left_safe', 'right_safe', 'center_safe', 'frame', 'slideshow'].map(zone => (
+                        <label key={zone} className="flex items-center space-x-2">
+                          <input
+                            type="checkbox"
+                            checked={safeZones.includes(zone)}
+                            onChange={e => {
+                              if (e.target.checked) {
+                                setSafeZones([...safeZones, zone]);
+                              } else {
+                                setSafeZones(safeZones.filter(z => z !== zone));
+                              }
+                            }}
+                          />
+                          <span className="capitalize">{zone.replace('_', ' ')}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Prompt Count */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Number of Prompts per Safe Zone</label>
                     <input
                       type="number"
-                      value={newProject.duration}
-                      onChange={(e) => setNewProject({...newProject, duration: parseInt(e.target.value)})}
-                      className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
-                      min="30"
-                      max="300"
+                      min={1}
+                      max={10}
+                      value={promptCount}
+                      onChange={e => setPromptCount(Math.max(1, Math.min(10, Number(e.target.value))))}
+                      className="w-24 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
+                  </div>
+
+                  {/* Aspect Ratio */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Aspect Ratio</label>
+                    <div className="flex space-x-4">
+                      <label className="flex items-center space-x-2">
+                        <input
+                          type="radio"
+                          checked={aspectRatio === '16:9'}
+                          onChange={() => setAspectRatio('16:9')}
+                        />
+                        <span>16:9 (Landscape)</span>
+                      </label>
+                      <label className="flex items-center space-x-2">
+                        <input
+                          type="radio"
+                          checked={aspectRatio === '9:16'}
+                          onChange={() => setAspectRatio('9:16')}
+                        />
+                        <span>9:16 (Portrait)</span>
+                      </label>
+                    </div>
                   </div>
                 </div>
                 <button
@@ -326,7 +506,6 @@ export default function ContentCreation() {
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Title</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Theme</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Age</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Duration</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                     </tr>
@@ -342,9 +521,6 @@ export default function ContentCreation() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {project.target_age}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {project.duration}s
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(project.status)}`}>
@@ -390,7 +566,7 @@ export default function ContentCreation() {
                 Generate Assets for: {selectedProject.title}
               </h2>
               <p className="text-gray-600 mb-6">
-                Theme: {selectedProject.theme} | Target Age: {selectedProject.target_age} | Duration: {selectedProject.duration}s
+                Theme: {selectedProject.theme} | Target Age: {selectedProject.target_age}
               </p>
               
               <div className="space-y-4">
