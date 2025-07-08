@@ -20,15 +20,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // Use client-side trimmed audio data if provided, otherwise fall back to server-side trimming
     let finalTrimmedAudioData: string;
-    
+    let audioBuffer: Buffer;
     if (trimmedAudioData) {
       // Use the client-side trimmed audio data
       finalTrimmedAudioData = trimmedAudioData;
+      audioBuffer = Buffer.from(trimmedAudioData, 'base64');
       console.log('Using client-side trimmed audio data');
     } else {
       // Fall back to server-side trimming (for backward compatibility)
       const base64Data = originalAudioData.replace(/^data:audio\/[^;]+;base64,/, '');
-      const audioBuffer = Buffer.from(base64Data, 'base64');
+      audioBuffer = Buffer.from(base64Data, 'base64');
       
       console.log('Audio trimming parameters:', {
         originalAssetId,
@@ -41,15 +42,34 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
       
       finalTrimmedAudioData = await trimAudio(audioBuffer, startTime, endTime);
+      audioBuffer = Buffer.from(finalTrimmedAudioData, 'base64');
     }
     
     console.log('Final trimmed audio size:', finalTrimmedAudioData.length);
 
+    // Upload trimmed audio to Supabase Storage using admin client
+    const fileExt = 'wav';
+    const fileName = `trimmed_${Date.now()}_${originalAssetId}.${fileExt}`;
+    const filePath = `assets/audio/${fileName}`;
+    
     // Check if admin client is available
     if (!supabaseAdmin) {
       console.error('SUPABASE_SERVICE_ROLE_KEY not configured');
       return res.status(500).json({ error: 'Server configuration error. Please contact administrator.' });
     }
+    
+    // Supabase storage expects a Blob or File in browser, Buffer in Node.js
+    const { error: uploadError } = await supabaseAdmin.storage
+      .from('assets')
+      .upload(filePath, audioBuffer, { contentType: 'audio/wav', upsert: true });
+    if (uploadError) {
+      console.error('Error uploading trimmed audio to storage:', uploadError);
+      return res.status(500).json({ error: 'Failed to upload audio to storage', details: uploadError.message });
+    }
+    // Get public URL
+    const { data: { publicUrl } } = supabaseAdmin.storage
+      .from('assets')
+      .getPublicUrl(filePath);
 
     // Get the original asset to extract script and template info
     const { data: originalAsset } = await supabaseAdmin
@@ -73,6 +93,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         type: 'audio',
         theme: finalTitle,
         status: 'pending',
+        file_url: publicUrl,
         metadata: {
           original_asset_id: originalAssetId,
           start_time: startTime,

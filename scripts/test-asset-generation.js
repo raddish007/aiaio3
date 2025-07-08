@@ -1,3 +1,4 @@
+require('dotenv').config({ path: '.env.local' });
 const { createClient } = require('@supabase/supabase-js');
 
 const supabase = createClient(
@@ -37,19 +38,22 @@ async function testAssetGeneration() {
         project_id: project.id,
         type: 'image',
         prompt: 'A colorful space station with friendly aliens for children aged 4-6',
-        status: 'pending'
+        status: 'pending',
+        theme: 'Space Adventure'
       },
       {
         project_id: project.id,
         type: 'image',
         prompt: 'A cute robot character exploring space for children aged 4-6',
-        status: 'pending'
+        status: 'pending',
+        theme: 'Space Adventure'
       },
       {
         project_id: project.id,
         type: 'audio',
         prompt: 'A cheerful voiceover about space exploration for children aged 4-6',
-        status: 'pending'
+        status: 'pending',
+        theme: 'Space Adventure'
       }
     ];
 

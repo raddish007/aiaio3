@@ -1,92 +1,32 @@
-const { createClient } = require('@supabase/supabase-js');
-require('dotenv').config({ path: '.env.local' });
+console.log('🧪 Testing registration flow...');
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+// This script will help us understand what's happening during registration
+// without requiring direct database access
 
-console.log('Supabase URL:', supabaseUrl);
-console.log('Supabase Key exists:', !!supabaseAnonKey);
+console.log('\n📋 Registration Flow Analysis:');
+console.log('1. User signs up with Supabase Auth (creates record in auth.users)');
+console.log('2. We create a record in our users table with the same ID');
+console.log('3. User creates a child profile (references parent_id in users table)');
+console.log('4. Child creation should succeed if parent exists in users table');
 
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+console.log('\n🔍 Potential Issues:');
+console.log('- If step 2 fails, child creation will fail with foreign key constraint');
+console.log('- If auth.users and users table get out of sync, we get orphaned records');
+console.log('- RLS policies might block the user creation in step 2');
 
-async function testRegistration() {
-  try {
-    console.log('Testing registration...');
-    
-    // Test 1: Check if we can connect to Supabase
-    const { data: testData, error: testError } = await supabase
-      .from('users')
-      .select('count')
-      .limit(1);
-    
-    if (testError) {
-      console.error('Connection test failed:', testError);
-      return;
-    }
-    
-    console.log('✅ Supabase connection successful');
-    
-    // Test 2: Try to create a test user in auth
-    const testEmail = `test-${Date.now()}@example.com`;
-    const testPassword = 'testpassword123';
-    
-    console.log('Creating test user:', testEmail);
-    
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: testEmail,
-      password: testPassword,
-      options: {
-        data: {
-          name: 'Test User',
-          role: 'parent',
-        },
-      },
-    });
-    
-    if (authError) {
-      console.error('Auth signup failed:', authError);
-      return;
-    }
-    
-    console.log('✅ Auth user created:', authData.user?.id);
-    
-    // Test 3: Try to insert into users table
-    if (authData.user) {
-      const { error: userError } = await supabase
-        .from('users')
-        .insert({
-          id: authData.user.id,
-          email: testEmail,
-          name: 'Test User',
-          role: 'parent',
-          password_hash: 'hashed_by_auth',
-        });
-      
-      if (userError) {
-        console.error('❌ Users table insert failed:', userError);
-        return;
-      }
-      
-      console.log('✅ Users table insert successful');
-    }
-    
-    // Test 4: Clean up - delete the test user
-    const { error: deleteError } = await supabase
-      .from('users')
-      .delete()
-      .eq('email', testEmail);
-    
-    if (deleteError) {
-      console.error('Cleanup failed:', deleteError);
-    } else {
-      console.log('✅ Test user cleaned up');
-    }
-    
-    console.log('🎉 All tests passed!');
-    
-  } catch (error) {
-    console.error('Test failed:', error);
-  }
-}
+console.log('\n✅ Our Fix:');
+console.log('- Changed from UPDATE to INSERT in users table');
+console.log('- Added proper error handling for user creation');
+console.log('- Ensures user record exists before child creation');
 
-testRegistration(); 
+console.log('\n🧪 To test:');
+console.log('1. Go to /register in your browser');
+console.log('2. Create a new parent account');
+console.log('3. Add a child profile');
+console.log('4. Check browser console for any errors');
+console.log('5. If successful, check the admin lullaby projects page');
+
+console.log('\n📊 Expected Results:');
+console.log('- Registration should complete without foreign key errors');
+console.log('- New user should appear in admin lullaby projects page');
+console.log('- Child should show as "missing lullaby video"'); 

@@ -131,7 +131,11 @@ export default function PromptGeneratorPage() {
       return [
         { value: 'left_safe', label: 'Left Safe (Right Side Character)' },
         { value: 'right_safe', label: 'Right Safe (Left Side Character)' },
-        { value: 'center_safe', label: 'Center Safe (Bottom Character)' }
+        { value: 'center_safe', label: 'Center Safe (Bottom Character)' },
+        { value: 'intro_safe', label: 'Intro Safe (Opening Sequence)' },
+        { value: 'outro_safe', label: 'Outro Safe (Closing Sequence)' },
+        { value: 'all_ok', label: 'All OK (No Restrictions)' },
+        { value: 'not_applicable', label: 'Not Applicable' }
       ];
     }
   };
@@ -278,7 +282,7 @@ export default function PromptGeneratorPage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Safe Zones</label>
                 <div className="flex flex-wrap gap-4">
-                  {['left_safe', 'right_safe', 'center_safe', 'frame', 'slideshow'].map(zone => (
+                  {['left_safe', 'right_safe', 'center_safe', 'intro_safe', 'outro_safe', 'all_ok', 'not_applicable', 'frame', 'slideshow'].map(zone => (
                     <label key={zone} className="flex items-center space-x-2">
                       <input
                         type="checkbox"

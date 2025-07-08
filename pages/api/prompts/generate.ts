@@ -38,7 +38,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // Validate safe zones
-    const validSafeZones = ['left_safe', 'right_safe', 'center_safe', 'frame', 'slideshow'];
+    const validSafeZones = ['left_safe', 'right_safe', 'center_safe', 'intro_safe', 'outro_safe', 'all_ok', 'not_applicable', 'frame', 'slideshow'];
     const selectedSafeZones = Array.isArray(safeZones) ? safeZones.filter((z) => validSafeZones.includes(z)) : [safeZones];
     if (selectedSafeZones.length === 0) {
       return res.status(400).json({ error: 'At least one valid safe zone must be selected.' });

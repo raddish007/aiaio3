@@ -11,7 +11,7 @@ export interface PromptContext {
   ageRange: string;
   template: 'lullaby' | 'name-video';
   personalization?: 'general' | 'personalized';
-  safeZone?: 'left_safe' | 'right_safe' | 'center_safe' | 'frame' | 'slideshow';
+  safeZone?: 'left_safe' | 'right_safe' | 'center_safe' | 'intro_safe' | 'outro_safe' | 'all_ok' | 'not_applicable' | 'frame' | 'slideshow';
   aspectRatio?: '16:9' | '9:16';
   artStyle?: string;
   promptCount?: number;

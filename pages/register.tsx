@@ -15,6 +15,18 @@ export default function Register() {
   const [step, setStep] = useState<'parent' | 'child'>('parent');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Check authentication state when component loads
+  React.useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      console.log('Current auth state:', user ? 'Authenticated' : 'Not authenticated');
+      if (user) {
+        console.log('User ID:', user.id);
+      }
+    };
+    checkAuth();
+  }, []);
   
   // Parent form state
   const [parentData, setParentData] = useState({
@@ -54,7 +66,7 @@ export default function Register() {
     }
 
     try {
-      // Create parent account
+      // Create parent account with Supabase Auth
       const { data, error } = await supabase.auth.signUp({
         email: parentData.email,
         password: parentData.password,
@@ -68,22 +80,56 @@ export default function Register() {
 
       if (error) throw error;
 
-      // Create user record in our users table
+      // The trigger will automatically create the user record
+      // No need to manually insert into users table
+      
       if (data.user) {
-        const { error: userError } = await supabase
+        console.log('User created successfully:', data.user.id);
+        
+        // Create the user record in our users table
+        const { error: insertError } = await supabase
           .from('users')
           .insert({
             id: data.user.id,
             email: parentData.email,
             name: parentData.name,
-            role: 'parent',
-            password_hash: 'hashed_by_auth', // Supabase handles this
+            role: 'parent'
           });
 
-        if (userError) throw userError;
-      }
+        if (insertError) {
+          console.error('Failed to create user record:', insertError);
+          throw insertError;
+        }
 
-      setStep('child');
+        // Handle authentication
+        if (data.session) {
+          console.log('User session established');
+        } else {
+          console.log('No session returned, signing in manually...');
+          // Manually sign in the user
+          const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+            email: parentData.email,
+            password: parentData.password,
+          });
+          
+          if (signInError) {
+            console.error('Sign in error:', signInError);
+            throw signInError;
+          }
+          
+          console.log('User signed in successfully');
+        }
+        
+        setStep('child');
+        
+        // Double-check authentication after step change
+        setTimeout(async () => {
+          const { data: { user } } = await supabase.auth.getUser();
+          console.log('Auth check after step change:', user ? 'Authenticated' : 'Not authenticated');
+        }, 100);
+      } else {
+        throw new Error('User creation failed');
+      }
     } catch (err: any) {
       setError(err.message || 'Registration failed');
     } finally {
@@ -97,23 +143,34 @@ export default function Register() {
     setError('');
 
     try {
+      console.log('Checking user authentication...');
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) {
+        console.error('No authenticated user found');
         throw new Error('User not authenticated');
       }
 
+      console.log('User authenticated:', user.id);
+      console.log('Creating child profile for:', childData);
+
       // Create child profile
-      const { error: childError } = await supabase
+      const { data: createdChild, error: childError } = await supabase
         .from('children')
         .insert({
           parent_id: user.id,
           name: childData.name,
           age: childData.age,
           primary_interest: childData.primaryInterest,
-        });
+        })
+        .select();
 
-      if (childError) throw childError;
+      if (childError) {
+        console.error('Child creation error:', childError);
+        throw childError;
+      }
+
+      console.log('Child profile created successfully:', createdChild);
 
       // Trigger initial content generation (we'll implement this later)
       // await triggerInitialContentGeneration(user.id, childData);
@@ -121,6 +178,7 @@ export default function Register() {
       // Redirect to dashboard
       router.push('/dashboard');
     } catch (err: any) {
+      console.error('Error in handleChildSubmit:', err);
       setError(err.message || 'Failed to create child profile');
     } finally {
       setLoading(false);

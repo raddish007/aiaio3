@@ -430,7 +430,7 @@ export default function ContentCreation() {
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Safe Zones</label>
                     <div className="flex flex-wrap gap-4">
-                      {['left_safe', 'right_safe', 'center_safe', 'frame', 'slideshow'].map(zone => (
+                      {['left_safe', 'right_safe', 'center_safe', 'intro_safe', 'outro_safe', 'all_ok', 'not_applicable', 'frame', 'slideshow'].map(zone => (
                         <label key={zone} className="flex items-center space-x-2">
                           <input
                             type="checkbox"

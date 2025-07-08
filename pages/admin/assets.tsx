@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '@/lib/supabase';
+import AudioPlayer from '@/components/admin/AudioPlayer';
 
 interface Asset {
   id: string;
@@ -23,8 +24,15 @@ interface Asset {
     script?: string; // Added script for audio content
     voice?: string; // Added voice for audio content
     speed?: number; // Added speed for audio content
+    audio_class?: string; // Added audio_class for audio assets
+    template_context?: {
+      template_type?: string;
+      asset_purpose?: string;
+      child_name?: string;
+      template_specific?: boolean;
+    };
     review?: {
-      safe_zone?: 'left_safe' | 'right_safe' | 'center_safe' | 'all_ok';
+      safe_zone?: ('left_safe' | 'right_safe' | 'center_safe' | 'intro_safe' | 'outro_safe' | 'all_ok' | 'not_applicable')[];
       approval_notes?: string;
       rejection_reason?: string;
       reviewed_at?: string;
@@ -58,7 +66,7 @@ export default function AssetManagement() {
     volume: 1.0
   });
   const [reviewForm, setReviewForm] = useState({
-    safe_zone: '' as 'left_safe' | 'right_safe' | 'center_safe' | 'all_ok' | '',
+    safe_zone: [] as ('left_safe' | 'right_safe' | 'center_safe' | 'intro_safe' | 'outro_safe' | 'all_ok' | 'not_applicable')[],
     approval_notes: '',
     rejection_reason: ''
   });
@@ -70,7 +78,8 @@ export default function AssetManagement() {
     personalization: 'general' as 'general' | 'personalized',
     child_name: '',
     template: '' as 'lullaby' | 'name-video' | 'letter-hunt' | 'general' | '',
-    volume: 1.0
+    volume: 1.0,
+    audio_class: ''
   });
   const [bulkUploadForm, setBulkUploadForm] = useState({
     description: '',
@@ -262,6 +271,7 @@ export default function AssetManagement() {
           child_name: editForm.child_name,
           template: editForm.template,
           volume: (selectedAsset && isAudioOrVideo(selectedAsset.type)) ? editForm.volume : undefined,
+          audio_class: (selectedAsset && selectedAsset.type === 'audio') ? editForm.audio_class : undefined,
           review: {
             safe_zone: reviewForm.safe_zone,
             approval_notes: reviewForm.approval_notes,
@@ -294,6 +304,7 @@ export default function AssetManagement() {
           child_name: editForm.child_name,
           template: editForm.template,
           volume: (selectedAsset && isAudioOrVideo(selectedAsset.type)) ? editForm.volume : undefined,
+          audio_class: (selectedAsset && selectedAsset.type === 'audio') ? editForm.audio_class : undefined,
           review: {
             safe_zone: reviewForm.safe_zone,
             rejection_reason: reviewForm.rejection_reason,
@@ -368,7 +379,13 @@ export default function AssetManagement() {
       personalization: asset.metadata?.personalization || 'general',
       child_name: asset.metadata?.child_name || '',
       template: asset.metadata?.template || '',
-      volume: asset.metadata?.volume ?? 1.0
+      volume: asset.metadata?.volume ?? 1.0,
+      audio_class: asset.metadata?.audio_class || ''
+    });
+    setReviewForm({
+      safe_zone: asset.metadata?.review?.safe_zone || [],
+      approval_notes: asset.metadata?.review?.approval_notes || '',
+      rejection_reason: asset.metadata?.review?.rejection_reason || ''
     });
   };
 
@@ -416,7 +433,7 @@ export default function AssetManagement() {
     if (nextAsset) {
       setSelectedAsset(nextAsset);
       initializeEditForm(nextAsset);
-      setReviewForm({ safe_zone: '', approval_notes: '', rejection_reason: '' });
+      setReviewForm({ safe_zone: [], approval_notes: '', rejection_reason: '' });
       // Scroll to top of modal
       setTimeout(() => {
         const modal = document.querySelector('.modal-content');
@@ -428,8 +445,8 @@ export default function AssetManagement() {
       // No more assets to review, close modal
       setShowModal(false);
       setSelectedAsset(null);
-      setReviewForm({ safe_zone: '', approval_notes: '', rejection_reason: '' });
-      setEditForm({ theme: '', description: '', tags: '', prompt: '', personalization: 'general', child_name: '', template: '', volume: 1.0 });
+      setReviewForm({ safe_zone: [], approval_notes: '', rejection_reason: '' });
+      setEditForm({ theme: '', description: '', tags: '', prompt: '', personalization: 'general', child_name: '', template: '', volume: 1.0, audio_class: '' });
     }
   };
 
@@ -448,7 +465,7 @@ export default function AssetManagement() {
         case 'a':
         case 'A':
           event.preventDefault();
-          if (reviewForm.safe_zone && editForm.theme.trim()) {
+          if (reviewForm.safe_zone.length > 0 && editForm.theme.trim()) {
             handleApproveWithReview(selectedAsset.id);
           }
           break;
@@ -907,46 +924,11 @@ export default function AssetManagement() {
                             </div>
                           )}
                           {asset.type === 'audio' && (
-                            <div className="flex flex-col items-center justify-center h-full p-4">
-                              <div className="text-2xl mb-2">🎵</div>
-                              <div className="text-xs text-center mb-3 text-gray-500">Audio File</div>
-                              
-                              {/* Debug info - remove this later */}
-                              <div className="text-xs text-gray-400 mb-2">
-                                Debug: {asset.metadata?.audio_data ? 'Has audio_data' : 'No audio_data'} | 
-                                {asset.file_url ? 'Has file_url' : 'No file_url'}
-                              </div>
-                              
-                              {asset.metadata?.audio_data && (
-                                <audio 
-                                  controls 
-                                  className="w-full max-w-full"
-                                  preload="metadata"
-                                  data-asset-id={asset.id}
-                                >
-                                  <source src={asset.metadata.audio_data} type="audio/mpeg" />
-                                  <source src={asset.metadata.audio_data} type="audio/wav" />
-                                  Your browser does not support the audio element.
-                                </audio>
-                              )}
-                              {asset.file_url && !asset.metadata?.audio_data && (
-                                <audio 
-                                  controls 
-                                  className="w-full max-w-full"
-                                  preload="metadata"
-                                  data-asset-id={asset.id}
-                                >
-                                  <source src={asset.file_url} type="audio/mpeg" />
-                                  <source src={asset.file_url} type="audio/wav" />
-                                  Your browser does not support the audio element.
-                                </audio>
-                              )}
-                              {!asset.metadata?.audio_data && !asset.file_url && (
-                                <div className="text-xs text-red-500">
-                                  No audio source found
-                                </div>
-                              )}
-                            </div>
+                            <AudioPlayer 
+                              asset={asset} 
+                              className="w-full h-full flex items-center justify-center"
+                              showControls={true}
+                            />
                           )}
                           {asset.type === 'prompt' && (
                             <div className="flex flex-col items-center justify-center h-full text-gray-500">
@@ -1018,16 +1000,26 @@ export default function AssetManagement() {
 
                         {asset.metadata?.review && (
                           <div className="mb-2 space-y-1">
-                            {asset.metadata.review.safe_zone && (
-                              <span className={`px-2 py-1 text-xs rounded-full ${
-                                asset.metadata.review.safe_zone === 'all_ok' 
-                                  ? 'bg-green-100 text-green-800'
-                                  : asset.metadata.review.safe_zone === 'center_safe'
-                                  ? 'bg-yellow-100 text-yellow-800'
-                                  : 'bg-orange-100 text-orange-800'
-                              }`}>
-                                {asset.metadata.review.safe_zone.replace('_', ' ').toUpperCase()}
-                              </span>
+                            {asset.metadata.review.safe_zone && Array.isArray(asset.metadata.review.safe_zone) && asset.metadata.review.safe_zone.length > 0 && (
+                              <div className="flex flex-wrap gap-1">
+                                {asset.metadata.review.safe_zone.map((zone, index) => (
+                                  <span key={index} className={`px-2 py-1 text-xs rounded-full ${
+                                    zone === 'all_ok' 
+                                      ? 'bg-green-100 text-green-800'
+                                      : zone === 'center_safe'
+                                      ? 'bg-yellow-100 text-yellow-800'
+                                      : zone === 'intro_safe'
+                                      ? 'bg-blue-100 text-blue-800'
+                                      : zone === 'outro_safe'
+                                      ? 'bg-purple-100 text-purple-800'
+                                      : zone === 'not_applicable'
+                                      ? 'bg-gray-100 text-gray-800'
+                                      : 'bg-orange-100 text-orange-800'
+                                  }`}>
+                                    {zone.replace('_', ' ').toUpperCase()}
+                                  </span>
+                                ))}
+                              </div>
                             )}
                             {asset.metadata.review.reviewed_at && (
                               <div className="text-xs text-gray-500">
@@ -1394,20 +1386,11 @@ export default function AssetManagement() {
                       </video>
                     )}
                     {selectedAsset.type === 'audio' && (
-                      <div className="flex flex-col items-center space-y-2">
-                        <div className="text-lg font-medium text-gray-700">Audio Preview</div>
-                        <audio 
-                          controls
-                          className="w-full max-w-md"
-                          preload="metadata"
-                          ref={el => { if (el) el.volume = editForm.volume ?? 1.0; }}
-                        >
-                          <source src={selectedAsset.file_url} type="audio/mpeg" />
-                          <source src={selectedAsset.file_url} type="audio/ogg" />
-                          <source src={selectedAsset.file_url} type="audio/wav" />
-                          Your browser does not support the audio tag.
-                        </audio>
-                      </div>
+                      <AudioPlayer 
+                        asset={selectedAsset} 
+                        className="w-full"
+                        showControls={true}
+                      />
                     )}
                     {selectedAsset.type === 'prompt' && (
                       <div className="bg-white border border-gray-300 rounded p-3 max-h-64 overflow-y-auto">
@@ -1516,6 +1499,54 @@ export default function AssetManagement() {
                   </select>
                 </div>
 
+                {/* Template Context Display */}
+                {selectedAsset.metadata?.template_context && (
+                  <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3">
+                    <h4 className="font-medium text-indigo-900 mb-2">🎬 Template Context</h4>
+                    <div className="space-y-1 text-sm">
+                      <div>
+                        <span className="font-medium text-indigo-700">Template Type:</span>
+                        <span className="ml-2 text-indigo-600">{selectedAsset.metadata.template_context.template_type}</span>
+                      </div>
+                      <div>
+                        <span className="font-medium text-indigo-700">Asset Purpose:</span>
+                        <span className="ml-2 text-indigo-600">{selectedAsset.metadata.template_context.asset_purpose}</span>
+                      </div>
+                      {selectedAsset.metadata.template_context.child_name && (
+                        <div>
+                          <span className="font-medium text-indigo-700">Child Name:</span>
+                          <span className="ml-2 text-indigo-600">{selectedAsset.metadata.template_context.child_name}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Audio Class Assignment (for audio assets) */}
+                {selectedAsset.type === 'audio' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Audio Class</label>
+                    <select
+                      value={selectedAsset.metadata?.audio_class || ''}
+                      onChange={(e) => {
+                        const audioClass = e.target.value;
+                        setEditForm(prev => ({ 
+                          ...prev, 
+                          audio_class: audioClass || undefined 
+                        }));
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Select audio class...</option>
+                      <option value="background_music">Background Music</option>
+                      <option value="intro_audio">Intro Audio</option>
+                      <option value="outro_audio">Outro Audio</option>
+                      <option value="voice_narration">Voice Narration</option>
+                      <option value="sound_effect">Sound Effect</option>
+                    </select>
+                  </div>
+                )}
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Tags</label>
                   <input
@@ -1543,15 +1574,29 @@ export default function AssetManagement() {
                     <div className="space-y-2">
                       <div>
                         <span className="text-sm font-medium text-gray-700">Safe Zone: </span>
-                        <span className={`px-2 py-1 text-xs rounded-full ${
-                          selectedAsset.metadata.review.safe_zone === 'all_ok' 
-                            ? 'bg-green-100 text-green-800'
-                            : selectedAsset.metadata.review.safe_zone === 'center_safe'
-                            ? 'bg-yellow-100 text-yellow-800'
-                            : 'bg-orange-100 text-orange-800'
-                        }`}>
-                          {selectedAsset.metadata.review.safe_zone?.replace('_', ' ').toUpperCase()}
-                        </span>
+                        {selectedAsset.metadata.review.safe_zone && selectedAsset.metadata.review.safe_zone.length > 0 ? (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {selectedAsset.metadata.review.safe_zone.map((zone, index) => (
+                              <span key={index} className={`px-2 py-1 text-xs rounded-full ${
+                                zone === 'all_ok' 
+                                  ? 'bg-green-100 text-green-800'
+                                  : zone === 'center_safe'
+                                  ? 'bg-yellow-100 text-yellow-800'
+                                  : zone === 'intro_safe'
+                                  ? 'bg-blue-100 text-blue-800'
+                                  : zone === 'outro_safe'
+                                  ? 'bg-purple-100 text-purple-800'
+                                  : zone === 'not_applicable'
+                                  ? 'bg-gray-100 text-gray-800'
+                                  : 'bg-orange-100 text-orange-800'
+                              }`}>
+                                {zone.replace('_', ' ').toUpperCase()}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-gray-500 text-sm">None selected</span>
+                        )}
                       </div>
                       {selectedAsset.metadata.review.approval_notes && (
                         <div>
@@ -1583,51 +1628,161 @@ export default function AssetManagement() {
 
               {/* Safe Zone Review */}
               <div className="border-t pt-4 mt-6">
-                <h4 className="font-medium text-gray-900 mb-3">Safe Zone Review</h4>
+                <h4 className="font-medium text-gray-900 mb-3">Safe Zone Review (Select all that apply)</h4>
                 <div className="space-y-2">
                   <label className="flex items-center">
                     <input
-                      type="radio"
-                      name="safe_zone"
+                      type="checkbox"
                       value="left_safe"
-                      checked={reviewForm.safe_zone === 'left_safe'}
-                      onChange={(e) => setReviewForm(prev => ({ ...prev, safe_zone: e.target.value as any }))}
+                      checked={reviewForm.safe_zone.includes('left_safe')}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setReviewForm(prev => ({ 
+                            ...prev, 
+                            safe_zone: [...prev.safe_zone, 'left_safe']
+                          }));
+                        } else {
+                          setReviewForm(prev => ({ 
+                            ...prev, 
+                            safe_zone: prev.safe_zone.filter(zone => zone !== 'left_safe')
+                          }));
+                        }
+                      }}
                       className="mr-2"
                     />
                     <span className="text-sm text-gray-700">Left Safe Zone</span>
                   </label>
                   <label className="flex items-center">
                     <input
-                      type="radio"
-                      name="safe_zone"
+                      type="checkbox"
                       value="right_safe"
-                      checked={reviewForm.safe_zone === 'right_safe'}
-                      onChange={(e) => setReviewForm(prev => ({ ...prev, safe_zone: e.target.value as any }))}
+                      checked={reviewForm.safe_zone.includes('right_safe')}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setReviewForm(prev => ({ 
+                            ...prev, 
+                            safe_zone: [...prev.safe_zone, 'right_safe']
+                          }));
+                        } else {
+                          setReviewForm(prev => ({ 
+                            ...prev, 
+                            safe_zone: prev.safe_zone.filter(zone => zone !== 'right_safe')
+                          }));
+                        }
+                      }}
                       className="mr-2"
                     />
                     <span className="text-sm text-gray-700">Right Safe Zone</span>
                   </label>
                   <label className="flex items-center">
                     <input
-                      type="radio"
-                      name="safe_zone"
+                      type="checkbox"
                       value="center_safe"
-                      checked={reviewForm.safe_zone === 'center_safe'}
-                      onChange={(e) => setReviewForm(prev => ({ ...prev, safe_zone: e.target.value as any }))}
+                      checked={reviewForm.safe_zone.includes('center_safe')}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setReviewForm(prev => ({ 
+                            ...prev, 
+                            safe_zone: [...prev.safe_zone, 'center_safe']
+                          }));
+                        } else {
+                          setReviewForm(prev => ({ 
+                            ...prev, 
+                            safe_zone: prev.safe_zone.filter(zone => zone !== 'center_safe')
+                          }));
+                        }
+                      }}
                       className="mr-2"
                     />
                     <span className="text-sm text-gray-700">Center Safe Zone</span>
                   </label>
                   <label className="flex items-center">
                     <input
-                      type="radio"
-                      name="safe_zone"
+                      type="checkbox"
+                      value="intro_safe"
+                      checked={reviewForm.safe_zone.includes('intro_safe')}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setReviewForm(prev => ({ 
+                            ...prev, 
+                            safe_zone: [...prev.safe_zone, 'intro_safe']
+                          }));
+                        } else {
+                          setReviewForm(prev => ({ 
+                            ...prev, 
+                            safe_zone: prev.safe_zone.filter(zone => zone !== 'intro_safe')
+                          }));
+                        }
+                      }}
+                      className="mr-2"
+                    />
+                    <span className="text-sm text-gray-700">Intro Safe Zone</span>
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      value="outro_safe"
+                      checked={reviewForm.safe_zone.includes('outro_safe')}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setReviewForm(prev => ({ 
+                            ...prev, 
+                            safe_zone: [...prev.safe_zone, 'outro_safe']
+                          }));
+                        } else {
+                          setReviewForm(prev => ({ 
+                            ...prev, 
+                            safe_zone: prev.safe_zone.filter(zone => zone !== 'outro_safe')
+                          }));
+                        }
+                      }}
+                      className="mr-2"
+                    />
+                    <span className="text-sm text-gray-700">Outro Safe Zone</span>
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
                       value="all_ok"
-                      checked={reviewForm.safe_zone === 'all_ok'}
-                      onChange={(e) => setReviewForm(prev => ({ ...prev, safe_zone: e.target.value as any }))}
+                      checked={reviewForm.safe_zone.includes('all_ok')}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setReviewForm(prev => ({ 
+                            ...prev, 
+                            safe_zone: [...prev.safe_zone, 'all_ok']
+                          }));
+                        } else {
+                          setReviewForm(prev => ({ 
+                            ...prev, 
+                            safe_zone: prev.safe_zone.filter(zone => zone !== 'all_ok')
+                          }));
+                        }
+                      }}
                       className="mr-2"
                     />
                     <span className="text-sm text-gray-700">All OK</span>
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      value="not_applicable"
+                      checked={reviewForm.safe_zone.includes('not_applicable')}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setReviewForm(prev => ({ 
+                            ...prev, 
+                            safe_zone: [...prev.safe_zone, 'not_applicable']
+                          }));
+                        } else {
+                          setReviewForm(prev => ({ 
+                            ...prev, 
+                            safe_zone: prev.safe_zone.filter(zone => zone !== 'not_applicable')
+                          }));
+                        }
+                      }}
+                      className="mr-2"
+                    />
+                    <span className="text-sm text-gray-700">Not Applicable</span>
                   </label>
                 </div>
               </div>
@@ -1659,7 +1814,7 @@ export default function AssetManagement() {
               <div className="flex space-x-3 mt-6">
                 <button
                   onClick={() => handleApproveWithReview(selectedAsset.id)}
-                  disabled={!reviewForm.safe_zone || !editForm.theme.trim()}
+                  disabled={reviewForm.safe_zone.length === 0 || !editForm.theme.trim()}
                   className="flex-1 bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 disabled:bg-gray-400"
                 >
                   Approve <span className="text-xs opacity-75">(A)</span>
@@ -1673,7 +1828,7 @@ export default function AssetManagement() {
                 <button
                   onClick={() => {
                     setShowModal(false);
-                    setReviewForm({ safe_zone: '', approval_notes: '', rejection_reason: '' });
+                    setReviewForm({ safe_zone: [], approval_notes: '', rejection_reason: '' });
                     setEditForm({ theme: '', description: '', tags: '', prompt: '', personalization: 'general', child_name: '', template: '', volume: 1.0 });
                   }}
                   className="flex-1 bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700"

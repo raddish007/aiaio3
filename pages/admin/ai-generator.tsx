@@ -29,7 +29,7 @@ export default function AIGenerator() {
   const [selectedPrompt, setSelectedPrompt] = useState<Prompt | null>(null);
   const [generationForm, setGenerationForm] = useState({
     style: '',
-    safeZone: 'center_safe' as 'left_safe' | 'right_safe' | 'center_safe' | 'frame' | 'slideshow',
+    safeZone: 'center_safe' as 'left_safe' | 'right_safe' | 'center_safe' | 'intro_safe' | 'outro_safe' | 'all_ok' | 'not_applicable' | 'frame' | 'slideshow',
   });
   const [generating, setGenerating] = useState(false);
   const [generationResult, setGenerationResult] = useState<any>(null);
@@ -712,6 +712,10 @@ export default function AIGenerator() {
                         <option value="center_safe">Center Safe</option>
                         <option value="left_safe">Left Safe</option>
                         <option value="right_safe">Right Safe</option>
+                        <option value="intro_safe">Intro Safe</option>
+                        <option value="outro_safe">Outro Safe</option>
+                        <option value="all_ok">All OK</option>
+                        <option value="not_applicable">Not Applicable</option>
                         <option value="frame">Frame</option>
                         <option value="slideshow">Slideshow</option>
                       </select>

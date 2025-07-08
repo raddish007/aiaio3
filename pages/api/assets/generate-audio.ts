@@ -1,5 +1,5 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { supabaseAdmin } from '@/lib/supabase';
+import { supabase, supabaseAdmin } from '@/lib/supabase';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
@@ -19,7 +19,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   });
 
   try {
-    const { script, voiceId, speed, style, projectId, isPersonalized } = req.body;
+    const { script, voiceId, speed, style, projectId, isPersonalized, templateContext } = req.body;
 
     if (!script || !voiceId) {
       return res.status(400).json({ error: 'Missing required fields: script, voiceId' });
@@ -74,17 +74,29 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const audioBuffer = await audioResponse.arrayBuffer();
     const audioData = Buffer.from(audioBuffer);
 
-    console.log('Audio generated successfully, creating asset record...');
+    // Upload audio to Supabase Storage using admin client
+    const fileExt = 'mp3';
+    const fileName = `elevenlabs_${Date.now()}_${voiceId}.${fileExt}`;
+    const filePath = `assets/audio/${fileName}`;
+    const { error: uploadError } = await supabaseAdmin.storage
+      .from('assets')
+      .upload(filePath, audioData, { contentType: 'audio/mpeg', upsert: true });
+    if (uploadError) {
+      console.error('Error uploading generated audio to storage:', uploadError);
+      return res.status(500).json({ error: 'Failed to upload audio to storage', details: uploadError.message });
+    }
+    // Get public URL
+    const { data: { publicUrl } } = supabaseAdmin.storage
+      .from('assets')
+      .getPublicUrl(filePath);
 
-    console.log('Audio generated successfully, creating asset record...');
-
-    // Create the asset record with audio data stored in metadata instead of file_url
+    // Create the asset record with file_url and audio_data in metadata
     const assetData = {
       type: 'audio',
       theme: isPersonalized ? `Personalized Audio - ${voiceId}` : `Custom Audio - ${voiceId}`,
       tags: [style, 'elevenlabs', voiceId, isPersonalized ? 'personalized' : null].filter(Boolean),
       status: 'pending',
-      file_url: '', // Leave empty since we store audio in metadata
+      file_url: publicUrl,
       metadata: {
         generated_at: new Date().toISOString(),
         generation_method: 'elevenlabs',
@@ -96,7 +108,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         is_personalized: isPersonalized || false,
         audio_size_bytes: audioData.length,
         script: script, // Store script for regeneration
-        audio_data: `data:audio/mpeg;base64,${audioData.toString('base64')}`, // Store audio in metadata
+        audio_data: `data:audio/mpeg;base64,${audioData.toString('base64')}`, // Store audio in metadata for legacy support
+        // Template-specific metadata
+        template_context: templateContext ? {
+          template_type: templateContext.templateType,
+          asset_purpose: templateContext.assetPurpose,
+          child_name: templateContext.childName,
+          template_specific: true
+        } : undefined
       },
     };
 

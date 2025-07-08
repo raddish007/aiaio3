@@ -9,6 +9,11 @@ interface AudioGenerationRequest {
   style?: string;
   projectId?: string;
   isPersonalized: boolean;
+  templateContext?: {
+    templateType?: string;
+    assetPurpose?: string;
+    childName?: string;
+  };
 }
 
 interface Child {
@@ -25,6 +30,18 @@ interface Project {
   status: string;
 }
 
+interface TemplateAudio {
+  id: string;
+  name: string;
+  template_type: string;
+  asset_purpose: string;
+  script: string;
+  voice_id: string;
+  speed: number;
+  description?: string;
+  tags?: string[];
+}
+
 export default function AudioGenerator() {
   const [audioForm, setAudioForm] = useState<AudioGenerationRequest>({
     script: '',
@@ -32,6 +49,7 @@ export default function AudioGenerator() {
     speed: 0.8, // Default speed for Murph
     style: '',
     isPersonalized: false,
+    templateContext: undefined,
   });
   
   const [generating, setGenerating] = useState(false);
@@ -48,6 +66,9 @@ export default function AudioGenerator() {
   const [checkingAssets, setCheckingAssets] = useState(false);
   const [assetCheckResult, setAssetCheckResult] = useState<any>(null);
   
+  // Template audio scripts
+  const [templateScripts, setTemplateScripts] = useState<TemplateAudio[]>([]);
+  
   const router = useRouter();
 
   useEffect(() => {
@@ -55,6 +76,7 @@ export default function AudioGenerator() {
     fetchChildren();
     fetchProjects();
     fetchGeneratedAudios();
+    fetchTemplateScripts();
   }, []);
 
   const checkAdminAccess = async () => {
@@ -118,6 +140,43 @@ export default function AudioGenerator() {
     }
   };
 
+  const fetchTemplateScripts = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('template_audio_scripts')
+        .select('*')
+        .order('name');
+
+      if (error) {
+        console.error('Error fetching template scripts:', error);
+      } else {
+        setTemplateScripts(data || []);
+      }
+    } catch (error) {
+      console.error('Error in fetchTemplateScripts:', error);
+    }
+  };
+
+  const handleTemplateScriptSelect = (scriptId: string) => {
+    const selectedScript = templateScripts.find(script => script.id === scriptId);
+    if (selectedScript) {
+      const childName = audioForm.templateContext?.childName || '[NAME]';
+      const personalizedScript = selectedScript.script.replace(/\[NAME\]/g, childName);
+      
+      setAudioForm(prev => ({
+        ...prev,
+        script: personalizedScript,
+        voiceId: selectedScript.voice_id,
+        speed: selectedScript.speed,
+        templateContext: {
+          templateType: selectedScript.template_type,
+          assetPurpose: selectedScript.asset_purpose,
+          childName: prev.templateContext?.childName || '[NAME]'
+        }
+      }));
+    }
+  };
+
   const handleGenerateAudio = async () => {
     if (!audioForm.script.trim()) {
       alert('Please enter a script');
@@ -136,6 +195,7 @@ export default function AudioGenerator() {
       style: audioForm.style,
       projectId: audioForm.projectId,
       isPersonalized: audioForm.isPersonalized,
+      templateContext: audioForm.templateContext,
     };
 
     try {
@@ -160,6 +220,7 @@ export default function AudioGenerator() {
           speed: 0.8,
           style: '',
           isPersonalized: false,
+          templateContext: undefined,
         });
         alert('Audio generated successfully!');
       } else {
@@ -284,6 +345,12 @@ export default function AudioGenerator() {
             <h1 className="text-2xl font-bold text-gray-900">Audio Generator</h1>
             <div className="flex space-x-3">
               <button
+                onClick={() => router.push('/admin/template-audio')}
+                className="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 text-sm"
+              >
+                Template Audio
+              </button>
+              <button
                 onClick={() => router.push('/admin/assets')}
                 className="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 text-sm"
               >
@@ -308,6 +375,88 @@ export default function AudioGenerator() {
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Generate Custom Audio</h2>
               
               <div className="space-y-4">
+                {/* Template Selection */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">🎬 Quick Template</label>
+                  <select
+                    value=""
+                    onChange={(e) => {
+                      const templateType = e.target.value;
+                      if (templateType) {
+                        const childName = audioForm.templateContext?.childName || '[NAME]';
+                        let script = '';
+                        let assetPurpose = '';
+                        
+                        switch (templateType) {
+                          case 'lullaby-intro':
+                            script = `It's time for bed, ${childName}! Let's get ready for a peaceful night's sleep.`;
+                            assetPurpose = 'intro_audio';
+                            break;
+                          case 'lullaby-outro':
+                            script = `Sweet dreams, ${childName}. Sleep well and have wonderful dreams.`;
+                            assetPurpose = 'outro_audio';
+                            break;
+                          case 'name-video-intro':
+                            script = `Hello ${childName}! Let's learn about your special name today.`;
+                            assetPurpose = 'intro_audio';
+                            break;
+                          case 'name-video-outro':
+                            script = `Great job, ${childName}! You're learning so much about your name.`;
+                            assetPurpose = 'outro_audio';
+                            break;
+                          case 'letter-hunt-intro':
+                            script = `Ready for an adventure, ${childName}? Let's go on a letter hunt!`;
+                            assetPurpose = 'intro_audio';
+                            break;
+                          case 'letter-hunt-outro':
+                            script = `Amazing work, ${childName}! You found all the letters!`;
+                            assetPurpose = 'outro_audio';
+                            break;
+                        }
+                        
+                        setAudioForm(prev => ({
+                          ...prev,
+                          script,
+                          templateContext: {
+                            templateType: templateType.split('-')[0],
+                            assetPurpose,
+                            childName: prev.templateContext?.childName || '[NAME]'
+                          }
+                        }));
+                      }
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Select a template to auto-fill...</option>
+                    <option value="lullaby-intro">Lullaby - Intro</option>
+                    <option value="lullaby-outro">Lullaby - Outro</option>
+                    <option value="name-video-intro">Name Video - Intro</option>
+                    <option value="name-video-outro">Name Video - Outro</option>
+                    <option value="letter-hunt-intro">Letter Hunt - Intro</option>
+                    <option value="letter-hunt-outro">Letter Hunt - Outro</option>
+                  </select>
+                </div>
+
+                {/* Template Scripts */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">🎬 Template Script</label>
+                  <select
+                    value=""
+                    onChange={(e) => handleTemplateScriptSelect(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Select a template script...</option>
+                    {templateScripts.map((script) => (
+                      <option key={script.id} value={script.id}>
+                        {script.name}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Select a template script to auto-fill the form with predefined content
+                  </p>
+                </div>
+
                 {/* Voice Selection */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">🎤 Voice</label>
@@ -420,6 +569,96 @@ export default function AudioGenerator() {
                   )}
                 </div>
 
+                {/* Template Context */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">🎬 Template Context (optional)</label>
+                  <div className="space-y-3 p-3 border border-gray-200 rounded-md bg-gray-50">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Template Type</label>
+                      <select
+                        value={audioForm.templateContext?.templateType || ''}
+                        onChange={(e) => setAudioForm(prev => ({ 
+                          ...prev, 
+                          templateContext: {
+                            ...prev.templateContext,
+                            templateType: e.target.value
+                          }
+                        }))}
+                        className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      >
+                        <option value="">No Template</option>
+                        <option value="lullaby">Lullaby Template</option>
+                        <option value="name-video">Name Video Template</option>
+                        <option value="letter-hunt">Letter Hunt Template</option>
+                      </select>
+                    </div>
+                    
+                    {audioForm.templateContext?.templateType && (
+                      <>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">Asset Purpose</label>
+                          <select
+                            value={audioForm.templateContext?.assetPurpose || ''}
+                            onChange={(e) => setAudioForm(prev => ({ 
+                              ...prev, 
+                              templateContext: {
+                                ...prev.templateContext,
+                                assetPurpose: e.target.value
+                              }
+                            }))}
+                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          >
+                            <option value="">Select Purpose</option>
+                            {audioForm.templateContext?.templateType === 'lullaby' && (
+                              <>
+                                <option value="intro_audio">Intro Audio</option>
+                                <option value="outro_audio">Outro Audio</option>
+                                <option value="background_music">Background Music</option>
+                              </>
+                            )}
+                            {audioForm.templateContext?.templateType === 'name-video' && (
+                              <>
+                                <option value="intro_audio">Intro Audio</option>
+                                <option value="outro_audio">Outro Audio</option>
+                                <option value="background_music">Background Music</option>
+                              </>
+                            )}
+                            {audioForm.templateContext?.templateType === 'letter-hunt' && (
+                              <>
+                                <option value="intro_audio">Intro Audio</option>
+                                <option value="outro_audio">Outro Audio</option>
+                                <option value="background_music">Background Music</option>
+                              </>
+                            )}
+                          </select>
+                        </div>
+                        
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">Child Name (optional)</label>
+                          <input
+                            type="text"
+                            placeholder="e.g., Nolan"
+                            value={audioForm.templateContext?.childName || ''}
+                            onChange={(e) => setAudioForm(prev => ({ 
+                              ...prev, 
+                              templateContext: {
+                                ...prev.templateContext,
+                                childName: e.target.value
+                              }
+                            }))}
+                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          />
+                        </div>
+                      </>
+                    )}
+                  </div>
+                  {audioForm.templateContext?.templateType && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      This audio will be tagged for the {audioForm.templateContext.templateType} template as {audioForm.templateContext.assetPurpose}.
+                    </p>
+                  )}
+                </div>
+
                 {/* Generate Button */}
                 <button
                   onClick={handleGenerateAudio}
@@ -487,6 +726,7 @@ export default function AudioGenerator() {
                                 speed: 0.8,
                                 style: '',
                                 isPersonalized: false,
+                                templateContext: undefined,
                               });
                             }}
                             className="text-green-600 hover:text-green-800 underline"

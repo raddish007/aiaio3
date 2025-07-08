@@ -3,6 +3,7 @@ import { NameVideo } from './compositions/NameVideo';
 import { BedtimeSong } from './compositions/BedtimeSong';
 import { LetterHunt } from './compositions/LetterHunt';
 import { EpisodeSegment } from './compositions/EpisodeSegment';
+import { LullabyFresh } from './compositions/LullabyFresh';
 
 export const RemotionRoot: React.FC = () => {
   return (
@@ -67,6 +68,27 @@ export const RemotionRoot: React.FC = () => {
           theme: 'halloween',
           age: 3,
           segmentTitle: 'Nolan\'s Dance Time',
+        }}
+      />
+
+      {/* Lullaby Fresh Composition */}
+      <Composition
+        id="LullabyFresh"
+        component={LullabyFresh}
+        durationInFrames={6390} // 1:46.5 at 60fps
+        fps={60}
+        width={1920}
+        height={1080}
+        defaultProps={{
+          childName: 'Nolan',
+          introAudioUrl: '',
+          outroAudioUrl: '',
+          lullabySongUrl: '',
+          lullabySongVolume: 0.8,
+          introImage: '',
+          outroImage: '',
+          slideshowImages: [],
+          debugMode: false,
         }}
       />
     </>

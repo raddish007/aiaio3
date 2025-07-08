@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { supabase } from '@/lib/supabase';
+import AddChildModal from '@/components/AddChildModal';
 
 interface Child {
   id: string;
@@ -22,9 +23,11 @@ interface Content {
 export default function Dashboard() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
+  const [userRole, setUserRole] = useState<string>('');
   const [children, setChildren] = useState<Child[]>([]);
   const [content, setContent] = useState<Content[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showAddChildModal, setShowAddChildModal] = useState(false);
 
   useEffect(() => {
     checkUser();
@@ -37,6 +40,18 @@ export default function Dashboard() {
       return;
     }
     setUser(user);
+    
+    // Fetch user role
+    const { data: userData } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+    
+    if (userData) {
+      setUserRole(userData.role);
+    }
+    
     fetchUserData(user.id);
   };
 
@@ -77,6 +92,17 @@ export default function Dashboard() {
     router.push('/');
   };
 
+  const handleAddChild = () => {
+    setShowAddChildModal(true);
+  };
+
+  const handleChildAdded = () => {
+    // Refresh the children data
+    if (user) {
+      fetchUserData(user.id);
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'ready':
@@ -102,6 +128,14 @@ export default function Dashboard() {
       nature: '🌿',
     };
     return emojis[interest] || '🎬';
+  };
+
+  const isAdmin = () => {
+    return ['content_manager', 'asset_creator', 'video_ops', 'admin'].includes(userRole);
+  };
+
+  const handleAdminClick = () => {
+    router.push('/admin');
   };
 
   if (loading) {
@@ -132,6 +166,14 @@ export default function Dashboard() {
               </div>
               <div className="flex items-center space-x-4">
                 <span className="text-gray-700">Welcome, {user?.user_metadata?.name || 'Parent'}!</span>
+                {isAdmin() && (
+                  <button
+                    onClick={handleAdminClick}
+                    className="text-gray-700 hover:text-primary-600"
+                  >
+                    Admin
+                  </button>
+                )}
                 <button
                   onClick={handleSignOut}
                   className="text-gray-700 hover:text-primary-600"
@@ -146,12 +188,21 @@ export default function Dashboard() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* Welcome Section */}
           <div className="bg-white rounded-xl shadow-sm p-6 mb-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">
-              Welcome to AIAIO! 🎉
-            </h2>
-            <p className="text-gray-600">
-              We're creating personalized videos for your children. Your first videos will be ready within 48 hours.
-            </p>
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                  Welcome to AIAIO! 🎉
+                </h2>
+                <p className="text-gray-600">
+                  We're creating personalized videos for your children. Your first videos will be ready within 48 hours.
+                </p>
+              </div>
+              {isAdmin() && (
+                <div className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
+                  Admin Access
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Children Section */}
@@ -163,7 +214,10 @@ export default function Dashboard() {
                 <div className="text-center py-8">
                   <div className="text-4xl mb-4">👶</div>
                   <p className="text-gray-600">No children added yet</p>
-                  <button className="btn-primary mt-4">
+                  <button 
+                    onClick={handleAddChild}
+                    className="btn-primary mt-4"
+                  >
                     Add Child
                   </button>
                 </div>
@@ -229,7 +283,10 @@ export default function Dashboard() {
           <div className="mt-8 bg-white rounded-xl shadow-sm p-6">
             <h3 className="text-xl font-semibold text-gray-900 mb-4">Quick Actions</h3>
             <div className="grid md:grid-cols-3 gap-4">
-              <button className="p-4 border border-gray-200 rounded-lg text-left hover:border-primary-300 hover:bg-primary-50 transition-colors">
+              <button 
+                onClick={handleAddChild}
+                className="p-4 border border-gray-200 rounded-lg text-left hover:border-primary-300 hover:bg-primary-50 transition-colors"
+              >
                 <div className="text-2xl mb-2">👶</div>
                 <h4 className="font-medium text-gray-900">Add Another Child</h4>
                 <p className="text-sm text-gray-600">Create profiles for siblings</p>
@@ -246,10 +303,28 @@ export default function Dashboard() {
                 <h4 className="font-medium text-gray-900">Contact Support</h4>
                 <p className="text-sm text-gray-600">Get help when you need it</p>
               </button>
+
+              {isAdmin() && (
+                <button 
+                  onClick={handleAdminClick}
+                  className="p-4 border border-gray-200 rounded-lg text-left hover:border-primary-300 hover:bg-primary-50 transition-colors"
+                >
+                  <div className="text-2xl mb-2">🔧</div>
+                  <h4 className="font-medium text-gray-900">Admin Panel</h4>
+                  <p className="text-sm text-gray-600">Manage content and assets</p>
+                </button>
+              )}
             </div>
           </div>
         </div>
       </div>
+
+      {/* Add Child Modal */}
+      <AddChildModal
+        isOpen={showAddChildModal}
+        onClose={() => setShowAddChildModal(false)}
+        onChildAdded={handleChildAdded}
+      />
     </>
   );
 } 
