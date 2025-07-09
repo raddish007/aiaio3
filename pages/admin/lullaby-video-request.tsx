@@ -25,6 +25,12 @@ export default function LullabyVideoRequest() {
     output_url: string;
     job_tracking_url: string;
   } | null>(null);
+  const [themeAssets, setThemeAssets] = useState<{
+    introImage?: { id: string; file_url: string; theme: string; safe_zone: string };
+    outroImage?: { id: string; file_url: string; theme: string; safe_zone: string };
+  } | null>(null);
+  const [assetLoading, setAssetLoading] = useState(false);
+  const [assetError, setAssetError] = useState<string | null>(null);
 
   // Helper function to get theme emoji
   const getThemeEmoji = (theme: string) => {
@@ -46,7 +52,122 @@ export default function LullabyVideoRequest() {
       'food': '🍕',
       'default': '🌟'
     };
-    return themeEmojis[theme] || themeEmojis.default;
+    return themeEmojis[theme.toLowerCase()] || themeEmojis['default'];
+  };
+
+  // Fetch theme-matching assets for the selected child
+  const fetchThemeAssets = async (childTheme: string) => {
+    setAssetLoading(true);
+    setAssetError(null);
+    setThemeAssets(null);
+
+    try {
+      console.log(`🔍 Fetching assets for theme: ${childTheme}`);
+
+      // Query for all approved images with matching theme
+      const { data: allImages, error: imagesError } = await supabase
+        .from('assets')
+        .select('id, file_url, theme, safe_zone, tags, metadata')
+        .eq('type', 'image')
+        .eq('status', 'approved')
+        .ilike('theme', `%${childTheme}%`)
+        .limit(10);
+
+      if (imagesError) {
+        console.error('Error fetching images:', imagesError);
+        throw new Error('Failed to fetch images');
+      }
+
+      console.log('Found all images:', allImages);
+
+      // Filter images based on metadata.review.safe_zone array
+      const availableImages = allImages || [];
+      
+      // Filter for intro and outro images based on metadata (no center_safe for lullaby videos)
+      const introImages = availableImages.filter(img => {
+        const safeZones = img.metadata?.review?.safe_zone || [];
+        return safeZones.includes('intro_safe');
+      });
+
+      const outroImages = availableImages.filter(img => {
+        const safeZones = img.metadata?.review?.safe_zone || [];
+        return safeZones.includes('outro_safe');
+      });
+
+      // Select different assets for intro and outro when possible
+      let introImage = introImages[0];
+      let outroImage = outroImages[0];
+
+      // If we have the same asset for both, try to find a different one for outro
+      if (introImage && outroImage && introImage.id === outroImage.id) {
+        // Look for a different asset that's safe for outro
+        const differentOutroImage = outroImages.find(img => img.id !== introImage.id);
+        if (differentOutroImage) {
+          outroImage = differentOutroImage;
+        }
+      }
+
+      // Filter safe zones to only show intro_safe and outro_safe for lullaby videos
+      const getLullabySafeZones = (safeZones: string[]) => {
+        return safeZones.filter(zone => zone === 'intro_safe' || zone === 'outro_safe');
+      };
+
+      console.log('Filtered assets:', {
+        totalImages: availableImages.length,
+        introImages: introImages.length,
+        outroImages: outroImages.length,
+        introImage: introImage ? { 
+          id: introImage.id, 
+          theme: introImage.theme, 
+          safe_zone: getLullabySafeZones(introImage.metadata?.review?.safe_zone || [])
+        } : null,
+        outroImage: outroImage ? { 
+          id: outroImage.id, 
+          theme: outroImage.theme, 
+          safe_zone: getLullabySafeZones(outroImage.metadata?.review?.safe_zone || [])
+        } : null
+      });
+
+      setThemeAssets({
+        introImage: introImage ? {
+          id: introImage.id,
+          file_url: introImage.file_url,
+          theme: introImage.theme,
+          safe_zone: introImage.metadata?.review?.safe_zone
+        } : undefined,
+        outroImage: outroImage ? {
+          id: outroImage.id,
+          file_url: outroImage.file_url,
+          theme: outroImage.theme,
+          safe_zone: outroImage.metadata?.review?.safe_zone
+        } : undefined
+      });
+
+      // Show warnings if assets are missing
+      if (!introImage && !outroImage) {
+        setAssetError(`No approved images found for theme "${childTheme}" with intro/outro safe zones.`);
+      } else if (!introImage) {
+        setAssetError(`No intro images found for theme "${childTheme}". Will use fallback.`);
+      } else if (!outroImage) {
+        setAssetError(`No outro images found for theme "${childTheme}". Will use fallback.`);
+      }
+
+    } catch (error) {
+      console.error('Error fetching theme assets:', error);
+      setAssetError(error instanceof Error ? error.message : 'Failed to fetch theme assets');
+    } finally {
+      setAssetLoading(false);
+    }
+  };
+
+  const handleChildSelect = (child: Child) => {
+    setSelectedChild(child);
+    setJobInfo(null);
+    setError(null);
+    setSuccess(null);
+    
+    // Fetch theme-matching assets for this child
+    fetchThemeAssets(child.primary_interest);
   };
 
   useEffect(() => {
@@ -127,8 +248,10 @@ export default function LullabyVideoRequest() {
           childAge: selectedChild.age,
           childTheme: selectedChild.primary_interest,
           childId: selectedChild.id,
-          submitted_by: (await supabase.auth.getUser()).data.user?.id
-        }),
+          submitted_by: '1cb80063-9b5f-4fff-84eb-309f12bd247d', // Use a valid UUID from the database
+          introImageUrl: themeAssets?.introImage?.file_url,
+          outroImageUrl: themeAssets?.outroImage?.file_url
+        })
       });
 
       if (!response.ok) {
@@ -193,7 +316,7 @@ export default function LullabyVideoRequest() {
             {children.map((child) => (
               <button
                 key={child.id}
-                onClick={() => setSelectedChild(child)}
+                onClick={() => handleChildSelect(child)}
                 className={`p-4 border-2 rounded-lg text-left transition-colors ${
                   selectedChild?.id === child.id
                     ? 'border-blue-500 bg-blue-50'
@@ -276,6 +399,38 @@ export default function LullabyVideoRequest() {
 
               <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                 <h4 className="font-medium text-blue-900 mb-2">JSON Payload Preview:</h4>
+                
+                {/* Asset Loading Indicator */}
+                {assetLoading && (
+                  <div className="mb-3 p-2 bg-blue-100 border border-blue-300 rounded text-blue-700 text-sm">
+                    🔍 Loading theme-matching assets...
+                  </div>
+                )}
+
+                {/* Asset Error/Warning */}
+                {assetError && (
+                  <div className="mb-3 p-2 bg-yellow-100 border border-yellow-300 rounded text-yellow-700 text-sm">
+                    ⚠️ {assetError}
+                  </div>
+                )}
+
+                {/* Asset Success */}
+                {themeAssets && !assetError && (
+                  <div className="mb-3 p-2 bg-green-100 border border-green-300 rounded text-green-700 text-sm">
+                    ✅ Found theme-matching assets for {selectedChild.primary_interest}
+                    {themeAssets.introImage && (
+                      <div className="mt-1 text-xs">
+                        Intro: {themeAssets.introImage.id} (safe_zone: {Array.isArray(themeAssets.introImage.safe_zone) ? themeAssets.introImage.safe_zone.join(', ') : themeAssets.introImage.safe_zone || 'null'})
+                      </div>
+                    )}
+                    {themeAssets.outroImage && (
+                      <div className="mt-1 text-xs">
+                        Outro: {themeAssets.outroImage.id} (safe_zone: {Array.isArray(themeAssets.outroImage.safe_zone) ? themeAssets.outroImage.safe_zone.join(', ') : themeAssets.outroImage.safe_zone || 'null'})
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <pre className="text-sm text-blue-800 bg-blue-100 p-3 rounded overflow-x-auto">
 {JSON.stringify({
   childName: selectedChild.name,
@@ -284,10 +439,22 @@ export default function LullabyVideoRequest() {
   childId: selectedChild.id,
   submitted_by: 'current_user_id',
   duration: dreamDripDuration || 'Loading...',
-  introImageUrl: 'https://etshvxrgbssginmzsczo.supabase.co/storage/v1/object/public/assets/assets/image/1751981193321_7ch9q7v0y.png',
-  outroImageUrl: 'https://etshvxrgbssginmzsczo.supabase.co/storage/v1/object/public/assets/assets/image/1751981193321_7ch9q7v0y.png',
+  introImageUrl: themeAssets?.introImage?.file_url || 'No intro image found',
+  outroImageUrl: themeAssets?.outroImage?.file_url || 'No outro image found',
   introAudioUrl: '',
-  debugMode: true
+  debugMode: true,
+  assetInfo: {
+    introImage: themeAssets?.introImage ? {
+      id: themeAssets.introImage.id,
+      theme: themeAssets.introImage.theme,
+      safe_zone: themeAssets.introImage.safe_zone
+    } : null,
+    outroImage: themeAssets?.outroImage ? {
+      id: themeAssets.outroImage.id,
+      theme: themeAssets.outroImage.theme,
+      safe_zone: themeAssets.outroImage.safe_zone
+    } : null
+  }
 }, null, 2)}
                 </pre>
                 {dreamDripDuration && (

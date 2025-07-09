@@ -156,7 +156,10 @@ export const Lullaby: React.FC<LullabyProps> = ({
               style={{ 
                 width: '100%', 
                 height: '100%', 
-                objectFit: 'cover' 
+                objectFit: 'cover',
+                position: 'absolute',
+                top: 0,
+                left: 0
               }} 
               alt="Intro background"
             />
@@ -237,7 +240,10 @@ export const Lullaby: React.FC<LullabyProps> = ({
               style={{ 
                 width: '100%', 
                 height: '100%', 
-                objectFit: 'cover' 
+                objectFit: 'cover',
+                position: 'absolute',
+                top: 0,
+                left: 0
               }} 
               alt="Outro background"
             />

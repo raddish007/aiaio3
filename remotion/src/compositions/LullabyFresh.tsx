@@ -263,7 +263,17 @@ const IntroOutroImage: React.FC<{
   return (
     <AbsoluteFill style={{ backgroundColor: 'black' }}>
       {image ? (
-        <Img src={image} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        <Img 
+          src={image} 
+          style={{ 
+            width: '100%', 
+            height: '100%', 
+            objectFit: 'cover',
+            position: 'absolute',
+            top: 0,
+            left: 0
+          }} 
+        />
       ) : (
         <div style={{
           width: '100%',
@@ -292,6 +302,7 @@ const IntroOutroImage: React.FC<{
         textShadow: '2px 2px 4px rgba(0,0,0,0.7)',
         wordBreak: 'break-word',
         whiteSpace: 'pre-wrap',
+        zIndex: 1,
       }}>
         {text}
       </AbsoluteFill>
@@ -414,6 +425,9 @@ const KenBurnsImage: React.FC<{
               width: '100%',
               height: '100%',
               objectFit: 'cover',
+              position: 'absolute',
+              top: 0,
+              left: 0,
               transform: `scale(${scale}) translateY(${translateY}px)`,
             }}
           />

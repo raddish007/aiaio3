@@ -8,13 +8,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const { childName, childAge, childTheme, childId, submitted_by } = req.body;
+    const { childName, childAge, childTheme, childId, submitted_by, introImageUrl, outroImageUrl } = req.body;
 
-    if (!childName || !childId || !submitted_by) {
+    if (!childName || !childId) {
       return res.status(400).json({ 
-        error: 'Missing required fields: childName, childId, submitted_by' 
+        error: 'Missing required fields: childName, childId' 
       });
     }
+
+    // Use provided submitted_by or fallback to a default admin user
+    const userId = submitted_by || '1cb80063-9b5f-4fff-84eb-309f12bd247d';
 
     // Check if supabaseAdmin is available
     if (!supabaseAdmin) {
@@ -46,7 +49,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .insert({
         template_id: 'ed70f4f7-88ff-4424-a866-3999afbb86e1', // Lullaby Video template
         status: 'pending',
-        submitted_by: submitted_by,
+        submitted_by: userId,
         assets: [],
         template_data: {
           composition: 'Lullaby',
@@ -78,8 +81,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       backgroundMusicUrl: '',
       backgroundMusicVolume: 0.8,
       duration: dreamDripDuration,
-      introImageUrl: 'https://etshvxrgbssginmzsczo.supabase.co/storage/v1/object/public/assets/assets/image/1751981193321_7ch9q7v0y.png',
-      outroImageUrl: 'https://etshvxrgbssginmzsczo.supabase.co/storage/v1/object/public/assets/assets/image/1751981193321_7ch9q7v0y.png',
+      introImageUrl: introImageUrl || 'https://etshvxrgbssginmzsczo.supabase.co/storage/v1/object/public/assets/assets/image/1751981193321_7ch9q7v0y.png',
+      outroImageUrl: outroImageUrl || 'https://etshvxrgbssginmzsczo.supabase.co/storage/v1/object/public/assets/assets/image/1751981193321_7ch9q7v0y.png',
       introAudioUrl: '', // Personalized audio for intro (empty for now)
       debugMode: true
     };
