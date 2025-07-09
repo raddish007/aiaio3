@@ -16,7 +16,8 @@ export interface LullabyProps {
   outroImageUrl?: string; // Background image for outro
   slideshowImageUrls?: string[]; // Slideshow images for main section
   introAudioUrl?: string; // Personalized audio for intro
-  debugMode?: boolean;
+  outroAudioUrl?: string; // Personalized audio for outro
+  // debugMode?: boolean; // Debug mode removed for clean production output
 }
 
 export const Lullaby: React.FC<LullabyProps> = ({
@@ -30,15 +31,18 @@ export const Lullaby: React.FC<LullabyProps> = ({
   outroImageUrl = '',
   slideshowImageUrls = [],
   introAudioUrl = '',
-  debugMode = false,
+  outroAudioUrl = '',
+  // debugMode = false, // Debug mode removed for clean production output
 }) => {
   const { fps, width } = useVideoConfig();
   
   // Calculate duration in frames based on audio length
   const durationInFrames = Math.round(duration * fps);
   
-  // Part 1: Intro (5 seconds)
-  const introDuration = 5 * fps; // 5 seconds
+  // Part 1: Intro (5 seconds for title, then 4 seconds for audio)
+  const titleDuration = 5 * fps; // 5 seconds for title display
+  const introAudioDuration = 4 * fps; // 4 seconds for intro audio
+  const introDuration = titleDuration + introAudioDuration; // 9 seconds total
   
   // Part 3: Outro (5 seconds)
   const outroDuration = 5 * fps; // 5 seconds
@@ -123,39 +127,47 @@ export const Lullaby: React.FC<LullabyProps> = ({
   // For remote, use backgroundMusicUrl if provided, otherwise use DreamDrip
   const musicSrc = backgroundMusicUrl || dreamDripUrl;
 
-  // Debug logging (only when debug mode is enabled)
-  if (debugMode) {
-    console.log('🌙 Lullaby Debug Info:', {
-      childName,
-      childAge,
-      childTheme,
-      hasBackgroundMusic: !!musicSrc,
-      backgroundMusicUrl: musicSrc,
-      backgroundMusicVolume,
-      duration,
-      durationInFrames,
-      introText,
-      introFontSize,
-      effectiveIntroTextLength,
-      outroText,
-      outroFontSize,
-      effectiveOutroTextLength,
-      hasIntroImage: !!introImageUrl,
-      introImageUrl,
-      hasOutroImage: !!outroImageUrl,
-      outroImageUrl,
-      slideshowImageCount: slideshowImageUrls.length,
-      maxImages,
-      imagesToUseCount: imagesToUse.length,
-      hasIntroAudio: !!introAudioUrl,
-      debugMode,
-      slideshowMath: {
-        mainContentDuration,
-        framesPerImageWithOverlap,
-        calculatedMaxImages: maxImages
-      }
-    });
-  }
+  // Debug logging removed for clean production output
+  // if (debugMode) {
+  //   console.log('🌙 Lullaby Debug Info:', {
+  //     childName,
+  //     childAge,
+  //     childTheme,
+  //     hasBackgroundMusic: !!musicSrc,
+  //     backgroundMusicUrl: musicSrc,
+  //     backgroundMusicVolume,
+  //     duration,
+  //     durationInFrames,
+  //     introText,
+  //     introFontSize,
+  //     effectiveIntroTextLength,
+  //     outroText,
+  //     outroFontSize,
+  //     effectiveOutroTextLength,
+  //     hasIntroImage: !!introImageUrl,
+  //     introImageUrl,
+  //     hasOutroImage: !!outroImageUrl,
+  //     outroImageUrl,
+  //     slideshowImageCount: slideshowImageUrls.length,
+  //     maxImages,
+  //     imagesToUseCount: imagesToUse.length,
+  //     hasIntroAudio: !!introAudioUrl,
+  //     hasOutroAudio: !!outroAudioUrl,
+  //     debugMode,
+  //     timing: {
+  //       titleDuration: titleDuration / fps,
+  //       introAudioDuration: introAudioDuration / fps,
+  //       introDuration: introDuration / fps,
+  //       mainContentDuration: mainContentDuration / fps,
+  //       outroDuration: outroDuration / fps
+  //     },
+  //     slideshowMath: {
+  //       mainContentDuration,
+  //       framesPerImageWithOverlap,
+  //       calculatedMaxImages: maxImages
+  //     }
+  //   });
+  // }
 
   return (
     <AbsoluteFill style={{ backgroundColor: 'black' }}>
@@ -168,30 +180,32 @@ export const Lullaby: React.FC<LullabyProps> = ({
         loop
       />
       
-      {/* Debug Timestamp - Always visible */}
-      <AbsoluteFill style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'flex-end',
-        paddingBottom: '50px',
-        pointerEvents: 'none',
-        zIndex: 1000,
-      }}>
-        <div style={{
-          backgroundColor: 'rgba(0, 0, 0, 0.8)',
-          color: 'white',
-          fontSize: 48,
-          fontFamily: 'monospace',
-          fontWeight: 'bold',
-          padding: '10px 20px',
-          borderRadius: '10px',
-          textShadow: '2px 2px 4px rgba(0,0,0,0.7)',
+      {/* Debug Timestamp removed for clean production output */}
+      {/* {debugMode && (
+        <AbsoluteFill style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'flex-end',
+          paddingBottom: '50px',
+          pointerEvents: 'none',
+          zIndex: 1000,
         }}>
-          {new Date().toLocaleTimeString()}
-        </div>
-      </AbsoluteFill>
+          <div style={{
+            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+            color: 'white',
+            fontSize: 48,
+            fontFamily: 'monospace',
+            fontWeight: 'bold',
+            padding: '10px 20px',
+            borderRadius: '10px',
+            textShadow: '2px 2px 4px rgba(0,0,0,0.7)',
+          }}>
+            {new Date().toLocaleTimeString()}
+          </div>
+        </AbsoluteFill>
+      )} */}
       
-      {/* Part 1: Intro (5 seconds) */}
+      {/* Part 1: Intro - Full intro period (0-9 seconds) */}
       <Sequence from={0} durationInFrames={introDuration}>
         <AbsoluteFill style={{ backgroundColor: 'black' }}>
           {/* Background Image */}
@@ -241,13 +255,15 @@ export const Lullaby: React.FC<LullabyProps> = ({
           }}>
             {introText}
           </AbsoluteFill>
-          
-          {/* Intro Audio */}
-          {introAudioUrl && (
-            <Audio src={introAudioUrl} volume={1.0} />
-          )}
         </AbsoluteFill>
       </Sequence>
+      
+      {/* Intro Audio - starts at 5 seconds, plays for 4 seconds */}
+      {introAudioUrl && (
+        <Sequence from={titleDuration} durationInFrames={introAudioDuration}>
+          <Audio src={introAudioUrl} volume={1.0} />
+        </Sequence>
+      )}
       
       {/* Part 2: Main Content (Slideshow) */}
       {imagesToUse.length > 0 && framesPerImage > 0 && (
@@ -256,13 +272,13 @@ export const Lullaby: React.FC<LullabyProps> = ({
             images={imagesToUse}
             secondsPerImage={secondsPerImage}
             crossfadeFrames={crossfadeFrames}
-            debugMode={debugMode}
+            // debugMode={debugMode} // Debug mode removed for clean production output
           />
         </Sequence>
       )}
       
-      {/* Part 3: Outro (5 seconds) */}
-      <Sequence from={introDuration + mainContentDuration} durationInFrames={outroDuration}>
+      {/* Part 3: Outro (5 seconds) - starts 1 second earlier */}
+      <Sequence from={introDuration + mainContentDuration - fps} durationInFrames={outroDuration}>
         <AbsoluteFill style={{ backgroundColor: 'black' }}>
           {/* Background Image */}
           {outroImageUrl ? (
@@ -313,14 +329,14 @@ export const Lullaby: React.FC<LullabyProps> = ({
           </AbsoluteFill>
           
           {/* Outro Audio */}
-          {introAudioUrl && (
-            <Audio src={introAudioUrl} volume={1.0} />
+          {outroAudioUrl && (
+            <Audio src={outroAudioUrl} volume={1.0} />
           )}
         </AbsoluteFill>
       </Sequence>
       
-      {/* Debug overlay */}
-      {debugMode && (
+      {/* Debug overlay removed for clean production output */}
+      {/* {debugMode && (
         <div style={{
           position: 'absolute',
           top: '10px',
@@ -343,7 +359,11 @@ export const Lullaby: React.FC<LullabyProps> = ({
           <br />
           Intro: {introText} ({Math.round(introFontSize)}px)
           <br />
+          Intro Timing: Image/Text 0-9s, Audio 5-9s
+          <br />
           Outro: {outroText} ({Math.round(outroFontSize)}px)
+          <br />
+          Outro Timing: Starts 1s early for smooth transition
           <br />
           Main Content: {mainContentDuration} frames
           <br />
@@ -356,8 +376,10 @@ export const Lullaby: React.FC<LullabyProps> = ({
           Intro Image: {introImageUrl ? '✅' : '❌'}
           <br />
           Intro Audio: {introAudioUrl ? '✅' : '❌'}
+          <br />
+          Outro Audio: {outroAudioUrl ? '✅' : '❌'}
         </div>
-      )}
+      )} */}
     </AbsoluteFill>
   );
 };
@@ -367,8 +389,8 @@ const Slideshow: React.FC<{
   images: string[]; 
   secondsPerImage: number; 
   crossfadeFrames: number;
-  debugMode?: boolean;
-}> = ({ images, secondsPerImage, crossfadeFrames, debugMode = false }) => {
+  // debugMode?: boolean; // Debug mode removed for clean production output
+}> = ({ images, secondsPerImage, crossfadeFrames /* debugMode = false */ }) => {
   const { fps } = useVideoConfig();
   const framesPerImage = fps * secondsPerImage;
 
@@ -380,7 +402,7 @@ const Slideshow: React.FC<{
             <KenBurnsImage 
               src={img} 
               durationInFrames={framesPerImage} 
-              debugMode={debugMode}
+              // debugMode={debugMode} // Debug mode removed for clean production output
               imageIndex={i}
             />
           </TransitionSeries.Sequence>
@@ -400,9 +422,9 @@ const Slideshow: React.FC<{
 const KenBurnsImage: React.FC<{ 
   src: string; 
   durationInFrames: number;
-  debugMode?: boolean;
+  // debugMode?: boolean; // Debug mode removed for clean production output
   imageIndex?: number;
-}> = ({ src, durationInFrames, debugMode = false, imageIndex = 0 }) => {
+}> = ({ src, durationInFrames /* debugMode = false */, imageIndex = 0 }) => {
   const frame = useCurrentFrame();
   const scale = interpolate(frame, [0, durationInFrames], [1, 1.1], { extrapolateRight: 'clamp' });
   const translateY = interpolate(frame, [0, durationInFrames], [0, -30], { extrapolateRight: 'clamp' });
@@ -419,8 +441,8 @@ const KenBurnsImage: React.FC<{
         }}
       />
       
-      {/* Debug overlay */}
-      {debugMode && (
+      {/* Debug overlay removed for clean production output */}
+      {/* {debugMode && (
         <div style={{
           position: 'absolute',
           top: '10px',
@@ -434,7 +456,7 @@ const KenBurnsImage: React.FC<{
           Slideshow {imageIndex + 1}: {src.split('/').pop()}
           {src ? ' ✅' : ' ❌'}
         </div>
-      )}
+      )} */}
     </AbsoluteFill>
   );
 }; 

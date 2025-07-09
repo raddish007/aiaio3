@@ -29,9 +29,12 @@ export default function LullabyVideoRequest() {
     introImage?: { id: string; file_url: string; theme: string; safe_zone: string };
     outroImage?: { id: string; file_url: string; theme: string; safe_zone: string };
     slideshowImages?: { id: string; file_url: string; theme: string; safe_zone: string }[];
+    introAudio?: { id: string; file_url: string; theme: string };
+    outroAudio?: { id: string; file_url: string; theme: string };
   } | null>(null);
   const [assetLoading, setAssetLoading] = useState(false);
   const [assetError, setAssetError] = useState<string | null>(null);
+  const [debugMode, setDebugMode] = useState(false);
 
   // Helper function to get theme emoji
   const getThemeEmoji = (theme: string) => {
@@ -57,13 +60,13 @@ export default function LullabyVideoRequest() {
   };
 
   // Fetch theme-matching assets for the selected child
-  const fetchThemeAssets = async (childTheme: string) => {
+  const fetchThemeAssets = async (childTheme: string, child: Child) => {
     setAssetLoading(true);
     setAssetError(null);
     setThemeAssets(null);
 
     try {
-      console.log(`🔍 Fetching assets for theme: ${childTheme}`);
+      console.log(`🔍 Fetching assets for theme: ${childTheme} for child: ${child.name}`);
 
       // Query for all approved images with matching theme
       const { data: allImages, error: imagesError } = await supabase
@@ -143,6 +146,135 @@ export default function LullabyVideoRequest() {
       const shuffledSlideshowImages = [...slideshowImages].sort(() => Math.random() - 0.5);
       const selectedSlideshowImages = shuffledSlideshowImages.slice(0, 23);
 
+      // Fetch personalized audio files for the child
+      console.log(`🎵 Fetching personalized audio for child: ${child.name}, theme: ${childTheme}`);
+      
+      // First, get all approved audio files to see what's available
+      const { data: allAudioFiles, error: allAudioError } = await supabase
+        .from('assets')
+        .select('id, file_url, theme, tags, metadata')
+        .eq('type', 'audio')
+        .eq('status', 'approved')
+        .limit(20);
+
+      if (allAudioError) {
+        console.error('Error fetching all audio files:', allAudioError);
+      }
+
+      console.log('All available audio files:', allAudioFiles);
+
+      // Filter for personalized audio based on child name
+      let personalizedIntroAudio = null;
+      let personalizedOutroAudio = null;
+
+      if (allAudioFiles && allAudioFiles.length > 0) {
+        // Look for audio files that might be personalized for this child
+        const childNameLower = child.name.toLowerCase();
+        
+                 // Check for exact name matches in metadata and audio_class
+         personalizedIntroAudio = allAudioFiles.find((audio: any) => {
+           const metadata = audio.metadata || {};
+           const hasChildName = metadata.child_name?.toLowerCase() === childNameLower;
+           const isIntro = metadata.audio_class === 'intro_audio';
+           return hasChildName && isIntro;
+         });
+
+         personalizedOutroAudio = allAudioFiles.find((audio: any) => {
+           const metadata = audio.metadata || {};
+           const hasChildName = metadata.child_name?.toLowerCase() === childNameLower;
+           const isOutro = metadata.audio_class === 'outro_audio';
+           return hasChildName && isOutro;
+         });
+
+        console.log('Personalized audio search results:', {
+          childName: childNameLower,
+          introAudio: personalizedIntroAudio,
+          outroAudio: personalizedOutroAudio
+        });
+      }
+
+      // Only use Nolan's audio if the child is actually Nolan
+      let nolanIntroAudio = null;
+      let nolanOutroAudio = null;
+      
+      if (child.name.toLowerCase() === 'nolan') {
+        const { data: nolanIntro, error: nolanIntroError } = await supabase
+          .from('assets')
+          .select('id, file_url, theme, tags, metadata')
+          .eq('id', '89f7a13a-b9bd-4e5e-88dc-547c685fb40d') // Nolan intro
+          .eq('type', 'audio')
+          .eq('status', 'approved')
+          .single();
+
+        const { data: nolanOutro, error: nolanOutroError } = await supabase
+          .from('assets')
+          .select('id, file_url, theme, tags, metadata')
+          .eq('id', 'b17f4202-7238-430e-aa4b-7ca4b433f53f') // Nolan outro
+          .eq('type', 'audio')
+          .eq('status', 'approved')
+          .single();
+
+        nolanIntroAudio = nolanIntro;
+        nolanOutroAudio = nolanOutro;
+
+        if (nolanIntroError) {
+          console.error('Error fetching Nolan intro audio:', nolanIntroError);
+        }
+        if (nolanOutroError) {
+          console.error('Error fetching Nolan outro audio:', nolanOutroError);
+        }
+      }
+
+      if (allAudioError) {
+        console.error('Error fetching all audio files:', allAudioError);
+      }
+
+      // Also query for theme-based audio files as fallback
+      const { data: themeAudioFiles, error: themeAudioError } = await supabase
+        .from('assets')
+        .select('id, file_url, theme, tags, metadata')
+        .eq('type', 'audio')
+        .eq('status', 'approved')
+        .ilike('theme', `%${childTheme}%`)
+        .limit(10);
+
+      if (themeAudioError) {
+        console.error('Error fetching theme audio files:', themeAudioError);
+      }
+
+      console.log('Found audio files:', {
+        childName: child.name,
+        allAudioCount: allAudioFiles?.length || 0,
+        personalizedIntro: personalizedIntroAudio,
+        personalizedOutro: personalizedOutroAudio,
+        nolanIntro: nolanIntroAudio,
+        nolanOutro: nolanOutroAudio,
+        themeAudio: themeAudioFiles
+      });
+
+      // Find intro and outro audio files
+      // Priority: 1. Personalized audio for the specific child, 2. Nolan's audio (if child is Nolan), 3. Theme-based audio
+      let introAudio: any = null;
+      let outroAudio: any = null;
+
+      // First, try personalized audio
+      if (personalizedIntroAudio) {
+        introAudio = personalizedIntroAudio;
+      } else if (nolanIntroAudio && child.name.toLowerCase() === 'nolan') {
+        // Only use Nolan's audio if the child is actually Nolan
+        introAudio = nolanIntroAudio;
+      }
+
+      if (personalizedOutroAudio) {
+        outroAudio = personalizedOutroAudio;
+      } else if (nolanOutroAudio && child.name.toLowerCase() === 'nolan') {
+        // Only use Nolan's audio if the child is actually Nolan
+        outroAudio = nolanOutroAudio;
+      }
+
+      // If we still don't have personalized audio, don't fall back to theme-based audio
+      // This ensures we only use audio that's specifically for the child
+
       // Filter safe zones to only show intro_safe and outro_safe for lullaby videos
       const getLullabySafeZones = (safeZones: string[]) => {
         return safeZones.filter(zone => zone === 'intro_safe' || zone === 'outro_safe');
@@ -154,6 +286,7 @@ export default function LullabyVideoRequest() {
         outroImages: outroImages.length,
         slideshowImages: slideshowImages.length,
         selectedSlideshowImages: selectedSlideshowImages.length,
+        audioFiles: (themeAudioFiles?.length || 0) + (nolanIntroAudio ? 1 : 0) + (nolanOutroAudio ? 1 : 0),
         slideshowSelection: {
           available: slideshowImages.length,
           selected: selectedSlideshowImages.length,
@@ -175,6 +308,16 @@ export default function LullabyVideoRequest() {
           id: outroImage.id, 
           theme: outroImage.theme, 
           safe_zone: getLullabySafeZones(outroImage.metadata?.review?.safe_zone || [])
+        } : null,
+        introAudio: introAudio ? {
+          id: introAudio.id,
+          theme: introAudio.theme,
+          file_url: introAudio.file_url
+        } : null,
+        outroAudio: outroAudio ? {
+          id: outroAudio.id,
+          theme: outroAudio.theme,
+          file_url: outroAudio.file_url
         } : null
       });
 
@@ -196,20 +339,48 @@ export default function LullabyVideoRequest() {
           file_url: img.file_url,
           theme: img.theme,
           safe_zone: img.metadata?.review?.safe_zone
-        })) : undefined
+        })) : undefined,
+        introAudio: introAudio ? {
+          id: introAudio.id,
+          file_url: introAudio.file_url,
+          theme: introAudio.theme
+        } : undefined,
+        outroAudio: outroAudio ? {
+          id: outroAudio.id,
+          file_url: outroAudio.file_url,
+          theme: outroAudio.theme
+        } : undefined
       });
 
       // Show warnings if assets are missing
+      let warnings = [];
+      
       if (!introImage && !outroImage && selectedSlideshowImages.length === 0) {
-        setAssetError(`No approved images found for theme "${childTheme}" with any safe zones.`);
-      } else if (!introImage) {
-        setAssetError(`No intro images found for theme "${childTheme}". Will use fallback.`);
-      } else if (!outroImage) {
-        setAssetError(`No outro images found for theme "${childTheme}". Will use fallback.`);
-      } else if (selectedSlideshowImages.length === 0) {
-        setAssetError(`No slideshow images found for theme "${childTheme}". Will use fallback.`);
-      } else if (selectedSlideshowImages.length < 23) {
-        setAssetError(`Only ${selectedSlideshowImages.length} slideshow images found for theme "${childTheme}" (need 23 for full slideshow). Images will repeat to fill duration.`);
+        warnings.push(`No approved images found for theme "${childTheme}" with any safe zones.`);
+      } else {
+        if (!introImage) {
+          warnings.push(`No intro images found for theme "${childTheme}". Will use fallback.`);
+        }
+        if (!outroImage) {
+          warnings.push(`No outro images found for theme "${childTheme}". Will use fallback.`);
+        }
+        if (selectedSlideshowImages.length === 0) {
+          warnings.push(`No slideshow images found for theme "${childTheme}". Will use fallback.`);
+        } else if (selectedSlideshowImages.length < 23) {
+          warnings.push(`Only ${selectedSlideshowImages.length} slideshow images found for theme "${childTheme}" (need 23 for full slideshow). Images will repeat to fill duration.`);
+        }
+      }
+      
+      // Audio requirements - personalized audio is mandatory
+      if (!introAudio) {
+        warnings.push(`❌ No personalized intro audio found for "${child.name}". Personalized intro audio is required.`);
+      }
+      if (!outroAudio) {
+        warnings.push(`❌ No personalized outro audio found for "${child.name}". Personalized outro audio is required.`);
+      }
+      
+      if (warnings.length > 0) {
+        setAssetError(warnings.join(' '));
       }
 
     } catch (error) {
@@ -227,7 +398,7 @@ export default function LullabyVideoRequest() {
     setSuccess(null);
     
     // Fetch theme-matching assets for this child
-    fetchThemeAssets(child.primary_interest);
+    fetchThemeAssets(child.primary_interest, child);
   };
 
   useEffect(() => {
@@ -292,6 +463,10 @@ export default function LullabyVideoRequest() {
 
   const submitLullabyVideo = async () => {
     if (!selectedChild) return;
+    if (assetError) {
+      setError('Cannot submit video: Missing required personalized audio files.');
+      return;
+    }
 
     setSubmittingVideo(true);
     setError(null);
@@ -311,7 +486,10 @@ export default function LullabyVideoRequest() {
           submitted_by: '1cb80063-9b5f-4fff-84eb-309f12bd247d', // Use a valid UUID from the database
           introImageUrl: themeAssets?.introImage?.file_url,
           outroImageUrl: themeAssets?.outroImage?.file_url,
-          slideshowImageUrls: themeAssets?.slideshowImages?.map(img => img.file_url) || []
+          slideshowImageUrls: themeAssets?.slideshowImages?.map(img => img.file_url) || [],
+          introAudioUrl: themeAssets?.introAudio?.file_url,
+          outroAudioUrl: themeAssets?.outroAudio?.file_url,
+          debugMode: debugMode
         })
       });
 
@@ -414,6 +592,24 @@ export default function LullabyVideoRequest() {
                 {selectedChild.primary_interest} theme
               </div>
             </div>
+            
+            {/* Debug Mode Checkbox - at the top so it affects asset loading */}
+            <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <label className="flex items-center space-x-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={debugMode}
+                  onChange={(e) => setDebugMode(e.target.checked)}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm font-medium text-yellow-800">
+                  🐛 Enable Debug Mode
+                </span>
+              </label>
+              <p className="text-xs text-yellow-700 mt-1 ml-6">
+                Shows debug information and timing details in the video overlay
+              </p>
+            </div>
 
             <div className="bg-gray-50 border border-gray-200 rounded-lg p-6">
               <h3 className="font-medium text-gray-900 mb-4">Data that will be sent to Lambda:</h3>
@@ -449,7 +645,15 @@ export default function LullabyVideoRequest() {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Intro Audio:</span>
-                    <span className="text-yellow-600">⚠️ Not yet implemented</span>
+                    <span className={themeAssets?.introAudio ? 'text-green-600' : 'text-yellow-600'}>
+                      {themeAssets?.introAudio ? '✅ Found' : '⚠️ Not found'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Outro Audio:</span>
+                    <span className={themeAssets?.outroAudio ? 'text-green-600' : 'text-yellow-600'}>
+                      {themeAssets?.outroAudio ? '✅ Found' : '⚠️ Not found'}
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Slideshow Images:</span>
@@ -496,6 +700,16 @@ export default function LullabyVideoRequest() {
                         Slideshow: {themeAssets.slideshowImages.length} images (IDs: {themeAssets.slideshowImages.map(img => img.id).join(', ')})
                       </div>
                     )}
+                    {themeAssets.introAudio && (
+                      <div className="mt-1 text-xs">
+                        Intro Audio: {themeAssets.introAudio.id} ({themeAssets.introAudio.theme})
+                      </div>
+                    )}
+                    {themeAssets.outroAudio && (
+                      <div className="mt-1 text-xs">
+                        Outro Audio: {themeAssets.outroAudio.id} ({themeAssets.outroAudio.theme})
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -510,8 +724,9 @@ export default function LullabyVideoRequest() {
   introImageUrl: themeAssets?.introImage?.file_url || 'No intro image found',
   outroImageUrl: themeAssets?.outroImage?.file_url || 'No outro image found',
   slideshowImageUrls: themeAssets?.slideshowImages?.map(img => img.file_url) || [],
-  introAudioUrl: '',
-  debugMode: true,
+  introAudioUrl: themeAssets?.introAudio?.file_url || '',
+  outroAudioUrl: themeAssets?.outroAudio?.file_url || '',
+  debugMode: debugMode,
   assetInfo: {
     introImage: themeAssets?.introImage ? {
       id: themeAssets.introImage.id,
@@ -636,16 +851,60 @@ export default function LullabyVideoRequest() {
                       </div>
                     )}
 
-                    {/* Audio Placeholder */}
+                    {/* Intro Audio */}
+                    {themeAssets.introAudio && (
+                      <div className="bg-white p-4 rounded-lg border border-gray-200">
+                        <h5 className="font-medium text-gray-900 mb-3 flex items-center">
+                          <span className="text-green-600 mr-2">🎤</span>
+                          Intro Audio
+                        </h5>
+                        <div className="flex items-start space-x-4">
+                          <div className="w-32 h-20 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                            <div className="text-3xl text-gray-400">🎵</div>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm text-gray-600">
+                              <div><strong>ID:</strong> {themeAssets.introAudio.id}</div>
+                              <div><strong>Theme:</strong> {themeAssets.introAudio.theme}</div>
+                              <div><strong>Type:</strong> Personalized intro for {selectedChild.name}</div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Outro Audio */}
+                    {themeAssets.outroAudio && (
+                      <div className="bg-white p-4 rounded-lg border border-gray-200">
+                        <h5 className="font-medium text-gray-900 mb-3 flex items-center">
+                          <span className="text-green-600 mr-2">🌙</span>
+                          Outro Audio
+                        </h5>
+                        <div className="flex items-start space-x-4">
+                          <div className="w-32 h-20 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                            <div className="text-3xl text-gray-400">🎵</div>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm text-gray-600">
+                              <div><strong>ID:</strong> {themeAssets.outroAudio.id}</div>
+                              <div><strong>Theme:</strong> {themeAssets.outroAudio.theme}</div>
+                              <div><strong>Type:</strong> Personalized outro for {selectedChild.name}</div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Background Music Info */}
                     <div className="bg-white p-4 rounded-lg border border-gray-200">
                       <h5 className="font-medium text-gray-900 mb-3 flex items-center">
-                        <span className="text-green-600 mr-2">🎵</span>
-                        Audio Assets
+                        <span className="text-blue-600 mr-2">🎼</span>
+                        Background Music
                       </h5>
-                      <div className="text-sm text-gray-500">
-                        <div className="mb-2">• Background Music: DreamDrip (Duration: {dreamDripDuration || 'Loading...'} seconds)</div>
-                        <div className="mb-2">• Intro Audio: <span className="text-yellow-600">⚠️ Not yet implemented</span></div>
-                        <div>• Outro Audio: <span className="text-yellow-600">⚠️ Not yet implemented</span></div>
+                      <div className="text-sm text-gray-600">
+                        <div><strong>Source:</strong> DreamDrip (Ambient lullaby music)</div>
+                        <div><strong>Duration:</strong> {dreamDripDuration || 'Loading...'} seconds</div>
+                        <div><strong>Volume:</strong> 80% (will be mixed with personalized audio)</div>
                       </div>
                     </div>
                   </div>
@@ -660,21 +919,46 @@ export default function LullabyVideoRequest() {
           <div className="bg-white rounded-lg shadow-sm p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Step 3: Generate Lullaby Video</h2>
             
+            {/* Audio Requirements Warning */}
+            {assetError && (
+              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+                <div className="flex items-start">
+                  <div className="flex-shrink-0">
+                    <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="ml-3">
+                    <h3 className="text-sm font-medium text-red-800">
+                      Personalized Audio Required
+                    </h3>
+                    <div className="mt-2 text-sm text-red-700">
+                      <p>This child requires personalized intro and outro audio files to generate a lullaby video.</p>
+                      <p className="mt-1 font-medium">Please ensure personalized audio files are available for {selectedChild.name} before proceeding.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            
             <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
               <p className="text-blue-800 mb-4">
-                Ready to generate {selectedChild.name}'s lullaby video with basic template data.
+                Ready to generate {selectedChild.name}'s personalized lullaby video with slideshow and audio!
                 <br />
                 <span className="text-sm text-blue-600">
-                  Note: This will render the basic template without personalized assets (background music, intro audio, etc.) 
-                  which will be added in future phases.
+                  This will create a complete lullaby video with personalized intro/outro audio, 
+                  theme-matching slideshow images, and ambient background music.
                 </span>
               </p>
+              
               <button
                 onClick={submitLullabyVideo}
-                disabled={submittingVideo}
+                disabled={submittingVideo || !!assetError}
                 className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {submittingVideo ? 'Submitting to Lambda...' : 'Generate Lullaby Video'}
+                {submittingVideo ? 'Submitting to Lambda...' : 
+                 assetError ? 'Cannot Submit - Missing Required Audio' : 
+                 'Generate Lullaby Video'}
               </button>
             </div>
           </div>
