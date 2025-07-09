@@ -356,19 +356,17 @@ export default function JobMonitoring() {
                       {job.status === 'failed' && (
                         <p className="text-red-600"><strong>Error:</strong> {job.error_message}</p>
                       )}
-                      {job.status === 'completed' && (
+                      {job.output_url && (
                         <div>
-                          <p className="text-green-600"><strong>Success!</strong> Video generated</p>
-                          {job.output_url && (
-                            <a 
-                              href={job.output_url} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="text-blue-600 hover:text-blue-800 text-sm underline"
-                            >
-                              View Video
-                            </a>
-                          )}
+                          <p className="text-green-600"><strong>Video Ready!</strong></p>
+                          <a 
+                            href={job.output_url} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:text-blue-800 text-sm underline"
+                          >
+                            View Video
+                          </a>
                         </div>
                       )}
                     </div>

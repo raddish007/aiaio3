@@ -113,6 +113,29 @@ export const RemotionRoot: React.FC = () => {
           backgroundMusicUrl: '',
           backgroundMusicVolume: 0.8,
           duration: 108, // DreamDrip audio duration (hardcoded for local preview)
+          introImageUrl: '', // Background image for intro (empty for now)
+          introAudioUrl: '', // Personalized audio for intro (empty for now)
+          debugMode: true, // Enable debug mode to see what's missing
+        }}
+      />
+
+      {/* Lullaby Christopher Composition - Test longer name */}
+      <Composition
+        id="Lullaby-Christopher"
+        component={Lullaby}
+        durationInFrames={6480} // 108 seconds at 60fps
+        fps={60}
+        width={1920}
+        height={1080}
+        defaultProps={{
+          childName: 'Christopher',
+          childAge: 5,
+          childTheme: 'space',
+          backgroundMusicUrl: '',
+          backgroundMusicVolume: 0.8,
+          duration: 108, // DreamDrip audio duration (hardcoded for local preview)
+          introImageUrl: '', // Background image for intro (empty for now)
+          introAudioUrl: '', // Personalized audio for intro (empty for now)
           debugMode: true, // Enable debug mode to see what's missing
         }}
       />

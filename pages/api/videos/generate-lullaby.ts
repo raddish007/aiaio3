@@ -85,7 +85,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const result = await renderMediaOnLambda({
         region: 'us-east-1',
         functionName: 'remotion-render-4-0-322-mem2048mb-disk2048mb-120sec',
-        serveUrl: 'https://remotionlambda-useast1-3pwoq46nsa.s3.us-east-1.amazonaws.com/sites/1csvolnaie/index.html',
+        serveUrl: 'https://remotionlambda-useast1-3pwoq46nsa.s3.us-east-1.amazonaws.com/sites/f5rflwily9/index.html',
         composition: 'Lullaby',
         inputProps,
         codec: 'h264',
