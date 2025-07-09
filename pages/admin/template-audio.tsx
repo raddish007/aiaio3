@@ -27,12 +27,15 @@ export default function TemplateAudioManagement() {
     name: '',
     template_type: '',
     asset_purpose: '',
+    custom_asset_purpose: '',
     script: '',
     voice_id: '248nvfaZe8BXhKntjmpp',
     speed: 0.8,
     description: '',
     tags: ''
   });
+
+  const [showCustomPurpose, setShowCustomPurpose] = useState(false);
 
   const router = useRouter();
 
@@ -84,6 +87,7 @@ export default function TemplateAudioManagement() {
       name: '',
       template_type: '',
       asset_purpose: '',
+      custom_asset_purpose: '',
       script: '',
       voice_id: '248nvfaZe8BXhKntjmpp',
       speed: 0.8,
@@ -99,6 +103,7 @@ export default function TemplateAudioManagement() {
       name: template.name,
       template_type: template.template_type,
       asset_purpose: template.asset_purpose,
+      custom_asset_purpose: template.asset_purpose, // Initialize custom_asset_purpose
       script: template.script,
       voice_id: template.voice_id,
       speed: template.speed,
@@ -109,7 +114,9 @@ export default function TemplateAudioManagement() {
   };
 
   const handleSaveTemplate = async () => {
-    if (!formData.name || !formData.template_type || !formData.asset_purpose || !formData.script) {
+    const finalAssetPurpose = formData.asset_purpose === 'custom' ? formData.custom_asset_purpose : formData.asset_purpose;
+    
+    if (!formData.name || !formData.template_type || !finalAssetPurpose || !formData.script) {
       alert('Please fill in all required fields');
       return;
     }
@@ -119,7 +126,7 @@ export default function TemplateAudioManagement() {
       const templateData = {
         name: formData.name,
         template_type: formData.template_type,
-        asset_purpose: formData.asset_purpose,
+        asset_purpose: finalAssetPurpose,
         script: formData.script,
         voice_id: formData.voice_id,
         speed: formData.speed,
@@ -386,9 +393,23 @@ export default function TemplateAudioManagement() {
                       <option value="background_music">Background Music</option>
                       <option value="voice_narration">Voice Narration</option>
                       <option value="sound_effect">Sound Effect</option>
+                      <option value="custom">New Asset Purpose</option>
                     </select>
                   </div>
                 </div>
+
+                {formData.asset_purpose === 'custom' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Custom Asset Purpose *</label>
+                    <input
+                      type="text"
+                      value={formData.custom_asset_purpose}
+                      onChange={(e) => setFormData(prev => ({ ...prev, custom_asset_purpose: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="e.g., Custom Background Music, Custom Sound Effect"
+                    />
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Script *</label>

@@ -3,13 +3,19 @@
 
 module.exports = {
   // The entry point for your Remotion project
-  entryPoint: "src/Root.tsx",
+  entryPoint: "src/index.ts",
   // The ID of the composition to render (update as needed)
   compositions: [
     "NameVideo",
     "BedtimeSong",
     "LetterHunt",
-    "EpisodeSegment"
+    "EpisodeSegment",
+    "TemplateVideo",
+    "SimpleTemplate",
+    "UniversalTemplate",
+    "HelloWorld",
+    "HelloWorldWithImage",
+    "Lullaby"
   ],
   // Optional: customize region, memory, timeout, etc.
   // region: "us-east-1",

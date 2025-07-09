@@ -1,5 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { supabase, supabaseAdmin } from '@/lib/supabase';
+import { extractAudioDuration } from '@/lib/asset-utils';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
@@ -86,6 +87,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       ? originalScript.substring(0, 50) + '...' 
       : originalScript);
 
+    // Extract duration from trimmed audio
+    let trimmedDuration: number | undefined;
+    try {
+      trimmedDuration = await extractAudioDuration(audioBuffer);
+      console.log(`Trimmed audio duration: ${trimmedDuration?.toFixed(2)} seconds`);
+    } catch (durationError) {
+      console.warn('Failed to extract trimmed audio duration:', durationError);
+      // Use calculated duration as fallback
+      trimmedDuration = endTime - startTime;
+    }
+
     // Create new asset record using admin client to bypass RLS
     const { data: asset, error: assetError } = await supabaseAdmin
       .from('assets')
@@ -98,7 +110,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           original_asset_id: originalAssetId,
           start_time: startTime,
           end_time: endTime,
-          duration: endTime - startTime,
+          duration: trimmedDuration, // Use extracted duration
           audio_data: `data:audio/wav;base64,${finalTrimmedAudioData}`,
           script: originalScript,
           template: originalTemplate,
@@ -108,7 +120,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             original_theme: theme,
             start_time: startTime,
             end_time: endTime,
-            duration: endTime - startTime,
+            duration: trimmedDuration, // Use extracted duration
           },
         },
       })

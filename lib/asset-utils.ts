@@ -71,4 +71,98 @@ export function getThemeRelevanceScore(asset: any, assetPurpose: { purpose: stri
     if (assetTags.some((tag: string) => tag.includes(keyword))) score += 1;
   });
   return score;
+}
+
+// Audio duration extraction functions
+export async function extractAudioDuration(audioBuffer: Buffer): Promise<number | undefined> {
+  try {
+    const getAudioDuration = require('get-audio-duration');
+    const duration = await getAudioDuration(audioBuffer);
+    return duration;
+  } catch (error) {
+    console.error('Error extracting audio duration from buffer:', error);
+    return undefined;
+  }
+}
+
+export async function extractAudioDurationFromUrl(url: string): Promise<number | undefined> {
+  try {
+    const getAudioDuration = require('get-audio-duration');
+    const duration = await getAudioDuration(url);
+    return duration;
+  } catch (error) {
+    console.error('Error extracting audio duration from URL:', error);
+    return undefined;
+  }
+}
+
+// Image download and upload utility function
+export async function downloadAndUploadImage(
+  imageUrl: string, 
+  supabaseAdmin: any, 
+  generationMethod: string = 'fal.ai'
+): Promise<{ supabaseUrl: string; originalUrl: string; fileSize: number }> {
+  try {
+    console.log(`Downloading image from: ${imageUrl}`);
+    
+    // Download the image
+    const response = await fetch(imageUrl);
+    if (!response.ok) {
+      throw new Error(`Failed to download image: ${response.status} ${response.statusText}`);
+    }
+    
+    const imageBuffer = await response.arrayBuffer();
+    const imageData = Buffer.from(imageBuffer);
+    
+    console.log(`Downloaded image size: ${imageData.length} bytes`);
+    
+    // Determine file extension from content type or URL
+    let fileExt = 'jpg'; // default
+    const contentType = response.headers.get('content-type');
+    if (contentType) {
+      if (contentType.includes('png')) fileExt = 'png';
+      else if (contentType.includes('webp')) fileExt = 'webp';
+      else if (contentType.includes('jpeg') || contentType.includes('jpg')) fileExt = 'jpg';
+    } else {
+      // Try to extract from URL
+      const urlExt = imageUrl.split('.').pop()?.toLowerCase();
+      if (urlExt && ['jpg', 'jpeg', 'png', 'webp'].includes(urlExt)) {
+        fileExt = urlExt;
+      }
+    }
+    
+    // Generate filename
+    const fileName = `${generationMethod}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
+    const filePath = `assets/images/${fileName}`;
+    
+    // Upload to Supabase Storage
+    const { error: uploadError } = await supabaseAdmin.storage
+      .from('assets')
+      .upload(filePath, imageData, { 
+        contentType: contentType || 'image/jpeg', 
+        upsert: true 
+      });
+    
+    if (uploadError) {
+      console.error('Error uploading image to storage:', uploadError);
+      throw new Error(`Failed to upload image to storage: ${uploadError.message}`);
+    }
+    
+    // Get public URL
+    const { data: { publicUrl } } = supabaseAdmin.storage
+      .from('assets')
+      .getPublicUrl(filePath);
+    
+    console.log(`Image uploaded successfully to: ${publicUrl}`);
+    
+    return {
+      supabaseUrl: publicUrl,
+      originalUrl: imageUrl,
+      fileSize: imageData.length
+    };
+    
+  } catch (error) {
+    console.error('Error in downloadAndUploadImage:', error);
+    throw error;
+  }
 } 

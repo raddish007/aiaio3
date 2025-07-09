@@ -1,5 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { supabase, supabaseAdmin } from '@/lib/supabase';
+import { extractAudioDuration } from '@/lib/asset-utils';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
@@ -74,6 +75,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const audioBuffer = await audioResponse.arrayBuffer();
     const audioData = Buffer.from(audioBuffer);
 
+    // Extract audio duration
+    let audioDuration: number | undefined;
+    try {
+      audioDuration = await extractAudioDuration(audioData);
+      console.log(`Audio duration extracted: ${audioDuration?.toFixed(2)} seconds`);
+    } catch (durationError) {
+      console.warn('Failed to extract audio duration:', durationError);
+      // Continue without duration - it's not critical for generation
+    }
+
     // Upload audio to Supabase Storage using admin client
     const fileExt = 'mp3';
     const fileName = `elevenlabs_${Date.now()}_${voiceId}.${fileExt}`;
@@ -107,6 +118,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         project_id: projectId,
         is_personalized: isPersonalized || false,
         audio_size_bytes: audioData.length,
+        duration: audioDuration, // Store extracted duration
         script: script, // Store script for regeneration
         audio_data: `data:audio/mpeg;base64,${audioData.toString('base64')}`, // Store audio in metadata for legacy support
         // Template-specific metadata

@@ -1,6 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { supabaseAdmin } from '@/lib/supabase';
 import { FalAIService, ImageGenerationRequest } from '@/lib/fal-ai';
+import { downloadAndUploadImage } from '@/lib/asset-utils';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
@@ -98,12 +99,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           throw new Error('No image URL found in Schnell generation result');
         }
 
+        // Download and upload image to Supabase storage
+        const { supabaseUrl, originalUrl, fileSize } = await downloadAndUploadImage(
+          imageUrl, 
+          supabaseAdmin, 
+          'fal.ai_schnell'
+        );
+
         assetData = {
           type: 'image',
           theme: promptData.theme,
           tags: [style, safeZone, 'schnell'].filter(Boolean),
           status: 'pending',
-          file_url: imageUrl,
+          file_url: supabaseUrl, // Use permanent Supabase URL
           metadata: {
             ...promptData.metadata,
             generated_at: new Date().toISOString(),
@@ -113,6 +121,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             style: style,
             safe_zone: safeZone,
             seed: generationJob.result.seed,
+            fal_original_url: originalUrl, // Store original FAL URL for reference
+            file_size_bytes: fileSize,
           },
         };
       }

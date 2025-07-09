@@ -237,7 +237,10 @@ export default function Dashboard() {
                             </p>
                           </div>
                         </div>
-                        <button className="text-primary-600 hover:text-primary-700 text-sm font-medium">
+                        <button 
+                          onClick={() => router.push('/child-videos')}
+                          className="text-primary-600 hover:text-primary-700 text-sm font-medium"
+                        >
                           View Videos
                         </button>
                       </div>
@@ -296,6 +299,15 @@ export default function Dashboard() {
                 <div className="text-2xl mb-2">⚙️</div>
                 <h4 className="font-medium text-gray-900">Account Settings</h4>
                 <p className="text-sm text-gray-600">Manage your preferences</p>
+              </button>
+              
+              <button 
+                onClick={() => router.push('/child-videos')}
+                className="p-4 border border-gray-200 rounded-lg text-left hover:border-primary-300 hover:bg-primary-50 transition-colors"
+              >
+                <div className="text-2xl mb-2">🎬</div>
+                <h4 className="font-medium text-gray-900">Watch Videos</h4>
+                <p className="text-sm text-gray-600">View your child's videos</p>
               </button>
               
               <button className="p-4 border border-gray-200 rounded-lg text-left hover:border-primary-300 hover:bg-primary-50 transition-colors">

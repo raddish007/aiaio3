@@ -25,6 +25,7 @@ interface Asset {
     voice?: string; // Added voice for audio content
     speed?: number; // Added speed for audio content
     audio_class?: string; // Added audio_class for audio assets
+    duration?: number; // Added duration for audio/video assets
     template_context?: {
       template_type?: string;
       asset_purpose?: string;
@@ -79,7 +80,7 @@ export default function AssetManagement() {
     child_name: '',
     template: '' as 'lullaby' | 'name-video' | 'letter-hunt' | 'general' | '',
     volume: 1.0,
-    audio_class: ''
+    audio_class: '' as string | undefined
   });
   const [bulkUploadForm, setBulkUploadForm] = useState({
     description: '',
@@ -123,13 +124,13 @@ export default function AssetManagement() {
       // Fetch user names from Supabase
       const { data: users, error } = await supabase
         .from('users')
-        .select('id, email, full_name')
+        .select('id, email, name')
         .in('id', Array.from(reviewerIds));
 
       if (!error && users) {
         const nameMap: Record<string, string> = {};
         users.forEach(user => {
-          nameMap[user.id] = user.full_name || user.email || user.id;
+          nameMap[user.id] = user.name || user.email || user.id;
         });
         setUserNames(nameMap);
       }
@@ -194,7 +195,21 @@ export default function AssetManagement() {
   };
 
   const handleApprove = async (assetId: string) => {
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    
+    if (userError) {
+      console.error('Authentication error:', userError);
+      alert('Authentication error: ' + userError.message);
+      return;
+    }
+
+    if (!user) {
+      console.error('No user authenticated');
+      alert('No user authenticated. Please log in.');
+      return;
+    }
+
+    console.log('Authenticated user:', user.id, user.email);
     
     // Get current asset to preserve existing metadata
     const { data: currentAsset } = await supabase
@@ -219,7 +234,9 @@ export default function AssetManagement() {
 
     if (error) {
       console.error('Error approving asset:', error);
+      alert('Error approving asset: ' + error.message);
     } else {
+      console.log('Asset approved successfully');
       fetchAssets();
       setShowModal(false);
     }
@@ -258,9 +275,15 @@ export default function AssetManagement() {
   };
 
   const handleApproveWithReview = async (assetId: string) => {
-    const { error } = await supabase
-      .from('assets')
-      .update({ 
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        alert('No user authenticated. Please log in.');
+        return;
+      }
+
+      console.log('Updating asset with data:', {
         status: 'approved',
         theme: editForm.theme,
         tags: editForm.tags ? editForm.tags.split(',').map(tag => tag.trim()) : [],
@@ -276,50 +299,95 @@ export default function AssetManagement() {
             safe_zone: reviewForm.safe_zone,
             approval_notes: reviewForm.approval_notes,
             reviewed_at: new Date().toISOString(),
-            reviewed_by: (await supabase.auth.getUser()).data.user?.id
+            reviewed_by: user.id
           }
         }
-      })
-      .eq('id', assetId);
+      });
 
-    if (error) {
-      console.error('Error approving asset:', error);
-    } else {
-      await fetchAssets(); // Wait for assets to refresh
-      openNextAsset(assetId); // Auto-advance to next asset
+      const { data, error } = await supabase
+        .from('assets')
+        .update({ 
+          status: 'approved',
+          theme: editForm.theme,
+          tags: editForm.tags ? editForm.tags.split(',').map(tag => tag.trim()) : [],
+          metadata: {
+            description: editForm.description,
+            prompt: editForm.prompt,
+            personalization: editForm.personalization,
+            child_name: editForm.child_name,
+            template: editForm.template,
+            volume: (selectedAsset && isAudioOrVideo(selectedAsset.type)) ? editForm.volume : undefined,
+            audio_class: (selectedAsset && selectedAsset.type === 'audio') ? editForm.audio_class : undefined,
+            review: {
+              safe_zone: reviewForm.safe_zone,
+              approval_notes: reviewForm.approval_notes,
+              reviewed_at: new Date().toISOString(),
+              reviewed_by: user.id
+            }
+          }
+        })
+        .eq('id', assetId)
+        .select('*');
+
+      if (error) {
+        console.error('Error approving asset:', error);
+        alert('Error approving asset: ' + error.message);
+      } else {
+        console.log('Asset updated successfully:', data);
+        await fetchAssets(); // Wait for assets to refresh
+        openNextAsset(assetId); // Auto-advance to next asset
+      }
+    } catch (error) {
+      console.error('Unexpected error:', error);
+      alert('Unexpected error: ' + (error instanceof Error ? error.message : 'Unknown error'));
     }
   };
 
   const handleRejectWithReview = async (assetId: string) => {
-    const { error } = await supabase
-      .from('assets')
-      .update({ 
-        status: 'rejected',
-        theme: editForm.theme,
-        tags: editForm.tags ? editForm.tags.split(',').map(tag => tag.trim()) : [],
-        metadata: {
-          description: editForm.description,
-          prompt: editForm.prompt,
-          personalization: editForm.personalization,
-          child_name: editForm.child_name,
-          template: editForm.template,
-          volume: (selectedAsset && isAudioOrVideo(selectedAsset.type)) ? editForm.volume : undefined,
-          audio_class: (selectedAsset && selectedAsset.type === 'audio') ? editForm.audio_class : undefined,
-          review: {
-            safe_zone: reviewForm.safe_zone,
-            rejection_reason: reviewForm.rejection_reason,
-            reviewed_at: new Date().toISOString(),
-            reviewed_by: (await supabase.auth.getUser()).data.user?.id
-          }
-        }
-      })
-      .eq('id', assetId);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        alert('No user authenticated. Please log in.');
+        return;
+      }
 
-    if (error) {
-      console.error('Error rejecting asset:', error);
-    } else {
-      await fetchAssets(); // Wait for assets to refresh
-      openNextAsset(assetId); // Auto-advance to next asset
+      const { data, error } = await supabase
+        .from('assets')
+        .update({ 
+          status: 'rejected',
+          theme: editForm.theme,
+          tags: editForm.tags ? editForm.tags.split(',').map(tag => tag.trim()) : [],
+          metadata: {
+            description: editForm.description,
+            prompt: editForm.prompt,
+            personalization: editForm.personalization,
+            child_name: editForm.child_name,
+            template: editForm.template,
+            volume: (selectedAsset && isAudioOrVideo(selectedAsset.type)) ? editForm.volume : undefined,
+            audio_class: (selectedAsset && selectedAsset.type === 'audio') ? editForm.audio_class : undefined,
+            review: {
+              safe_zone: reviewForm.safe_zone,
+              rejection_reason: reviewForm.rejection_reason,
+              reviewed_at: new Date().toISOString(),
+              reviewed_by: user.id
+            }
+          }
+        })
+        .eq('id', assetId)
+        .select('*');
+
+      if (error) {
+        console.error('Error rejecting asset:', error);
+        alert('Error rejecting asset: ' + error.message);
+      } else {
+        console.log('Asset rejected successfully:', data);
+        await fetchAssets(); // Wait for assets to refresh
+        openNextAsset(assetId); // Auto-advance to next asset
+      }
+    } catch (error) {
+      console.error('Unexpected error:', error);
+      alert('Unexpected error: ' + (error instanceof Error ? error.message : 'Unknown error'));
     }
   };
 
@@ -1547,6 +1615,17 @@ export default function AssetManagement() {
                   </div>
                 )}
 
+                {/* Duration Display (for audio/video assets) */}
+                {(selectedAsset.type === 'audio' || selectedAsset.type === 'video') && selectedAsset.metadata?.duration && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Duration</label>
+                    <p className="text-gray-600 bg-gray-50 px-3 py-2 rounded-md">
+                      {selectedAsset.metadata.duration.toFixed(2)} seconds 
+                      ({Math.floor(selectedAsset.metadata.duration / 60)}:{(selectedAsset.metadata.duration % 60).toFixed(0).padStart(2, '0')})
+                    </p>
+                  </div>
+                )}
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Tags</label>
                   <input
@@ -1829,7 +1908,7 @@ export default function AssetManagement() {
                   onClick={() => {
                     setShowModal(false);
                     setReviewForm({ safe_zone: [], approval_notes: '', rejection_reason: '' });
-                    setEditForm({ theme: '', description: '', tags: '', prompt: '', personalization: 'general', child_name: '', template: '', volume: 1.0 });
+                    setEditForm({ theme: '', description: '', tags: '', prompt: '', personalization: 'general', child_name: '', template: '', volume: 1.0, audio_class: '' });
                   }}
                   className="flex-1 bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700"
                 >

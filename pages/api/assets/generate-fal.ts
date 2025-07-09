@@ -1,6 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { supabaseAdmin } from '@/lib/supabase';
 import { FalAIService, ImageGenerationRequest, AudioGenerationRequest } from '@/lib/fal-ai';
+import { extractAudioDurationFromUrl, downloadAndUploadImage } from '@/lib/asset-utils';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
@@ -98,12 +99,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           throw new Error('No image URL found in generation result');
         }
 
+        // Download and upload image to Supabase storage
+        const { supabaseUrl, originalUrl, fileSize } = await downloadAndUploadImage(
+          imageUrl, 
+          supabaseAdmin, 
+          'fal.ai_imagen4'
+        );
+
         assetData = {
           type: 'image',
           theme: promptData.theme,
           tags: [style, safeZone].filter(Boolean),
           status: 'pending',
-          file_url: imageUrl,
+          file_url: supabaseUrl, // Use permanent Supabase URL
           metadata: {
             ...promptData.metadata,
             generated_at: new Date().toISOString(),
@@ -113,6 +121,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             style: style,
             safe_zone: safeZone,
             seed: generationJob.result.seed,
+            fal_original_url: originalUrl, // Store original FAL URL for reference
+            file_size_bytes: fileSize,
           },
         };
       }
@@ -135,19 +145,40 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           throw new Error('No audio URL found in generation result');
         }
 
+        // Download and upload audio to Supabase storage
+        const { supabaseUrl, originalUrl, fileSize } = await downloadAndUploadImage(
+          audioUrl, 
+          supabaseAdmin, 
+          'fal.ai_flux'
+        );
+
+        // Extract actual audio duration from the generated file
+        let actualDuration: number | undefined;
+        try {
+          actualDuration = await extractAudioDurationFromUrl(supabaseUrl);
+          console.log(`FAL AI audio duration extracted: ${actualDuration?.toFixed(2)} seconds`);
+        } catch (durationError) {
+          console.warn('Failed to extract FAL AI audio duration:', durationError);
+          // Use requested duration as fallback
+          actualDuration = duration;
+        }
+
         assetData = {
           type: 'audio',
           theme: promptData.theme,
           tags: [style].filter(Boolean),
           status: 'pending',
-          file_url: audioUrl,
+          file_url: supabaseUrl, // Use permanent Supabase URL
           metadata: {
             ...promptData.metadata,
             generated_at: new Date().toISOString(),
             generation_method: 'fal.ai_flux',
             job_id: generationJob.jobId,
-            duration: duration,
+            duration: actualDuration, // Use extracted duration
+            requested_duration: duration, // Keep original requested duration
             style: style,
+            fal_original_url: originalUrl, // Store original FAL URL for reference
+            file_size_bytes: fileSize,
           },
         };
       }

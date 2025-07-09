@@ -4,6 +4,12 @@ import { BedtimeSong } from './compositions/BedtimeSong';
 import { LetterHunt } from './compositions/LetterHunt';
 import { EpisodeSegment } from './compositions/EpisodeSegment';
 import { LullabyFresh } from './compositions/LullabyFresh';
+import { Lullaby } from './compositions/Lullaby';
+import { TemplateVideo } from './compositions/TemplateVideo';
+import { SimpleTemplate } from './compositions/SimpleTemplate';
+import { UniversalTemplate } from './compositions/UniversalTemplate';
+import { HelloWorld } from './compositions/HelloWorld';
+import { HelloWorldWithImage } from './compositions/HelloWorldWithImage';
 
 export const RemotionRoot: React.FC = () => {
   return (
@@ -88,7 +94,49 @@ export const RemotionRoot: React.FC = () => {
           introImage: '',
           outroImage: '',
           slideshowImages: [],
-          debugMode: false,
+          debugMode: true, // Enable debug mode to see what's missing
+        }}
+      />
+
+      {/* Lullaby Composition */}
+      <Composition
+        id="Lullaby"
+        component={Lullaby}
+        durationInFrames={6480} // 108 seconds at 60fps
+        fps={60}
+        width={1920}
+        height={1080}
+        defaultProps={{
+          childName: 'Nolan',
+          childAge: 3,
+          childTheme: 'halloween',
+          backgroundMusicUrl: '',
+          backgroundMusicVolume: 0.8,
+          duration: 108, // DreamDrip audio duration (hardcoded for local preview)
+          debugMode: true, // Enable debug mode to see what's missing
+        }}
+      />
+
+      {/* Hello World Composition */}
+      <Composition
+        id="HelloWorld"
+        component={HelloWorld}
+        durationInFrames={180} // 3 seconds at 60fps
+        fps={60}
+        width={1920}
+        height={1080}
+      />
+
+      {/* Hello World with Image Composition */}
+      <Composition
+        id="HelloWorldWithImage"
+        component={HelloWorldWithImage}
+        durationInFrames={180} // 3 seconds at 60fps
+        fps={60}
+        width={1920}
+        height={1080}
+        defaultProps={{
+          backgroundImageUrl: 'https://picsum.photos/1920/1080'
         }}
       />
     </>

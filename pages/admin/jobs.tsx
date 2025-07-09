@@ -13,6 +13,7 @@ interface Job {
   started_at: string;
   completed_at: string;
   error_message: string;
+  output_url?: string;
   segments: any[];
   created_at: string;
   metadata: any;
@@ -356,7 +357,19 @@ export default function JobMonitoring() {
                         <p className="text-red-600"><strong>Error:</strong> {job.error_message}</p>
                       )}
                       {job.status === 'completed' && (
-                        <p className="text-green-600"><strong>Success!</strong> Video generated</p>
+                        <div>
+                          <p className="text-green-600"><strong>Success!</strong> Video generated</p>
+                          {job.output_url && (
+                            <a 
+                              href={job.output_url} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:text-blue-800 text-sm underline"
+                            >
+                              View Video
+                            </a>
+                          )}
+                        </div>
                       )}
                     </div>
                   </div>
@@ -440,6 +453,26 @@ export default function JobMonitoring() {
                     <h4 className="font-medium text-red-900 mb-2">Error Details</h4>
                     <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                       <p className="text-red-800">{selectedJob.error_message}</p>
+                    </div>
+                  </div>
+                )}
+
+                {selectedJob.status === 'completed' && selectedJob.output_url && (
+                  <div className="mt-6">
+                    <h4 className="font-medium text-green-900 mb-2">Output Video</h4>
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                      <p className="text-green-800 mb-2">Video generated successfully!</p>
+                      <a 
+                        href={selectedJob.output_url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                      >
+                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                        </svg>
+                        View Video
+                      </a>
                     </div>
                   </div>
                 )}

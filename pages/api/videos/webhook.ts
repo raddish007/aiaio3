@@ -1,7 +1,5 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { supabaseAdmin } from '@/lib/supabase';
-import { s3Client, S3_BUCKETS } from '@/lib/aws';
-import { GetObjectCommand } from '@aws-sdk/client-s3';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
@@ -9,74 +7,69 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const { assetId, status, outputUrl, error } = req.body;
+    const { renderId, outputFile, error } = req.body;
 
-    if (!assetId) {
-      return res.status(400).json({ error: 'Missing assetId' });
+    if (!renderId) {
+      return res.status(400).json({ error: 'Missing renderId' });
     }
 
-    // Check if admin client is available
+    // Check if supabaseAdmin is available
     if (!supabaseAdmin) {
-      console.error('SUPABASE_SERVICE_ROLE_KEY not configured');
-      return res.status(500).json({ error: 'Server configuration error' });
+      return res.status(500).json({ error: 'Database admin client not available' });
     }
 
-    if (status === 'completed' && outputUrl) {
-      // Video rendering completed successfully
-      const { error: updateError } = await supabaseAdmin
-        .from('assets')
-        .update({
-          status: 'completed',
-          metadata: {
-            ...req.body,
-            completed_at: new Date().toISOString(),
-            video_url: outputUrl,
-          },
-        })
-        .eq('id', assetId);
+    // Find the job record by render ID
+    const { data: jobRecord, error: jobError } = await supabaseAdmin
+      .from('video_generation_jobs')
+      .select('*')
+      .eq('lambda_request_id', renderId)
+      .single();
 
-      if (updateError) {
-        console.error('Error updating video asset:', updateError);
-        return res.status(500).json({ 
-          error: 'Failed to update video asset',
-          details: updateError.message 
-        });
-      }
+    if (jobError || !jobRecord) {
+      console.error('Job not found for renderId:', renderId);
+      return res.status(404).json({ error: 'Job not found' });
+    }
 
-      console.log(`Video asset ${assetId} completed successfully`);
-    } else if (status === 'failed') {
-      // Video rendering failed
-      const { error: updateError } = await supabaseAdmin
-        .from('assets')
+    // Update job status based on webhook data
+    if (error) {
+      // Render failed
+      await supabaseAdmin
+        .from('video_generation_jobs')
         .update({
           status: 'failed',
-          metadata: {
-            ...req.body,
-            failed_at: new Date().toISOString(),
-            error: error || 'Unknown rendering error',
-          },
+          error_message: error,
+          failed_at: new Date().toISOString(),
         })
-        .eq('id', assetId);
+        .eq('id', jobRecord.id);
 
-      if (updateError) {
-        console.error('Error updating video asset:', updateError);
-        return res.status(500).json({ 
-          error: 'Failed to update video asset',
-          details: updateError.message 
-        });
-      }
+      console.log(`Job ${jobRecord.id} failed:`, error);
+    } else if (outputFile) {
+      // Render completed successfully
+      await supabaseAdmin
+        .from('video_generation_jobs')
+        .update({
+          status: 'completed',
+          output_url: outputFile,
+          completed_at: new Date().toISOString(),
+        })
+        .eq('id', jobRecord.id);
 
-      console.error(`Video asset ${assetId} failed:`, error);
+      console.log(`Job ${jobRecord.id} completed with output:`, outputFile);
     } else {
-      return res.status(400).json({ error: 'Invalid status' });
+      // Unknown state
+      console.warn(`Job ${jobRecord.id} webhook received but no outputFile or error provided`);
     }
 
-    res.status(200).json({ success: true });
+    return res.status(200).json({ 
+      success: true, 
+      job_id: jobRecord.id,
+      status: error ? 'failed' : 'completed'
+    });
 
   } catch (error) {
-    console.error('Video webhook error:', error);
-    res.status(500).json({ 
-      error: 'Webhook processing failed',
+    console.error('Webhook error:', error);
+    return res.status(500).json({ 
+      error: 'Failed to process webhook',
       details: error instanceof Error ? error.message : 'Unknown error'
     });
   }

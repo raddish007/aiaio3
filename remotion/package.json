@@ -5,10 +5,14 @@
   "main": "src/Root.tsx",
   "scripts": {
     "build": "remotion build src Root --out=dist",
-    "preview": "remotion preview src Root"
+    "preview": "remotion preview src Root",
+    "lambda:deploy": "remotion lambda functions deploy",
+    "lambda:functions": "remotion lambda functions list",
+    "lambda:logs": "remotion lambda functions logs"
   },
   "dependencies": {
     "@remotion/lambda": "^4.0.322",
+    "@remotion/transitions": "^4.0.322",
     "remotion": "^4.0.322"
   }
 }

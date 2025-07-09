@@ -144,7 +144,7 @@ export default function AdminDashboard() {
             </button>
 
             <button
-              onClick={() => router.push('/admin/content')}
+              onClick={() => router.push('/admin/create-content')}
               className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-200 border border-gray-200 hover:border-green-300 group"
             >
               <div className="text-center">
@@ -179,6 +179,19 @@ export default function AdminDashboard() {
                 </div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">Audio Generator</h3>
                 <p className="text-sm text-gray-600">Generate audio with ElevenLabs</p>
+              </div>
+            </button>
+
+            <button
+              onClick={() => router.push('/admin/lullaby-video-request')}
+              className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-200 border border-gray-200 hover:border-purple-300 group"
+            >
+              <div className="text-center">
+                <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-purple-200 transition-colors">
+                  <span className="text-3xl">🌙</span>
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Lullaby Video</h3>
+                <p className="text-sm text-gray-600">Create personalized lullaby videos</p>
               </div>
             </button>
           </div>
@@ -254,6 +267,32 @@ export default function AdminDashboard() {
                 </div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">Template Audio</h3>
                 <p className="text-sm text-gray-600">Manage reusable audio templates</p>
+              </div>
+            </button>
+
+            <button
+              onClick={() => router.push('/admin/template-images')}
+              className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-200 border border-gray-200 hover:border-green-300 group"
+            >
+              <div className="text-center">
+                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-green-200 transition-colors">
+                  <span className="text-3xl">🖼️</span>
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Template Images</h3>
+                <p className="text-sm text-gray-600">Manage reusable image templates</p>
+              </div>
+            </button>
+
+            <button
+              onClick={() => router.push('/admin/template-management')}
+              className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-200 border border-gray-200 hover:border-indigo-300 group"
+            >
+              <div className="text-center">
+                <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-indigo-200 transition-colors">
+                  <span className="text-3xl">🎬</span>
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Template Management</h3>
+                <p className="text-sm text-gray-600">Define video templates and structure</p>
               </div>
             </button>
           </div>
