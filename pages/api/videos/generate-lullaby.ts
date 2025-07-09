@@ -100,6 +100,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         imageFormat: 'jpeg',
       });
 
+      const outputUrl = `https://remotionlambda-useast1-3pwoq46nsa.s3.us-east-1.amazonaws.com/renders/${result.renderId}/out.mp4`;
+      
       // Update job with Lambda info
       await supabaseAdmin
         .from('video_generation_jobs')
@@ -107,9 +109,66 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           status: 'submitted',
           lambda_request_id: result.renderId,
           submitted_at: new Date().toISOString(),
-          output_url: `https://remotionlambda-useast1-3pwoq46nsa.s3.us-east-1.amazonaws.com/renders/${result.renderId}/out.mp4`
+          output_url: outputUrl
         })
         .eq('id', jobRecord.id);
+
+      // Create child approved video record for moderation
+      const { data: approvedVideoRecord, error: approvedVideoError } = await supabaseAdmin
+        .from('child_approved_videos')
+        .insert({
+          video_generation_job_id: jobRecord.id,
+          video_url: outputUrl,
+          video_title: `Lullaby for ${childName}`,
+          child_id: childId,
+          child_name: childName,
+          child_age: childAge || 3,
+          child_theme: childTheme || 'default',
+          personalization_level: 'child_specific', // Since it's personalized with child name
+          approval_status: 'pending_review',
+          submitted_by: userId,
+          duration_seconds: dreamDripDuration,
+          template_type: 'lullaby',
+          template_data: {
+            composition: 'Lullaby',
+            props: inputProps,
+            used_assets: {
+              intro_image: introImageUrl,
+              outro_image: outroImageUrl,
+              slideshow_images: slideshowImageUrls,
+              intro_audio: introAudioUrl,
+              outro_audio: outroAudioUrl
+            }
+          }
+        })
+        .select()
+        .single();
+
+      if (approvedVideoError) {
+        console.error('Error creating approved video record:', approvedVideoError);
+        // Don't fail the whole request, just log the error
+      } else {
+        console.log('✅ Created child approved video record for moderation:', approvedVideoRecord.id);
+        
+        // Create moderation queue entry
+        const { data: moderationQueueRecord, error: moderationQueueError } = await supabaseAdmin
+          .from('video_moderation_queue')
+          .insert({
+            child_approved_video_id: approvedVideoRecord.id,
+            assigned_to: null, // Will be assigned by admin
+            priority: 1, // Default priority
+            status: 'pending_review',
+            review_notes: null
+          })
+          .select()
+          .single();
+
+        if (moderationQueueError) {
+          console.error('Error creating moderation queue record:', moderationQueueError);
+        } else {
+          console.log('✅ Created moderation queue record:', moderationQueueRecord.id);
+        }
+      }
 
       return res.status(200).json({
         success: true,

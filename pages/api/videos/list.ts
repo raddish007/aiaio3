@@ -52,17 +52,33 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       console.error('Error fetching content videos:', contentError);
     }
 
-    // Fetch video assets from assets table
-    const { data: videoAssets, error: assetsError } = await supabase
-      .from('assets')
+    // Fetch approved child videos from child_approved_videos table
+    const { data: approvedVideos, error: approvedVideosError } = await supabase
+      .from('child_approved_videos')
       .select('*')
-      .eq('type', 'video')
-      .eq('status', 'approved')
+      .eq('child_id', childId)
+      .eq('approval_status', 'approved')
+      .eq('is_active', true)
       .order('created_at', { ascending: false });
 
-    if (assetsError) {
-      console.error('Error fetching video assets:', assetsError);
+    if (approvedVideosError) {
+      console.error('Error fetching approved videos:', approvedVideosError);
     }
+
+    // Fetch generic/theme-specific videos that this child can watch
+    const { data: genericVideos, error: genericVideosError } = await supabase
+      .from('child_approved_videos')
+      .select('*')
+      .eq('approval_status', 'approved')
+      .eq('is_active', true)
+      .or(`personalization_level.eq.generic,personalization_level.eq.theme_specific.and.child_theme.eq.${child.primary_interest}`)
+      .order('created_at', { ascending: false });
+
+    if (genericVideosError) {
+      console.error('Error fetching generic videos:', genericVideosError);
+    }
+
+    // Note: Removed old video assets fetching - now using child_approved_videos table
 
     // Fetch episodes
     const { data: episodes, error: episodesError } = await supabase
@@ -100,17 +116,44 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     }
 
-    // Add video assets (show all approved videos for now)
-    if (videoAssets) {
-      videoAssets.forEach(asset => {
+    // Add approved child-specific videos
+    if (approvedVideos) {
+      approvedVideos.forEach(video => {
         individualVideos.push({
-          id: asset.id,
-          title: asset.theme,
+          id: video.id,
+          title: video.video_title,
           type: 'individual',
-          video_url: asset.file_url,
-          created_at: asset.created_at,
-          metadata: asset.metadata
+          video_url: video.video_url,
+          created_at: video.created_at,
+          metadata: {
+            ...video.template_data,
+            personalization_level: video.personalization_level,
+            child_name: video.child_name,
+            child_theme: video.child_theme
+          }
         });
+      });
+    }
+
+    // Add generic/theme-specific videos
+    if (genericVideos) {
+      genericVideos.forEach(video => {
+        // Avoid duplicates if child-specific version already exists
+        const exists = individualVideos.some(v => v.id === video.id);
+        if (!exists) {
+          individualVideos.push({
+            id: video.id,
+            title: video.video_title,
+            type: 'individual',
+            video_url: video.video_url,
+            created_at: video.created_at,
+            metadata: {
+              ...video.template_data,
+              personalization_level: video.personalization_level,
+              child_theme: video.child_theme
+            }
+          });
+        }
       });
     }
 
