@@ -1,7 +1,9 @@
 // src/compositions/Lullaby.tsx
 
 import React from 'react';
-import { AbsoluteFill, useVideoConfig, Audio, Sequence, Img } from 'remotion';
+import { AbsoluteFill, useVideoConfig, Audio, Sequence, Img, interpolate, useCurrentFrame } from 'remotion';
+import { TransitionSeries, linearTiming } from '@remotion/transitions';
+import { fade } from '@remotion/transitions/fade';
 
 export interface LullabyProps {
   childName: string;
@@ -12,6 +14,7 @@ export interface LullabyProps {
   duration?: number; // Duration in seconds from database metadata
   introImageUrl?: string; // Background image for intro
   outroImageUrl?: string; // Background image for outro
+  slideshowImageUrls?: string[]; // Slideshow images for main section
   introAudioUrl?: string; // Personalized audio for intro
   debugMode?: boolean;
 }
@@ -25,6 +28,7 @@ export const Lullaby: React.FC<LullabyProps> = ({
   duration = 108, // Default to 108 seconds for local preview
   introImageUrl = '',
   outroImageUrl = '',
+  slideshowImageUrls = [],
   introAudioUrl = '',
   debugMode = false,
 }) => {
@@ -39,8 +43,41 @@ export const Lullaby: React.FC<LullabyProps> = ({
   // Part 3: Outro (5 seconds)
   const outroDuration = 5 * fps; // 5 seconds
   
-  // Part 2: Main Content (remaining time)
+  // Part 2: Main Content (slideshow)
   const mainContentDuration = durationInFrames - introDuration - outroDuration;
+  
+  // Slideshow configuration (from LullabyFresh)
+  const secondsPerImage = 5;
+  const framesPerImage = fps * secondsPerImage;
+  const crossfadeFrames = fps * 1; // 1s fade
+  
+  // Calculate max number of images considering crossfade overlaps
+  const framesPerImageWithOverlap = framesPerImage - crossfadeFrames;
+  const maxImages = Math.floor(
+    (mainContentDuration + crossfadeFrames) / framesPerImageWithOverlap
+  );
+  
+  // Handle insufficient images with warning and fallback
+  if (slideshowImageUrls.length < maxImages) {
+    console.warn(
+      `⚠️ Not enough images for full slideshow: have ${slideshowImageUrls.length}, need ${maxImages}. ` +
+      `Will repeat images to fill the duration.`
+    );
+  }
+  
+  // Create images array that repeats if needed to fill the slideshow
+  const imagesToUse = [];
+  for (let i = 0; i < maxImages; i++) {
+    if (slideshowImageUrls.length > 0) {
+      imagesToUse.push(slideshowImageUrls[i % slideshowImageUrls.length]);
+    }
+  }
+  
+  // Ensure we have at least one image to prevent durationInFrames = 0
+  if (imagesToUse.length === 0) {
+    console.warn('⚠️ No slideshow images provided, using placeholder');
+    imagesToUse.push('https://via.placeholder.com/1920x1080/1a1a1a/666666?text=No+Image+Available');
+  }
 
   // Dynamic text sizing logic from LullabyFresh
   const introText = `Bedtime for ${childName}`;
@@ -107,8 +144,16 @@ export const Lullaby: React.FC<LullabyProps> = ({
       introImageUrl,
       hasOutroImage: !!outroImageUrl,
       outroImageUrl,
+      slideshowImageCount: slideshowImageUrls.length,
+      maxImages,
+      imagesToUseCount: imagesToUse.length,
       hasIntroAudio: !!introAudioUrl,
       debugMode,
+      slideshowMath: {
+        mainContentDuration,
+        framesPerImageWithOverlap,
+        calculatedMaxImages: maxImages
+      }
     });
   }
 
@@ -204,31 +249,17 @@ export const Lullaby: React.FC<LullabyProps> = ({
         </AbsoluteFill>
       </Sequence>
       
-      {/* Part 2: Main Content (placeholder for now) */}
-      <Sequence from={introDuration} durationInFrames={mainContentDuration}>
-        <AbsoluteFill style={{ backgroundColor: 'black' }}>
-          <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'center',
-            alignItems: 'center',
-            color: 'white',
-            fontSize: 48,
-            fontFamily: 'Poppins, sans-serif',
-            fontWeight: 'bold',
-            textAlign: 'center',
-            gap: '20px',
-          }}>
-            <div>Lullaby for {childName}</div>
-            <div style={{ fontSize: 32, fontWeight: 'normal' }}>
-              Age: {childAge} | Theme: {childTheme}
-            </div>
-            <div style={{ fontSize: 24, fontWeight: 'normal', color: '#ccc' }}>
-              Main content coming next...
-            </div>
-          </div>
-        </AbsoluteFill>
-      </Sequence>
+      {/* Part 2: Main Content (Slideshow) */}
+      {imagesToUse.length > 0 && framesPerImage > 0 && (
+        <Sequence from={introDuration} durationInFrames={imagesToUse.length * framesPerImage}>
+          <Slideshow
+            images={imagesToUse}
+            secondsPerImage={secondsPerImage}
+            crossfadeFrames={crossfadeFrames}
+            debugMode={debugMode}
+          />
+        </Sequence>
+      )}
       
       {/* Part 3: Outro (5 seconds) */}
       <Sequence from={introDuration + mainContentDuration} durationInFrames={outroDuration}>
@@ -316,6 +347,8 @@ export const Lullaby: React.FC<LullabyProps> = ({
           <br />
           Main Content: {mainContentDuration} frames
           <br />
+          Slideshow: {slideshowImageUrls.length} images → {imagesToUse.length} used
+          <br />
           Background Music: {musicSrc ? '✅' : '❌'}
           {musicSrc && <br />}
           {musicSrc && <span style={{fontSize: '10px'}}>{musicSrc.split('/').pop()}</span>}
@@ -323,6 +356,83 @@ export const Lullaby: React.FC<LullabyProps> = ({
           Intro Image: {introImageUrl ? '✅' : '❌'}
           <br />
           Intro Audio: {introAudioUrl ? '✅' : '❌'}
+        </div>
+      )}
+    </AbsoluteFill>
+  );
+};
+
+// 🔹 Slideshow Component with Fade & Ken Burns
+const Slideshow: React.FC<{ 
+  images: string[]; 
+  secondsPerImage: number; 
+  crossfadeFrames: number;
+  debugMode?: boolean;
+}> = ({ images, secondsPerImage, crossfadeFrames, debugMode = false }) => {
+  const { fps } = useVideoConfig();
+  const framesPerImage = fps * secondsPerImage;
+
+  return (
+    <TransitionSeries>
+      {images.map((img, i) => (
+        <React.Fragment key={i}>
+          <TransitionSeries.Sequence durationInFrames={framesPerImage}>
+            <KenBurnsImage 
+              src={img} 
+              durationInFrames={framesPerImage} 
+              debugMode={debugMode}
+              imageIndex={i}
+            />
+          </TransitionSeries.Sequence>
+          {i < images.length - 1 && (
+            <TransitionSeries.Transition
+              presentation={fade()}
+              timing={linearTiming({ durationInFrames: crossfadeFrames })}
+            />
+          )}
+        </React.Fragment>
+      ))}
+    </TransitionSeries>
+  );
+};
+
+// 🔹 Ken Burns Effect
+const KenBurnsImage: React.FC<{ 
+  src: string; 
+  durationInFrames: number;
+  debugMode?: boolean;
+  imageIndex?: number;
+}> = ({ src, durationInFrames, debugMode = false, imageIndex = 0 }) => {
+  const frame = useCurrentFrame();
+  const scale = interpolate(frame, [0, durationInFrames], [1, 1.1], { extrapolateRight: 'clamp' });
+  const translateY = interpolate(frame, [0, durationInFrames], [0, -30], { extrapolateRight: 'clamp' });
+
+  return (
+    <AbsoluteFill>
+      <Img
+        src={src}
+        style={{
+          width: '100%',
+          height: '100%',
+          objectFit: 'cover',
+          transform: `scale(${scale}) translateY(${translateY}px)`,
+        }}
+      />
+      
+      {/* Debug overlay */}
+      {debugMode && (
+        <div style={{
+          position: 'absolute',
+          top: '10px',
+          left: '10px',
+          background: 'rgba(0,0,0,0.7)',
+          color: 'white',
+          padding: '5px',
+          fontSize: '12px',
+          zIndex: 1000
+        }}>
+          Slideshow {imageIndex + 1}: {src.split('/').pop()}
+          {src ? ' ✅' : ' ❌'}
         </div>
       )}
     </AbsoluteFill>

@@ -28,6 +28,7 @@ export default function LullabyVideoRequest() {
   const [themeAssets, setThemeAssets] = useState<{
     introImage?: { id: string; file_url: string; theme: string; safe_zone: string };
     outroImage?: { id: string; file_url: string; theme: string; safe_zone: string };
+    slideshowImages?: { id: string; file_url: string; theme: string; safe_zone: string }[];
   } | null>(null);
   const [assetLoading, setAssetLoading] = useState(false);
   const [assetError, setAssetError] = useState<string | null>(null);
@@ -71,7 +72,7 @@ export default function LullabyVideoRequest() {
         .eq('type', 'image')
         .eq('status', 'approved')
         .ilike('theme', `%${childTheme}%`)
-        .limit(10);
+        .limit(50); // Increased limit to get more images for slideshow selection
 
       if (imagesError) {
         console.error('Error fetching images:', imagesError);
@@ -94,18 +95,53 @@ export default function LullabyVideoRequest() {
         return safeZones.includes('outro_safe');
       });
 
+      // Filter for slideshow images - use all_ok safe zone for lullaby template
+      const slideshowImages = availableImages.filter(img => {
+        const safeZones = img.metadata?.review?.safe_zone || [];
+        
+        // Debug logging for first few images to understand safe zone format
+        if (availableImages.indexOf(img) < 3) {
+          console.log('🔍 Safe zone debug for image:', {
+            id: img.id,
+            theme: img.theme,
+            safeZones: safeZones,
+            safeZonesType: typeof safeZones,
+            isArray: Array.isArray(safeZones),
+            hasAllOk: safeZones.includes('all_ok'),
+            safeZonesString: JSON.stringify(safeZones)
+          });
+        }
+        
+        // Handle different safe zone formats
+        if (Array.isArray(safeZones)) {
+          return safeZones.includes('all_ok');
+        } else if (typeof safeZones === 'string') {
+          return safeZones.includes('all_ok');
+        } else if (safeZones && typeof safeZones === 'object') {
+          // Handle case where safe_zone might be an object
+          return JSON.stringify(safeZones).includes('all_ok');
+        }
+        
+        return false;
+      });
+
       // Select different assets for intro and outro when possible
       let introImage = introImages[0];
       let outroImage = outroImages[0];
 
       // If we have the same asset for both, try to find a different one for outro
-      if (introImage && outroImage && introImage.id === outroImage.id) {
+      if (introImage && outroImage && introImage.id === introImage.id) {
         // Look for a different asset that's safe for outro
         const differentOutroImage = outroImages.find(img => img.id !== introImage.id);
         if (differentOutroImage) {
           outroImage = differentOutroImage;
         }
       }
+
+      // Select slideshow images (limit to 23 to match template requirements)
+      // Randomize the order for variety
+      const shuffledSlideshowImages = [...slideshowImages].sort(() => Math.random() - 0.5);
+      const selectedSlideshowImages = shuffledSlideshowImages.slice(0, 23);
 
       // Filter safe zones to only show intro_safe and outro_safe for lullaby videos
       const getLullabySafeZones = (safeZones: string[]) => {
@@ -116,6 +152,20 @@ export default function LullabyVideoRequest() {
         totalImages: availableImages.length,
         introImages: introImages.length,
         outroImages: outroImages.length,
+        slideshowImages: slideshowImages.length,
+        selectedSlideshowImages: selectedSlideshowImages.length,
+        slideshowSelection: {
+          available: slideshowImages.length,
+          selected: selectedSlideshowImages.length,
+          randomized: true,
+          templateRequirement: 23
+        },
+        themeSearch: childTheme,
+        sampleSlideshowImages: slideshowImages.slice(0, 3).map(img => ({
+          id: img.id,
+          theme: img.theme,
+          safeZones: img.metadata?.review?.safe_zone
+        })),
         introImage: introImage ? { 
           id: introImage.id, 
           theme: introImage.theme, 
@@ -140,16 +190,26 @@ export default function LullabyVideoRequest() {
           file_url: outroImage.file_url,
           theme: outroImage.theme,
           safe_zone: outroImage.metadata?.review?.safe_zone
-        } : undefined
+        } : undefined,
+        slideshowImages: selectedSlideshowImages.length > 0 ? selectedSlideshowImages.map(img => ({
+          id: img.id,
+          file_url: img.file_url,
+          theme: img.theme,
+          safe_zone: img.metadata?.review?.safe_zone
+        })) : undefined
       });
 
       // Show warnings if assets are missing
-      if (!introImage && !outroImage) {
-        setAssetError(`No approved images found for theme "${childTheme}" with intro/outro safe zones.`);
+      if (!introImage && !outroImage && selectedSlideshowImages.length === 0) {
+        setAssetError(`No approved images found for theme "${childTheme}" with any safe zones.`);
       } else if (!introImage) {
         setAssetError(`No intro images found for theme "${childTheme}". Will use fallback.`);
       } else if (!outroImage) {
         setAssetError(`No outro images found for theme "${childTheme}". Will use fallback.`);
+      } else if (selectedSlideshowImages.length === 0) {
+        setAssetError(`No slideshow images found for theme "${childTheme}". Will use fallback.`);
+      } else if (selectedSlideshowImages.length < 23) {
+        setAssetError(`Only ${selectedSlideshowImages.length} slideshow images found for theme "${childTheme}" (need 23 for full slideshow). Images will repeat to fill duration.`);
       }
 
     } catch (error) {
@@ -250,7 +310,8 @@ export default function LullabyVideoRequest() {
           childId: selectedChild.id,
           submitted_by: '1cb80063-9b5f-4fff-84eb-309f12bd247d', // Use a valid UUID from the database
           introImageUrl: themeAssets?.introImage?.file_url,
-          outroImageUrl: themeAssets?.outroImage?.file_url
+          outroImageUrl: themeAssets?.outroImage?.file_url,
+          slideshowImageUrls: themeAssets?.slideshowImages?.map(img => img.file_url) || []
         })
       });
 
@@ -392,7 +453,9 @@ export default function LullabyVideoRequest() {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Slideshow Images:</span>
-                    <span className="text-yellow-600">⚠️ Not yet implemented</span>
+                    <span className="font-medium">
+                      {themeAssets?.slideshowImages ? `${themeAssets.slideshowImages.length}/23 images` : '0/23 images'}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -428,6 +491,11 @@ export default function LullabyVideoRequest() {
                         Outro: {themeAssets.outroImage.id} (safe_zone: {Array.isArray(themeAssets.outroImage.safe_zone) ? themeAssets.outroImage.safe_zone.join(', ') : themeAssets.outroImage.safe_zone || 'null'})
                       </div>
                     )}
+                    {themeAssets.slideshowImages && themeAssets.slideshowImages.length > 0 && (
+                      <div className="mt-1 text-xs">
+                        Slideshow: {themeAssets.slideshowImages.length} images (IDs: {themeAssets.slideshowImages.map(img => img.id).join(', ')})
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -441,6 +509,7 @@ export default function LullabyVideoRequest() {
   duration: dreamDripDuration || 'Loading...',
   introImageUrl: themeAssets?.introImage?.file_url || 'No intro image found',
   outroImageUrl: themeAssets?.outroImage?.file_url || 'No outro image found',
+  slideshowImageUrls: themeAssets?.slideshowImages?.map(img => img.file_url) || [],
   introAudioUrl: '',
   debugMode: true,
   assetInfo: {
@@ -453,7 +522,12 @@ export default function LullabyVideoRequest() {
       id: themeAssets.outroImage.id,
       theme: themeAssets.outroImage.theme,
       safe_zone: themeAssets.outroImage.safe_zone
-    } : null
+    } : null,
+    slideshowImages: themeAssets?.slideshowImages?.map(img => ({
+      id: img.id,
+      theme: img.theme,
+      safe_zone: img.safe_zone
+    })) || []
   }
 }, null, 2)}
                 </pre>
@@ -463,6 +537,120 @@ export default function LullabyVideoRequest() {
                   </div>
                 )}
               </div>
+
+              {/* Asset Visual Preview */}
+              {themeAssets && !assetLoading && (
+                <div className="mt-6 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                  <h4 className="font-medium text-gray-900 mb-4">Asset Preview</h4>
+                  
+                  <div className="space-y-6">
+                    {/* Intro Image */}
+                    {themeAssets.introImage && (
+                      <div className="bg-white p-4 rounded-lg border border-gray-200">
+                        <h5 className="font-medium text-gray-900 mb-3 flex items-center">
+                          <span className="text-blue-600 mr-2">🎬</span>
+                          Intro Image
+                        </h5>
+                        <div className="flex items-start space-x-4">
+                          <div className="w-32 h-20 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
+                            <img 
+                              src={themeAssets.introImage.file_url} 
+                              alt="Intro"
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.currentTarget.src = 'https://via.placeholder.com/128x80/1a1a1a/666666?text=No+Image';
+                              }}
+                            />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm text-gray-600">
+                              <div><strong>ID:</strong> {themeAssets.introImage.id}</div>
+                              <div><strong>Theme:</strong> {themeAssets.introImage.theme}</div>
+                              <div><strong>Safe Zones:</strong> {Array.isArray(themeAssets.introImage.safe_zone) ? themeAssets.introImage.safe_zone.join(', ') : themeAssets.introImage.safe_zone || 'None'}</div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Slideshow Images */}
+                    {themeAssets.slideshowImages && themeAssets.slideshowImages.length > 0 && (
+                      <div className="bg-white p-4 rounded-lg border border-gray-200">
+                        <h5 className="font-medium text-gray-900 mb-3 flex items-center">
+                          <span className="text-purple-600 mr-2">🖼️</span>
+                          Slideshow Images ({themeAssets.slideshowImages.length}/23)
+                          <span className="ml-2 text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-full">
+                            Randomized Order
+                          </span>
+                        </h5>
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                          {themeAssets.slideshowImages.map((img, index) => (
+                            <div key={img.id} className="bg-gray-50 p-2 rounded-lg">
+                              <div className="w-full h-20 bg-gray-100 rounded overflow-hidden mb-2">
+                                <img 
+                                  src={img.file_url} 
+                                  alt={`Slideshow ${index + 1}`}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    e.currentTarget.src = 'https://via.placeholder.com/128x80/1a1a1a/666666?text=No+Image';
+                                  }}
+                                />
+                              </div>
+                              <div className="text-xs text-gray-600">
+                                <div className="font-medium">#{index + 1}</div>
+                                <div className="truncate">{img.id}</div>
+                                <div className="text-gray-500">{img.theme}</div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Outro Image */}
+                    {themeAssets.outroImage && (
+                      <div className="bg-white p-4 rounded-lg border border-gray-200">
+                        <h5 className="font-medium text-gray-900 mb-3 flex items-center">
+                          <span className="text-purple-600 mr-2">🌙</span>
+                          Outro Image
+                        </h5>
+                        <div className="flex items-start space-x-4">
+                          <div className="w-32 h-20 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
+                            <img 
+                              src={themeAssets.outroImage.file_url} 
+                              alt="Outro"
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.currentTarget.src = 'https://via.placeholder.com/128x80/1a1a1a/666666?text=No+Image';
+                              }}
+                            />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm text-gray-600">
+                              <div><strong>ID:</strong> {themeAssets.outroImage.id}</div>
+                              <div><strong>Theme:</strong> {themeAssets.outroImage.theme}</div>
+                              <div><strong>Safe Zones:</strong> {Array.isArray(themeAssets.outroImage.safe_zone) ? themeAssets.outroImage.safe_zone.join(', ') : themeAssets.outroImage.safe_zone || 'None'}</div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Audio Placeholder */}
+                    <div className="bg-white p-4 rounded-lg border border-gray-200">
+                      <h5 className="font-medium text-gray-900 mb-3 flex items-center">
+                        <span className="text-green-600 mr-2">🎵</span>
+                        Audio Assets
+                      </h5>
+                      <div className="text-sm text-gray-500">
+                        <div className="mb-2">• Background Music: DreamDrip (Duration: {dreamDripDuration || 'Loading...'} seconds)</div>
+                        <div className="mb-2">• Intro Audio: <span className="text-yellow-600">⚠️ Not yet implemented</span></div>
+                        <div>• Outro Audio: <span className="text-yellow-600">⚠️ Not yet implemented</span></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}

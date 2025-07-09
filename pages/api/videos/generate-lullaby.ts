@@ -8,7 +8,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const { childName, childAge, childTheme, childId, submitted_by, introImageUrl, outroImageUrl } = req.body;
+    const { childName, childAge, childTheme, childId, submitted_by, introImageUrl, outroImageUrl, slideshowImageUrls } = req.body;
 
     if (!childName || !childId) {
       return res.status(400).json({ 
@@ -83,15 +83,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       duration: dreamDripDuration,
       introImageUrl: introImageUrl || 'https://etshvxrgbssginmzsczo.supabase.co/storage/v1/object/public/assets/assets/image/1751981193321_7ch9q7v0y.png',
       outroImageUrl: outroImageUrl || 'https://etshvxrgbssginmzsczo.supabase.co/storage/v1/object/public/assets/assets/image/1751981193321_7ch9q7v0y.png',
+      slideshowImageUrls: slideshowImageUrls || [],
       introAudioUrl: '', // Personalized audio for intro (empty for now)
       debugMode: true
     };
 
     try {
       const result = await renderMediaOnLambda({
-        region: 'us-east-1',
-        functionName: 'remotion-render-4-0-322-mem2048mb-disk2048mb-120sec',
-        serveUrl: 'https://remotionlambda-useast1-3pwoq46nsa.s3.us-east-1.amazonaws.com/sites/f5rflwily9/index.html',
+        region: (process.env.AWS_REGION as any) || 'us-east-1',
+        functionName: process.env.AWS_LAMBDA_REMOTION_FUNCTION || 'remotion-render-4-0-322-mem2048mb-disk2048mb-120sec',
+        serveUrl: process.env.REMOTION_SITE_URL || 'https://remotionlambda-useast1-3pwoq46nsa.s3.us-east-1.amazonaws.com/sites/aiaio3-lullaby/index.html',
         composition: 'Lullaby',
         inputProps,
         codec: 'h264',
