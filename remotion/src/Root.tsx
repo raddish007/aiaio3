@@ -113,7 +113,8 @@ export const RemotionRoot: React.FC = () => {
           backgroundMusicUrl: '',
           backgroundMusicVolume: 0.8,
           duration: 108, // DreamDrip audio duration (hardcoded for local preview)
-          introImageUrl: '', // Background image for intro (empty for now)
+          introImageUrl: 'https://etshvxrgbssginmzsczo.supabase.co/storage/v1/object/public/assets/assets/image/1751981193321_7ch9q7v0y.png',
+          outroImageUrl: 'https://etshvxrgbssginmzsczo.supabase.co/storage/v1/object/public/assets/assets/image/1751981193321_7ch9q7v0y.png',
           introAudioUrl: '', // Personalized audio for intro (empty for now)
           debugMode: true, // Enable debug mode to see what's missing
         }}
@@ -134,7 +135,8 @@ export const RemotionRoot: React.FC = () => {
           backgroundMusicUrl: '',
           backgroundMusicVolume: 0.8,
           duration: 108, // DreamDrip audio duration (hardcoded for local preview)
-          introImageUrl: '', // Background image for intro (empty for now)
+          introImageUrl: 'https://etshvxrgbssginmzsczo.supabase.co/storage/v1/object/public/assets/assets/image/1751981193321_7ch9q7v0y.png',
+          outroImageUrl: 'https://etshvxrgbssginmzsczo.supabase.co/storage/v1/object/public/assets/assets/image/1751981193321_7ch9q7v0y.png',
           introAudioUrl: '', // Personalized audio for intro (empty for now)
           debugMode: true, // Enable debug mode to see what's missing
         }}

@@ -1,7 +1,7 @@
 // src/compositions/Lullaby.tsx
 
 import React from 'react';
-import { AbsoluteFill, useVideoConfig, Audio, Sequence } from 'remotion';
+import { AbsoluteFill, useVideoConfig, Audio, Sequence, Img } from 'remotion';
 
 export interface LullabyProps {
   childName: string;
@@ -11,6 +11,7 @@ export interface LullabyProps {
   backgroundMusicVolume?: number;
   duration?: number; // Duration in seconds from database metadata
   introImageUrl?: string; // Background image for intro
+  outroImageUrl?: string; // Background image for outro
   introAudioUrl?: string; // Personalized audio for intro
   debugMode?: boolean;
 }
@@ -23,6 +24,7 @@ export const Lullaby: React.FC<LullabyProps> = ({
   backgroundMusicVolume = 0.8,
   duration = 108, // Default to 108 seconds for local preview
   introImageUrl = '',
+  outroImageUrl = '',
   introAudioUrl = '',
   debugMode = false,
 }) => {
@@ -102,6 +104,9 @@ export const Lullaby: React.FC<LullabyProps> = ({
       outroFontSize,
       effectiveOutroTextLength,
       hasIntroImage: !!introImageUrl,
+      introImageUrl,
+      hasOutroImage: !!outroImageUrl,
+      outroImageUrl,
       hasIntroAudio: !!introAudioUrl,
       debugMode,
     });
@@ -118,12 +123,35 @@ export const Lullaby: React.FC<LullabyProps> = ({
         loop
       />
       
+      {/* Debug Timestamp - Always visible */}
+      <AbsoluteFill style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'flex-end',
+        paddingBottom: '50px',
+        pointerEvents: 'none',
+        zIndex: 1000,
+      }}>
+        <div style={{
+          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+          color: 'white',
+          fontSize: 48,
+          fontFamily: 'monospace',
+          fontWeight: 'bold',
+          padding: '10px 20px',
+          borderRadius: '10px',
+          textShadow: '2px 2px 4px rgba(0,0,0,0.7)',
+        }}>
+          {new Date().toLocaleTimeString()}
+        </div>
+      </AbsoluteFill>
+      
       {/* Part 1: Intro (5 seconds) */}
       <Sequence from={0} durationInFrames={introDuration}>
         <AbsoluteFill style={{ backgroundColor: 'black' }}>
           {/* Background Image */}
           {introImageUrl ? (
-            <img 
+            <Img 
               src={introImageUrl} 
               style={{ 
                 width: '100%', 
@@ -203,9 +231,9 @@ export const Lullaby: React.FC<LullabyProps> = ({
       <Sequence from={introDuration + mainContentDuration} durationInFrames={outroDuration}>
         <AbsoluteFill style={{ backgroundColor: 'black' }}>
           {/* Background Image */}
-          {introImageUrl ? (
-            <img 
-              src={introImageUrl} 
+          {outroImageUrl ? (
+            <Img 
+              src={outroImageUrl} 
               style={{ 
                 width: '100%', 
                 height: '100%', 
@@ -227,7 +255,7 @@ export const Lullaby: React.FC<LullabyProps> = ({
               No Outro Image Available
             </div>
           )}
-          
+
           {/* Personalized Text Overlay */}
           <AbsoluteFill style={{
             display: 'flex',
