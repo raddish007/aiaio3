@@ -279,8 +279,18 @@ export default function VideoModeration() {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Video Moderation</h1>
-          <p className="text-gray-600">Review and approve videos for child consumption</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">Video Moderation</h1>
+              <p className="text-gray-600">Review and approve videos for child consumption</p>
+            </div>
+            <a
+              href="/admin"
+              className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors"
+            >
+              ← Back to Admin Dashboard
+            </a>
+          </div>
         </div>
 
         {/* Filters */}

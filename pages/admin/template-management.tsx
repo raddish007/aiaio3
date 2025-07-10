@@ -120,7 +120,9 @@ export default function TemplateManagement() {
 
   const getAssetClassOptions = (type: 'audio' | 'image') => {
     const options = new Set<string>();
-    
+    if (type === 'audio') {
+      options.add('name_audio'); // Always include name_audio
+    }
     assets.forEach(asset => {
       if (asset.type === type) {
         // Add audio_class for audio assets
@@ -133,7 +135,6 @@ export default function TemplateManagement() {
         }
       }
     });
-    
     return Array.from(options).sort();
   };
 

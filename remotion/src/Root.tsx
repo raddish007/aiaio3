@@ -18,7 +18,7 @@ export const RemotionRoot: React.FC = () => {
       <Composition
         id="NameVideo"
         component={NameVideo}
-        durationInFrames={240} // 4 minutes at 60fps
+        durationInFrames={1680} // 28 seconds at 60fps (7 segments * 4 seconds each for "Nolan")
         fps={60}
         width={1920}
         height={1080}
@@ -26,6 +26,14 @@ export const RemotionRoot: React.FC = () => {
           childName: 'Nolan',
           theme: 'halloween',
           age: 3,
+          backgroundMusicUrl: 'https://etshvxrgbssginmzsczo.supabase.co/storage/v1/object/public/assets/assets/audio/1751989180199.wav',
+          backgroundMusicVolume: 0.5,
+          introImageUrl: '',
+          introAudioUrl: '',
+          letterImageUrls: [],
+          letterAudioUrls: {},
+          outroImageUrl: '',
+          outroAudioUrl: ''
         }}
       />
 

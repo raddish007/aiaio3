@@ -39,6 +39,7 @@ interface Asset {
       reviewed_at?: string;
       reviewed_by?: string;
     };
+    letter?: string; // Added letter to metadata interface
   };
 }
 
@@ -64,7 +65,9 @@ export default function AssetManagement() {
     personalization: 'general' as 'general' | 'personalized',
     child_name: '',
     template: '' as 'lullaby' | 'name-video' | 'letter-hunt' | 'general' | '',
-    volume: 1.0
+    volume: 1.0,
+    audio_class: '' as string | undefined,
+    letter: ''
   });
   const [reviewForm, setReviewForm] = useState({
     safe_zone: [] as ('left_safe' | 'right_safe' | 'center_safe' | 'intro_safe' | 'outro_safe' | 'all_ok' | 'not_applicable')[],
@@ -80,7 +83,8 @@ export default function AssetManagement() {
     child_name: '',
     template: '' as 'lullaby' | 'name-video' | 'letter-hunt' | 'general' | '',
     volume: 1.0,
-    audio_class: '' as string | undefined
+    audio_class: '' as string | undefined,
+    letter: ''
   });
   const [bulkUploadForm, setBulkUploadForm] = useState({
     description: '',
@@ -89,7 +93,8 @@ export default function AssetManagement() {
     personalization: 'general' as 'general' | 'personalized',
     child_name: '',
     template: '' as 'lullaby' | 'name-video' | 'letter-hunt' | 'general' | '',
-    volume: 1.0
+    volume: 1.0,
+    audio_class: '' as string | undefined
   });
   const [filter, setFilter] = useState({
     status: 'all',
@@ -99,12 +104,16 @@ export default function AssetManagement() {
   });
   const [view, setView] = useState<'all' | 'review' | 'viewer'>('all');
   const [userNames, setUserNames] = useState<Record<string, string>>({});
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalAssets, setTotalAssets] = useState(0);
+  const [pendingAssetsCount, setPendingAssetsCount] = useState(0);
+  const assetsPerPage = 50;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
   useEffect(() => {
     checkAdminAccess();
-    fetchAssets();
+    fetchAssets(1);
   }, []);
 
   // Fetch user names for reviewer display
@@ -164,11 +173,39 @@ export default function AssetManagement() {
     }
   };
 
-  const fetchAssets = async () => {
+  const fetchAssets = async (page: number = 1) => {
+    // Get total count for pagination
+    const { count: totalCount, error: countError } = await supabase
+      .from('assets')
+      .select('*', { count: 'exact', head: true });
+
+    if (countError) {
+      console.error('Error fetching total count:', countError);
+    } else {
+      setTotalAssets(totalCount || 0);
+    }
+
+    // Get pending assets count for review queue
+    const { count: pendingCount, error: pendingError } = await supabase
+      .from('assets')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'pending');
+
+    if (pendingError) {
+      console.error('Error fetching pending count:', pendingError);
+    } else {
+      setPendingAssetsCount(pendingCount || 0);
+    }
+
+    // Calculate pagination
+    const from = (page - 1) * assetsPerPage;
+    const to = from + assetsPerPage - 1;
+
     const { data, error } = await supabase
       .from('assets')
       .select('*')
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .range(from, to);
 
     if (error) {
       console.error('Error fetching assets:', error);
@@ -192,6 +229,21 @@ export default function AssetManagement() {
       setAssets(data || []);
     }
     setLoading(false);
+  };
+
+  const fetchPendingAssets = async () => {
+    const { data, error } = await supabase
+      .from('assets')
+      .select('*')
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching pending assets:', error);
+    } else {
+      console.log('Fetched pending assets:', data);
+      setAssets(data || []);
+    }
   };
 
   const handleApprove = async (assetId: string) => {
@@ -224,6 +276,8 @@ export default function AssetManagement() {
         status: 'approved',
         metadata: {
           ...currentAsset?.metadata,
+          ...editForm,
+          letter: editForm.audio_class === 'letter_audio' ? editForm.letter : undefined,
           review: {
             reviewed_at: new Date().toISOString(),
             reviewed_by: user?.id
@@ -237,7 +291,11 @@ export default function AssetManagement() {
       alert('Error approving asset: ' + error.message);
     } else {
       console.log('Asset approved successfully');
-      fetchAssets();
+      if (view === 'review') {
+        fetchPendingAssets();
+      } else {
+        fetchAssets(currentPage);
+      }
       setShowModal(false);
     }
   };
@@ -269,7 +327,11 @@ export default function AssetManagement() {
     if (error) {
       console.error('Error rejecting asset:', error);
     } else {
-      fetchAssets();
+      if (view === 'review') {
+        fetchPendingAssets();
+      } else {
+        fetchAssets(currentPage);
+      }
       setShowModal(false);
     }
   };
@@ -295,6 +357,7 @@ export default function AssetManagement() {
           template: editForm.template,
           volume: (selectedAsset && isAudioOrVideo(selectedAsset.type)) ? editForm.volume : undefined,
           audio_class: (selectedAsset && selectedAsset.type === 'audio') ? editForm.audio_class : undefined,
+          letter: (selectedAsset && selectedAsset.type === 'audio' && editForm.audio_class === 'letter_audio') ? editForm.letter : undefined,
           review: {
             safe_zone: reviewForm.safe_zone,
             approval_notes: reviewForm.approval_notes,
@@ -318,6 +381,7 @@ export default function AssetManagement() {
             template: editForm.template,
             volume: (selectedAsset && isAudioOrVideo(selectedAsset.type)) ? editForm.volume : undefined,
             audio_class: (selectedAsset && selectedAsset.type === 'audio') ? editForm.audio_class : undefined,
+            letter: (selectedAsset && selectedAsset.type === 'audio' && editForm.audio_class === 'letter_audio') ? editForm.letter : undefined,
             review: {
               safe_zone: reviewForm.safe_zone,
               approval_notes: reviewForm.approval_notes,
@@ -334,7 +398,11 @@ export default function AssetManagement() {
         alert('Error approving asset: ' + error.message);
       } else {
         console.log('Asset updated successfully:', data);
-        await fetchAssets(); // Wait for assets to refresh
+        if (view === 'review') {
+          await fetchPendingAssets(); // Wait for assets to refresh
+        } else {
+          await fetchAssets(currentPage); // Wait for assets to refresh
+        }
         openNextAsset(assetId); // Auto-advance to next asset
       }
     } catch (error) {
@@ -382,7 +450,11 @@ export default function AssetManagement() {
         alert('Error rejecting asset: ' + error.message);
       } else {
         console.log('Asset rejected successfully:', data);
-        await fetchAssets(); // Wait for assets to refresh
+        if (view === 'review') {
+          await fetchPendingAssets(); // Wait for assets to refresh
+        } else {
+          await fetchAssets(currentPage); // Wait for assets to refresh
+        }
         openNextAsset(assetId); // Auto-advance to next asset
       }
     } catch (error) {
@@ -448,7 +520,8 @@ export default function AssetManagement() {
       child_name: asset.metadata?.child_name || '',
       template: asset.metadata?.template || '',
       volume: asset.metadata?.volume ?? 1.0,
-      audio_class: asset.metadata?.audio_class || ''
+      audio_class: asset.metadata?.audio_class || '',
+      letter: asset.metadata?.letter || ''
     });
     setReviewForm({
       safe_zone: asset.metadata?.review?.safe_zone || [],
@@ -514,7 +587,7 @@ export default function AssetManagement() {
       setShowModal(false);
       setSelectedAsset(null);
       setReviewForm({ safe_zone: [], approval_notes: '', rejection_reason: '' });
-      setEditForm({ theme: '', description: '', tags: '', prompt: '', personalization: 'general', child_name: '', template: '', volume: 1.0, audio_class: '' });
+      setEditForm({ theme: '', description: '', tags: '', prompt: '', personalization: 'general', child_name: '', template: '', volume: 1.0, audio_class: '', letter: '' });
     }
   };
 
@@ -590,7 +663,9 @@ export default function AssetManagement() {
             personalization: uploadForm.personalization,
             child_name: uploadForm.personalization === 'personalized' ? uploadForm.child_name : null,
             template: uploadForm.template || null,
-            volume: (isAudioOrVideo(uploadForm.type)) ? uploadForm.volume : undefined
+            volume: (isAudioOrVideo(uploadForm.type)) ? uploadForm.volume : undefined,
+            audio_class: uploadForm.type === 'audio' ? uploadForm.audio_class : undefined,
+            letter: (uploadForm.type === 'audio' && uploadForm.audio_class === 'letter_audio') ? uploadForm.letter : undefined
           }
         });
 
@@ -607,11 +682,17 @@ export default function AssetManagement() {
         personalization: 'general',
         child_name: '',
         template: '',
-        volume: 1.0
+        volume: 1.0,
+        audio_class: '',
+        letter: ''
       });
       setSelectedFile(null);
       setShowUploadModal(false);
-      fetchAssets();
+      if (view === 'review') {
+        fetchPendingAssets();
+      } else {
+        fetchAssets(currentPage);
+      }
 
     } catch (error) {
       console.error('Error uploading asset:', error);
@@ -693,11 +774,16 @@ export default function AssetManagement() {
         personalization: 'general',
         child_name: '',
         template: '',
-        volume: 1.0
+        volume: 1.0,
+        audio_class: ''
       });
       setSelectedFiles([]);
       setShowBulkUploadModal(false);
-      fetchAssets();
+      if (view === 'review') {
+        fetchPendingAssets();
+      } else {
+        fetchAssets(currentPage);
+      }
     } catch (error) {
       console.error('Error uploading bulk assets:', error);
       alert('Error uploading bulk assets. Please try again.');
@@ -910,7 +996,11 @@ export default function AssetManagement() {
                 <h2 className="text-lg font-semibold text-gray-900">Asset Management</h2>
                 <div className="flex space-x-2">
                   <button
-                    onClick={() => setView('all')}
+                    onClick={() => {
+                      setView('all');
+                      setCurrentPage(1);
+                      fetchAssets(1);
+                    }}
                     className={`px-4 py-2 rounded-md text-sm font-medium ${
                       view === 'all' 
                         ? 'bg-blue-600 text-white' 
@@ -920,14 +1010,18 @@ export default function AssetManagement() {
                     All Assets
                   </button>
                   <button
-                    onClick={() => setView('review')}
+                    onClick={() => {
+                      setView('review');
+                      setCurrentPage(1);
+                      fetchPendingAssets();
+                    }}
                     className={`px-4 py-2 rounded-md text-sm font-medium ${
                       view === 'review' 
                         ? 'bg-blue-600 text-white' 
                         : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                     }`}
                   >
-                    Review Queue
+                    Review Queue ({pendingAssetsCount})
                   </button>
                   <button
                     onClick={() => setView('viewer')}
@@ -948,7 +1042,7 @@ export default function AssetManagement() {
             <div className="px-4 py-3 border-b border-gray-200">
               <h2 className="text-lg font-semibold text-gray-900">
                 {view === 'all' && `All Assets (${filteredAssets.length} assets)`}
-                {view === 'review' && `Review Queue (${filteredAssets.length} assets)`}
+                {view === 'review' && `Review Queue (${pendingAssetsCount} assets)`}
                 {view === 'viewer' && `Asset Viewer (${filteredAssets.length} assets)`}
               </h2>
             </div>
@@ -1186,6 +1280,68 @@ export default function AssetManagement() {
                   ))}
                 </div>
               )}
+
+              {/* Pagination - Only show for 'all' view */}
+              {view === 'all' && totalAssets > assetsPerPage && (
+                <div className="mt-6 flex items-center justify-between">
+                  <div className="text-sm text-gray-700">
+                    Showing {((currentPage - 1) * assetsPerPage) + 1} to {Math.min(currentPage * assetsPerPage, totalAssets)} of {totalAssets} assets
+                  </div>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => {
+                        const newPage = currentPage - 1;
+                        setCurrentPage(newPage);
+                        fetchAssets(newPage);
+                      }}
+                      disabled={currentPage === 1}
+                      className={`px-3 py-2 text-sm font-medium rounded-md ${
+                        currentPage === 1
+                          ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                          : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      Previous
+                    </button>
+                    <div className="flex space-x-1">
+                      {Array.from({ length: Math.min(5, Math.ceil(totalAssets / assetsPerPage)) }, (_, i) => {
+                        const pageNum = i + 1;
+                        return (
+                          <button
+                            key={pageNum}
+                            onClick={() => {
+                              setCurrentPage(pageNum);
+                              fetchAssets(pageNum);
+                            }}
+                            className={`px-3 py-2 text-sm font-medium rounded-md ${
+                              currentPage === pageNum
+                                ? 'bg-blue-600 text-white'
+                                : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                            }`}
+                          >
+                            {pageNum}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <button
+                      onClick={() => {
+                        const newPage = currentPage + 1;
+                        setCurrentPage(newPage);
+                        fetchAssets(newPage);
+                      }}
+                      disabled={currentPage >= Math.ceil(totalAssets / assetsPerPage)}
+                      className={`px-3 py-2 text-sm font-medium rounded-md ${
+                        currentPage >= Math.ceil(totalAssets / assetsPerPage)
+                          ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                          : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -1335,16 +1491,15 @@ export default function AssetManagement() {
                   </select>
                 </div>
 
-                {uploadForm.personalization === 'personalized' && (
+                {(isAudioOrVideo(uploadForm.type) && uploadForm.type === 'audio' && uploadForm.audio_class !== 'letter_audio') && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Child Name *</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Child Name</label>
                     <input
                       type="text"
                       value={uploadForm.child_name}
-                      onChange={(e) => setUploadForm(prev => ({ ...prev, child_name: e.target.value }))}
+                      onChange={e => setUploadForm(prev => ({ ...prev, child_name: e.target.value }))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Enter the child's name"
-                      required
+                      placeholder="Enter child's name (if personalized)"
                     />
                   </div>
                 )}
@@ -1363,6 +1518,46 @@ export default function AssetManagement() {
                     <option value="general">General</option>
                   </select>
                 </div>
+
+                {/* Audio Class Assignment (for audio assets) */}
+                {uploadForm.type === 'audio' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Audio Class</label>
+                    <select
+                      value={uploadForm.audio_class || ''}
+                      onChange={(e) => setUploadForm(prev => ({ 
+                        ...prev, 
+                        audio_class: e.target.value || undefined 
+                      }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Select audio class...</option>
+                      <option value="background_music">Background Music</option>
+                      <option value="intro_audio">Intro Audio</option>
+                      <option value="outro_audio">Outro Audio</option>
+                      <option value="letter_audio">Letter Audio</option>
+                      <option value="name_audio">Name Audio</option>
+                      <option value="voice_narration">Voice Narration</option>
+                      <option value="sound_effect">Sound Effect</option>
+                    </select>
+                  </div>
+                )}
+
+                {/* Letter field for letter audio */}
+                {uploadForm.type === 'audio' && uploadForm.audio_class === 'letter_audio' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Letter</label>
+                    <input
+                      type="text"
+                      maxLength={1}
+                      value={uploadForm.letter || ''}
+                      onChange={e => setUploadForm(prev => ({ ...prev, letter: e.target.value.toUpperCase() }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Enter the letter (A-Z)"
+                    />
+                  </div>
+                )}
+
                 {(isAudioOrVideo(uploadForm.type)) && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Volume (0–1)</label>
@@ -1386,7 +1581,7 @@ export default function AssetManagement() {
                     !selectedFile || 
                     !uploadForm.theme || 
                     uploading ||
-                    (uploadForm.personalization === 'personalized' && !uploadForm.child_name)
+                    (uploadForm.personalization === 'personalized' && uploadForm.audio_class !== 'letter_audio' && !uploadForm.child_name)
                   }
                   className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:bg-gray-400"
                 >
@@ -1595,7 +1790,7 @@ export default function AssetManagement() {
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Audio Class</label>
                     <select
-                      value={selectedAsset.metadata?.audio_class || ''}
+                      value={editForm.audio_class || ''}
                       onChange={(e) => {
                         const audioClass = e.target.value;
                         setEditForm(prev => ({ 
@@ -1609,6 +1804,8 @@ export default function AssetManagement() {
                       <option value="background_music">Background Music</option>
                       <option value="intro_audio">Intro Audio</option>
                       <option value="outro_audio">Outro Audio</option>
+                      <option value="letter_audio">Letter Audio</option>
+                      <option value="name_audio">Name Audio</option>
                       <option value="voice_narration">Voice Narration</option>
                       <option value="sound_effect">Sound Effect</option>
                     </select>
@@ -1701,6 +1898,20 @@ export default function AssetManagement() {
                         </div>
                       )}
                     </div>
+                  </div>
+                )}
+
+                {selectedAsset.type === 'audio' && editForm.audio_class === 'letter_audio' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Letter</label>
+                    <input
+                      type="text"
+                      maxLength={1}
+                      value={editForm.letter}
+                      onChange={e => setEditForm(prev => ({ ...prev, letter: e.target.value.toUpperCase() }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Enter the letter (A-Z)"
+                    />
                   </div>
                 )}
               </div>
@@ -1908,7 +2119,7 @@ export default function AssetManagement() {
                   onClick={() => {
                     setShowModal(false);
                     setReviewForm({ safe_zone: [], approval_notes: '', rejection_reason: '' });
-                    setEditForm({ theme: '', description: '', tags: '', prompt: '', personalization: 'general', child_name: '', template: '', volume: 1.0, audio_class: '' });
+                    setEditForm({ theme: '', description: '', tags: '', prompt: '', personalization: 'general', child_name: '', template: '', volume: 1.0, audio_class: '', letter: '' });
                   }}
                   className="flex-1 bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700"
                 >

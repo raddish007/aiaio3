@@ -196,6 +196,19 @@ export default function AdminDashboard() {
             </button>
 
             <button
+              onClick={() => router.push('/admin/name-video-request')}
+              className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-200 border border-gray-200 hover:border-blue-300 group"
+            >
+              <div className="text-center">
+                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-blue-200 transition-colors">
+                  <span className="text-3xl">📝</span>
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Name Video</h3>
+                <p className="text-sm text-gray-600">Create personalized name spelling videos</p>
+              </div>
+            </button>
+
+            <button
               onClick={() => router.push('/admin/video-moderation')}
               className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-200 border border-gray-200 hover:border-red-300 group"
             >

@@ -1,0 +1,106 @@
+import React from 'react';
+import { Player } from '@remotion/player';
+import { NameVideo } from '../remotion/src/compositions/NameVideo';
+
+export default function TestNameVideo() {
+  return (
+    <div className="min-h-screen bg-gray-50 p-8">
+      <div className="max-w-4xl mx-auto">
+        <h1 className="text-3xl font-bold text-gray-900 mb-8">NameVideo Composition Test</h1>
+        
+        <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
+          <h2 className="text-xl font-semibold mb-4">Test with "Nolan" (5 letters)</h2>
+          <div className="aspect-video bg-black rounded-lg overflow-hidden">
+            <Player
+              component={NameVideo}
+              inputProps={{
+                childName: 'Nolan',
+                theme: 'halloween',
+                age: 3,
+                backgroundMusicUrl: '',
+                backgroundMusicVolume: 0.5,
+                introImageUrl: '',
+                introAudioUrl: '',
+                letterImageUrls: [],
+                letterAudioUrls: {},
+                outroImageUrl: '',
+                outroAudioUrl: ''
+              }}
+              durationInFrames={1680} // 7 segments * 60fps * 4 seconds = 1680 frames
+              fps={60}
+              compositionWidth={1920}
+              compositionHeight={1080}
+              style={{
+                width: '100%',
+                height: '100%',
+              }}
+              controls
+            />
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
+          <h2 className="text-xl font-semibold mb-4">Test with "Emma" (4 letters)</h2>
+          <div className="aspect-video bg-black rounded-lg overflow-hidden">
+            <Player
+              component={NameVideo}
+              inputProps={{
+                childName: 'Emma',
+                theme: 'space',
+                age: 4,
+                backgroundMusicUrl: '',
+                backgroundMusicVolume: 0.5,
+                introImageUrl: '',
+                introAudioUrl: '',
+                letterImageUrls: [],
+                letterAudioUrls: {},
+                outroImageUrl: '',
+                outroAudioUrl: ''
+              }}
+              durationInFrames={1440} // 6 segments * 60fps * 4 seconds = 1440 frames
+              fps={60}
+              compositionWidth={1920}
+              compositionHeight={1080}
+              style={{
+                width: '100%',
+                height: '100%',
+              }}
+              controls
+            />
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-lg p-6">
+          <h2 className="text-xl font-semibold mb-4">Test with "Christopher" (11 letters)</h2>
+          <div className="aspect-video bg-black rounded-lg overflow-hidden">
+            <Player
+              component={NameVideo}
+              inputProps={{
+                childName: 'Christopher',
+                theme: 'dinosaurs',
+                age: 5,
+                backgroundMusicUrl: '',
+                backgroundMusicVolume: 0.5,
+                introImageUrl: '',
+                introAudioUrl: '',
+                letterImageUrls: [],
+                letterAudioUrls: {},
+                outroImageUrl: '',
+                outroAudioUrl: ''
+              }}
+              durationInFrames={3120} // 13 segments * 60fps * 4 seconds = 3120 frames
+              fps={60}
+              compositionWidth={1920}
+              compositionHeight={1080}
+              style={{
+                width: '100%',
+                height: '100%',
+              }}
+              controls
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+} 

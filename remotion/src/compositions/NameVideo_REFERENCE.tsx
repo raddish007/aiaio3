@@ -12,111 +12,144 @@ import {
 
 export interface NameVideoProps {
   childName: string;
-  theme: string;
-  age: number;
-  backgroundMusicUrl?: string;
-  backgroundMusicVolume?: number;
-  // Part 1: Intro assets
-  introImageUrl?: string;
-  introAudioUrl?: string;
-  // Part 2: Letter assets (arrays for alternating left/right)
-  letterImageUrls?: string[]; // Array of images for each letter
-  letterAudioUrls?: { [letter: string]: string }; // Map of letter -> audio URL
-  // Part 3: Outro assets
-  outroImageUrl?: string;
-  outroAudioUrl?: string;
+  dinosaurAssets?: Array<{
+    id: string;
+    file_url: string;
+    safe_zone: 'left' | 'center' | 'right';
+  }>;
+  // Enhanced props for database-connected template
+  assets?: Array<{
+    id: string;
+    title: string;
+    file_url: string;
+    themes: string[];
+    metadata: {
+      safeZone?: 'left' | 'center' | 'right';
+      [key: string]: any;
+    };
+  }>;
+  themes?: string[];
+  // Audio assets for name pronunciation
+  audioAssets?: {
+    fullName?: string; // URL to full name audio
+    letters?: { [letter: string]: string }; // Map of letter -> audio URL
+  };
 }
 
-export const NameVideo: React.FC<NameVideoProps> = ({
-  childName,
-  theme,
-  age,
-  backgroundMusicUrl = '',
-  backgroundMusicVolume = 0.5,
-  introImageUrl = '',
-  introAudioUrl = '',
-  letterImageUrls = [],
-  letterAudioUrls = {},
-  outroImageUrl = '',
-  outroAudioUrl = ''
-}) => {
-  const { fps } = useVideoConfig();
+export const NameVideo: React.FC<NameVideoProps> = ({childName, dinosaurAssets = [], assets = [], themes = [], audioAssets}) => {
+  const {fps} = useVideoConfig();
   const segmentDuration = fps * 4; // 4 seconds per segment
   
   const nameUpper = childName.toUpperCase();
   const letters = nameUpper.split('');
   
-  // Calculate total video duration
-  const totalSegments = letters.length + 2; // intro + letters + outro
+  // Handle both old and new asset formats
+  let centerAssets: any[] = [];
+  let leftAssets: any[] = [];
+  let rightAssets: any[] = [];
+  
+  if (assets.length > 0) {
+    // Use enhanced assets format
+    centerAssets = assets.filter(asset => asset.metadata?.safeZone === 'center');
+    leftAssets = assets.filter(asset => asset.metadata?.safeZone === 'left');
+    rightAssets = assets.filter(asset => asset.metadata?.safeZone === 'right');
+  } else {
+    // Use legacy dinosaur assets format
+    centerAssets = dinosaurAssets.filter(asset => asset.safe_zone === 'center');
+    leftAssets = dinosaurAssets.filter(asset => asset.safe_zone === 'left');
+    rightAssets = dinosaurAssets.filter(asset => asset.safe_zone === 'right');
+  }
+  
+  // Get random center image for intro/outro
+  const introImage = centerAssets.length > 0 
+    ? centerAssets[Math.floor(Math.random() * centerAssets.length)]
+    : null;
+  
+  const outroImage = centerAssets.length > 0 
+    ? centerAssets[Math.floor(Math.random() * centerAssets.length)]
+    : null;
+  
+  // Calculate total video duration and log info
+  const totalSegments = letters.length + 2;
   const totalDuration = totalSegments * segmentDuration;
   
-  // Log video info
-  console.log(`🎬 NameVideo for "${childName}" (${letters.length} letters):`, {
-    segments: totalSegments,
-    durationSeconds: totalDuration / fps,
-    durationFrames: totalDuration,
-    theme,
-    age,
-    hasBackgroundMusic: !!backgroundMusicUrl,
-    backgroundMusicVolume,
-    hasIntroImage: !!introImageUrl,
-    hasIntroAudio: !!introAudioUrl,
-    letterImageCount: letterImageUrls.length,
-    letterAudioCount: Object.keys(letterAudioUrls).length,
-    hasOutroImage: !!outroImageUrl,
-    hasOutroAudio: !!outroAudioUrl,
-    letters: letters,
-    segmentDuration: segmentDuration,
-    timing: {
-      intro: { from: 0, duration: segmentDuration },
-      letters: letters.map((letter, index) => ({
-        letter,
-        from: segmentDuration * (index + 1),
-        duration: segmentDuration,
-        safeZone: index % 2 === 0 ? 'left' : 'right'
-      })),
-      outro: { from: segmentDuration * (letters.length + 1), duration: segmentDuration }
-    }
-  });
+  // Only log if we have assets to work with
+  if (assets.length > 0 || dinosaurAssets.length > 0) {
+    console.log(`🎬 Video for "${childName}" (${letters.length} letters):`, {
+      segments: totalSegments,
+      durationSeconds: totalDuration / fps,
+      durationFrames: totalDuration,
+      assetFormat: assets.length > 0 ? 'enhanced' : 'legacy',
+      themes: themes.length > 0 ? themes : ['Dinosaurs (default)'],
+      availableAssets: {
+        center: centerAssets.length,
+        left: leftAssets.length,
+        right: rightAssets.length
+      },
+      audioAssets: audioAssets ? {
+        hasFullName: !!audioAssets.fullName,
+        letterCount: audioAssets.letters ? Object.keys(audioAssets.letters).length : 0,
+        availableLetters: audioAssets.letters ? Object.keys(audioAssets.letters) : []
+      } : 'No audio assets'
+    });
+  }
   
   return (
     <AbsoluteFill style={{backgroundColor: '#4A90E2'}}>
       
-      {/* Background Music */}
-      {backgroundMusicUrl && (
-        <Audio 
-          src={backgroundMusicUrl}
-          volume={backgroundMusicVolume}
-          startFrom={0}
-          endAt={totalDuration}
-          loop
-        />
+      {/* Audio Playback */}
+      {audioAssets && (
+        <>
+          {/* Full name audio at start */}
+          {audioAssets.fullName && (
+            <Audio src={audioAssets.fullName} />
+          )}
+          
+          {/* Individual letter audio - timed to play during each letter segment */}
+          {audioAssets.letters && letters.map((letter, index) => {
+            const letterAudio = audioAssets.letters![letter];
+            if (!letterAudio) return null;
+            
+            return (
+              <Audio 
+                key={`audio-${letter}-${index}`}
+                src={letterAudio}
+                startFrom={segmentDuration * (index + 1)} // Start when letter segment begins
+              />
+            );
+          })}
+          
+          {/* Full name audio at end */}
+          {audioAssets.fullName && (
+            <Audio 
+              src={audioAssets.fullName}
+              startFrom={segmentDuration * (letters.length + 1)} // Start when final name segment begins
+            />
+          )}
+        </>
       )}
       
-      {/* Part 1: Intro - 4 seconds - CENTER */}
+      {/* Full name intro - 4 seconds - CENTER */}
       <Sequence from={0} durationInFrames={segmentDuration}>
         <TextSegment 
           text={nameUpper} 
           isFullName={true} 
           safeZone="center"
-          backgroundImage={introImageUrl}
-          audioUrl={introAudioUrl}
+          backgroundImage={introImage?.file_url}
         />
       </Sequence>
 
-      {/* Part 2: Individual letters - 4 seconds each - ALTERNATING LEFT/RIGHT */}
+      {/* Individual letters - 4 seconds each - ALTERNATING LEFT/RIGHT */}
       {letters.map((letter, index) => {
         // Alternate between left and right
         const isLeft = index % 2 === 0;
         const safeZone = isLeft ? 'left' : 'right';
+        const availableAssets = isLeft ? leftAssets : rightAssets;
         
-        // Get image for this letter (cycle through available images)
-        const backgroundImage = letterImageUrls.length > 0 
-          ? letterImageUrls[index % letterImageUrls.length]
+        // Get random image from appropriate safe zone
+        const backgroundImage = availableAssets.length > 0 
+          ? availableAssets[Math.floor(Math.random() * availableAssets.length)].file_url
           : null;
-        
-        // Get audio for this letter
-        const letterAudio = letterAudioUrls[letter] || null;
         
         return (
           <Sequence 
@@ -129,13 +162,12 @@ export const NameVideo: React.FC<NameVideoProps> = ({
               isFullName={false} 
               safeZone={safeZone}
               backgroundImage={backgroundImage}
-              audioUrl={letterAudio}
             />
           </Sequence>
         );
       })}
 
-      {/* Part 3: Outro - 4 seconds - CENTER */}
+      {/* Final full name - 4 seconds - CENTER */}
       <Sequence 
         from={segmentDuration * (letters.length + 1)} 
         durationInFrames={segmentDuration}
@@ -144,8 +176,7 @@ export const NameVideo: React.FC<NameVideoProps> = ({
           text={nameUpper} 
           isFullName={true} 
           safeZone="center"
-          backgroundImage={outroImageUrl}
-          audioUrl={outroAudioUrl}
+          backgroundImage={outroImage?.file_url}
         />
       </Sequence>
       
@@ -158,10 +189,9 @@ interface TextSegmentProps {
   isFullName: boolean;
   safeZone: 'left' | 'center' | 'right';
   backgroundImage?: string;
-  audioUrl?: string;
 }
 
-const TextSegment: React.FC<TextSegmentProps> = ({text, isFullName, safeZone, backgroundImage, audioUrl}) => {
+const TextSegment: React.FC<TextSegmentProps> = ({text, isFullName, safeZone, backgroundImage}) => {
   const frame = useCurrentFrame();
   const { fps, width, height } = useVideoConfig();
 
@@ -281,18 +311,10 @@ const TextSegment: React.FC<TextSegmentProps> = ({text, isFullName, safeZone, ba
         backgroundColor: 'rgba(0, 0, 0, 0.3)',
       }} />
 
-      {/* Audio for this segment */}
-      {audioUrl && (
-        <Audio 
-          src={audioUrl}
-          volume={1.0}
-        />
-      )}
-
       {/* Text positioned in safe zone */}
       <div style={getTextPosition()}>
         {text}
       </div>
     </AbsoluteFill>
   );
-}; 
+};

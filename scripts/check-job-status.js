@@ -11,29 +11,46 @@ if (!supabaseUrl || !supabaseKey) {
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-async function checkJobStatus() {
-  console.log('Checking latest video generation job...\n');
+async function checkJobStatus(renderIdArg) {
+  console.log('Checking video generation job status...\n');
 
   try {
-    // Get the most recent job
-    const { data: jobs, error: jobsError } = await supabase
-      .from('video_generation_jobs')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(1);
-
-    if (jobsError) {
-      console.error('❌ Error fetching jobs:', jobsError.message);
-      return;
+    let job;
+    if (renderIdArg) {
+      // Find job by lambda_request_id
+      const { data: jobs, error: jobsError } = await supabase
+        .from('video_generation_jobs')
+        .select('*')
+        .eq('lambda_request_id', renderIdArg)
+        .limit(1);
+      if (jobsError) {
+        console.error('❌ Error fetching jobs:', jobsError.message);
+        return;
+      }
+      if (!jobs || jobs.length === 0) {
+        console.log('No job found for renderId:', renderIdArg);
+        return;
+      }
+      job = jobs[0];
+    } else {
+      // Get the most recent job
+      const { data: jobs, error: jobsError } = await supabase
+        .from('video_generation_jobs')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(1);
+      if (jobsError) {
+        console.error('❌ Error fetching jobs:', jobsError.message);
+        return;
+      }
+      if (!jobs || jobs.length === 0) {
+        console.log('No jobs found');
+        return;
+      }
+      job = jobs[0];
     }
 
-    if (!jobs || jobs.length === 0) {
-      console.log('No jobs found');
-      return;
-    }
-
-    const job = jobs[0];
-    console.log('Latest Job:');
+    console.log('Job:');
     console.log(`  ID: ${job.id}`);
     console.log(`  Status: ${job.status}`);
     console.log(`  Created: ${job.created_at}`);
@@ -72,4 +89,5 @@ async function checkJobStatus() {
   }
 }
 
-checkJobStatus(); 
+const renderIdArg = process.argv[2];
+checkJobStatus(renderIdArg); 
