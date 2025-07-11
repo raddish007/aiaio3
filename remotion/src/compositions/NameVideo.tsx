@@ -68,7 +68,8 @@ export const NameVideo: React.FC<NameVideoProps> = ({
   audioAssets,
   debugMode = false
 }) => {
-  const { fps } = useVideoConfig();
+  const frame = useCurrentFrame();
+  const { fps, durationInFrames } = useVideoConfig();
   const segmentDuration = fps * 4; // 4 seconds per segment
   const oneSecondDelay = fps * 1; // 1 second delay in frames
   
@@ -78,6 +79,28 @@ export const NameVideo: React.FC<NameVideoProps> = ({
   // Calculate total video duration
   const totalSegments = letters.length + 2; // intro + letters + outro
   const totalDuration = totalSegments * segmentDuration;
+  
+  // Fade frames for 0.5 second transitions
+  const fadeFrames = fps * 0.5;
+  
+  // Calculate background music volume with fade in/out
+  const backgroundMusicVolumeWithFade = (() => {
+    // Use the composition's durationInFrames for accurate timing
+    const totalFrames = durationInFrames;
+    
+    // Fade in at start
+    if (frame < fadeFrames) {
+      return backgroundMusicVolume * (frame / fadeFrames);
+    }
+    
+    // Fade out at end
+    if (frame > totalFrames - fadeFrames) {
+      return backgroundMusicVolume * ((totalFrames - frame) / fadeFrames);
+    }
+    
+    // Normal volume in between
+    return backgroundMusicVolume;
+  })();
   
   // Get name audio from audioAssets - skip if it's a placeholder
   const rawNameAudio = audioAssets?.fullName || introAudioUrl || outroAudioUrl || '';
@@ -200,7 +223,7 @@ export const NameVideo: React.FC<NameVideoProps> = ({
       {backgroundMusicUrl && backgroundMusicUrl.trim() !== '' && (
         <Audio 
           src={backgroundMusicUrl}
-          volume={backgroundMusicVolume}
+          volume={backgroundMusicVolumeWithFade}
         />
       )}
 
@@ -209,7 +232,26 @@ export const NameVideo: React.FC<NameVideoProps> = ({
       {/* Name audio at start - using Sequence for reliable timing */}
       {nameAudio && (
         <Sequence from={oneSecondDelay} durationInFrames={segmentDuration - oneSecondDelay}>
-          <Audio src={nameAudio} volume={0.8} />
+          <Audio 
+            src={nameAudio} 
+            volume={(frame) => {
+              const fadeFrames = fps * 0.5; // 0.5 second fade
+              const sequenceDuration = segmentDuration - oneSecondDelay;
+              
+              // Fade in at start
+              if (frame < fadeFrames) {
+                return 0.8 * (frame / fadeFrames);
+              }
+              
+              // Fade out at end
+              if (frame > sequenceDuration - fadeFrames) {
+                return 0.8 * ((sequenceDuration - frame) / fadeFrames);
+              }
+              
+              // Normal volume in between
+              return 0.8;
+            }}
+          />
         </Sequence>
       )}
       
@@ -238,7 +280,26 @@ export const NameVideo: React.FC<NameVideoProps> = ({
             from={letterSegmentStart + oneSecondDelay}
             durationInFrames={segmentDuration - oneSecondDelay}
           >
-            <Audio src={letterAudioUrl} volume={0.8} />
+            <Audio 
+              src={letterAudioUrl} 
+              volume={(frame) => {
+                const fadeFrames = fps * 0.5; // 0.5 second fade
+                const sequenceDuration = segmentDuration - oneSecondDelay;
+                
+                // Fade in at start
+                if (frame < fadeFrames) {
+                  return 0.8 * (frame / fadeFrames);
+                }
+                
+                // Fade out at end
+                if (frame > sequenceDuration - fadeFrames) {
+                  return 0.8 * ((sequenceDuration - frame) / fadeFrames);
+                }
+                
+                // Normal volume in between
+                return 0.8;
+              }}
+            />
           </Sequence>
         );
       })}
@@ -249,7 +310,26 @@ export const NameVideo: React.FC<NameVideoProps> = ({
           from={segmentDuration * (letters.length + 1) + oneSecondDelay} 
           durationInFrames={segmentDuration - oneSecondDelay}
         >
-          <Audio src={nameAudio} volume={0.8} />
+          <Audio 
+            src={nameAudio} 
+            volume={(frame) => {
+              const fadeFrames = fps * 0.5; // 0.5 second fade
+              const sequenceDuration = segmentDuration - oneSecondDelay;
+              
+              // Fade in at start
+              if (frame < fadeFrames) {
+                return 0.8 * (frame / fadeFrames);
+              }
+              
+              // Fade out at end
+              if (frame > sequenceDuration - fadeFrames) {
+                return 0.8 * ((sequenceDuration - frame) / fadeFrames);
+              }
+              
+              // Normal volume in between
+              return 0.8;
+            }}
+          />
         </Sequence>
       )}
       
@@ -357,14 +437,18 @@ const TextSegment: React.FC<TextSegmentProps> = ({
     },
   });
 
-  // Fade in animation for background image
-  const imageOpacity = interpolate(frame, [0, 30], [0, 1], {
+  // Fade frames for 0.5 second transitions
+  const fadeFrames = fps * 0.5;
+  const segmentFrames = fps * 4; // 4 second segments
+
+  // Fade in/out animation for background image
+  const imageOpacity = interpolate(frame, [0, fadeFrames, segmentFrames - fadeFrames, segmentFrames], [0, 1, 1, 0], {
     extrapolateLeft: 'clamp',
     extrapolateRight: 'clamp',
   });
 
-  // Text fade in animation 
-  const textOpacity = interpolate(frame, [10, 40], [0, 1], {
+  // Text fade in/out animation 
+  const textOpacity = interpolate(frame, [10, 40, segmentFrames - fadeFrames, segmentFrames], [0, 1, 1, 0], {
     extrapolateLeft: 'clamp',
     extrapolateRight: 'clamp',
   });
@@ -388,16 +472,25 @@ const TextSegment: React.FC<TextSegmentProps> = ({
     } else if (nameLength <= 8) {
       // Long names (6-8 chars): Medium size (reduced)
       targetSize = Math.min(width, height) * 0.13; // Reduced from 0.15
+    } else if (nameLength <= 10) {
+      // Very long names (9-10 chars): Significantly reduced for better fit
+      const singleLineSize = (width * 0.75) / nameLength * 1.4; 
+      const heightBasedSize = Math.min(width, height) * 0.07;
+      targetSize = Math.max(singleLineSize, heightBasedSize);
     } else {
-      // Very long names (9-13 chars): Further reduced for better fit
-      // Use 85% of width divided by character count, with smaller multiplier
-      const singleLineSize = (width * 0.80) / nameLength * 1.6; // Reduced from 0.85 width and 1.8 multiplier
-      const heightBasedSize = Math.min(width, height) * 0.08; // Reduced from 0.10
+      // Extremely long names (11+ chars): Maximum reduction for smallest safe areas
+      // Use smallest percentage of width and reduced multiplier for very tight fitting
+      const singleLineSize = (width * 0.65) / nameLength * 1.2; 
+      const heightBasedSize = Math.min(width, height) * 0.05;
       targetSize = Math.max(singleLineSize, heightBasedSize);
     }
     
-    // Ensure it doesn't exceed maximum width and force single line (10% smaller calculation)
-    adjustedSize = Math.min(targetSize, width * 0.80 / nameLength * 1.6); // Reduced from 0.85 and 1.8
+    // Ensure it doesn't exceed maximum width and force single line (more aggressive for longer names)
+    if (nameLength <= 10) {
+      adjustedSize = Math.min(targetSize, width * 0.75 / nameLength * 1.4);
+    } else {
+      adjustedSize = Math.min(targetSize, width * 0.65 / nameLength * 1.2); // Most aggressive for 11+ chars
+    }
   } else {
     // Individual letters: consistent large size
     adjustedSize = Math.min(baseFontSize * 1.4, width * 0.8);

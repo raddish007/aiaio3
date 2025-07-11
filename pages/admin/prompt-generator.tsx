@@ -2,12 +2,14 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '@/lib/supabase';
 import { User } from '@supabase/supabase-js';
+import { getThemeCategories, getSafeZonesForTemplate } from '@/lib/prompt-engine-client';
+import AdminHeader from '@/components/AdminHeader';
 
 interface PromptGeneratorForm {
   childName: string;
   theme: string;
   ageRange: string;
-  template: 'lullaby' | 'name-video';
+  template: 'lullaby' | 'name-video' | 'name-show' | 'educational';
   personalization: 'general' | 'personalized';
   safeZones: string[];
   promptCount: number;
@@ -27,6 +29,7 @@ interface GeneratedPrompts {
       ageRange: string;
       aspectRatio: string;
       artStyle: string;
+      variations?: string[];
       generatedAt: string;
     };
   };
@@ -52,6 +55,7 @@ export default function PromptGeneratorPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [showThemeHelper, setShowThemeHelper] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -86,6 +90,13 @@ export default function PromptGeneratorPage() {
     setError(null);
     setSuccess(null);
 
+    // Validate name for name-show template
+    if (form.template === 'name-show' && !form.childName.trim()) {
+      setError('Child\'s name is required for Name Show template');
+      setLoading(false);
+      return;
+    }
+
     try {
       const response = await fetch('/api/prompts/generate', {
         method: 'POST',
@@ -113,11 +124,13 @@ export default function PromptGeneratorPage() {
     }
   };
 
-  const handleTemplateChange = (template: 'lullaby' | 'name-video') => {
+  const handleTemplateChange = (template: 'lullaby' | 'name-video' | 'name-show' | 'educational') => {
     setForm(prev => ({
       ...prev,
       template,
-      safeZones: template === 'lullaby' ? ['slideshow'] : ['center_safe']
+      safeZones: template === 'lullaby' ? ['slideshow'] : ['center_safe'],
+      // Automatically set personalization to 'personalized' for name-show template
+      personalization: template === 'name-show' ? 'personalized' : prev.personalization
     }));
   };
 
@@ -146,22 +159,32 @@ export default function PromptGeneratorPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <h1 className="text-2xl font-bold text-gray-900">AI Prompt Generator</h1>
-            <button
-              onClick={() => router.push('/admin')}
-              className="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 text-sm"
-            >
-              Back to Dashboard
-            </button>
-          </div>
-        </div>
-      </header>
+      <AdminHeader 
+        title="AI Prompt Generator"
+        subtitle="Generate high-quality prompts for AI content creation"
+      />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Improvement Notice */}
+        <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+          <div className="flex items-start">
+            <div className="flex-shrink-0">
+              <div className="text-green-400 text-xl">🎉</div>
+            </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-green-800">Prompt Generation Enhanced!</h3>
+              <div className="mt-2 text-sm text-green-700">
+                <ul className="list-disc list-inside space-y-1">
+                  <li><strong>More Variety:</strong> "Dogs" now generates different breeds (Golden Retriever, Beagle, Pug, etc.)</li>
+                  <li><strong>Fixed Safe Zones:</strong> No more "40% safe" text appearing in images</li>
+                  <li><strong>New Templates:</strong> Added Educational template, ready for 8-10+ more</li>
+                  <li><strong>Smart Filtering:</strong> Age-appropriate content automatically selected</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Form */}
           <div className="bg-white rounded-lg shadow p-6">
@@ -173,7 +196,7 @@ export default function PromptGeneratorPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Template Type *
                 </label>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                   <button
                     type="button"
                     onClick={() => handleTemplateChange('name-video')}
@@ -188,6 +211,18 @@ export default function PromptGeneratorPage() {
                   </button>
                   <button
                     type="button"
+                    onClick={() => handleTemplateChange('name-show')}
+                    className={`p-4 border rounded-lg text-left ${
+                      form.template === 'name-show'
+                        ? 'border-blue-500 bg-blue-50'
+                        : 'border-gray-300 hover:border-gray-400'
+                    }`}
+                  >
+                    <div className="font-medium">Name Show</div>
+                    <div className="text-sm text-gray-600">Game show-style title cards with text</div>
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => handleTemplateChange('lullaby')}
                     className={`p-4 border rounded-lg text-left ${
                       form.template === 'lullaby'
@@ -197,6 +232,18 @@ export default function PromptGeneratorPage() {
                   >
                     <div className="font-medium">Lullaby</div>
                     <div className="text-sm text-gray-600">Calming bedtime content</div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleTemplateChange('educational')}
+                    className={`p-4 border rounded-lg text-left ${
+                      form.template === 'educational'
+                        ? 'border-blue-500 bg-blue-50'
+                        : 'border-gray-300 hover:border-gray-400'
+                    }`}
+                  >
+                    <div className="font-medium">Educational</div>
+                    <div className="text-sm text-gray-600">Learning-focused content</div>
                   </button>
                 </div>
               </div>
@@ -214,7 +261,63 @@ export default function PromptGeneratorPage() {
                   placeholder="e.g., Space Adventure, Ocean Friends, Forest Animals"
                   required
                 />
+                <div className="mt-2 text-xs text-gray-500">
+                  <strong>Popular themes with variety:</strong> dogs, cats, space, ocean, farm, forest, dinosaurs, vehicles, princesses, superheroes
+                </div>
+                <div className="mt-1 text-xs text-blue-600">
+                  💡 <strong>Tip:</strong> Our new system automatically creates variety - "dogs" will generate different breeds like Golden Retriever, Beagle, Pug, etc.
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowThemeHelper(!showThemeHelper)}
+                  className="mt-2 text-xs text-blue-600 hover:text-blue-800 underline"
+                >
+                  {showThemeHelper ? 'Hide' : 'Show'} Theme Explorer
+                </button>
+                
+                {showThemeHelper && (
+                  <div className="mt-3 p-3 bg-blue-50 rounded-lg border">
+                    <h4 className="text-sm font-medium text-blue-900 mb-2">Available Theme Categories:</h4>
+                    {Object.entries(getThemeCategories()).map(([category, themes]) => (
+                      <div key={category} className="mb-2">
+                        <span className="text-xs font-medium text-blue-800 capitalize">{category}:</span>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {(themes as string[]).map((theme: string) => (
+                            <button
+                              key={theme}
+                              type="button"
+                              onClick={() => setForm(prev => ({ ...prev, theme }))}
+                              className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
+                            >
+                              {theme}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
+
+              {/* Child's Name for Name Show Template */}
+              {form.template === 'name-show' && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Child's Name for "THE [NAME] SHOW" *
+                  </label>
+                  <input
+                    type="text"
+                    value={form.childName}
+                    onChange={(e) => setForm(prev => ({ ...prev, childName: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Enter child's name (e.g., Emma, Alex, Sam)"
+                    required
+                  />
+                  <div className="mt-2 text-xs text-gray-600">
+                    💡 This will appear as "THE [NAME] SHOW" in large, bold letters on the title card
+                  </div>
+                </div>
+              )}
 
               {/* Age Range */}
               <div>
@@ -263,7 +366,7 @@ export default function PromptGeneratorPage() {
               </div>
 
               {/* Child Name (if personalized) */}
-              {form.personalization === 'personalized' && (
+              {form.personalization === 'personalized' && form.template !== 'name-show' && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Child's Name
@@ -281,8 +384,11 @@ export default function PromptGeneratorPage() {
               {/* Safe Zone Selection */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Safe Zones</label>
+                <div className="text-xs text-gray-600 mb-2">
+                  Compatible zones for {form.template}: {getSafeZonesForTemplate(form.template).join(', ')}
+                </div>
                 <div className="flex flex-wrap gap-4">
-                  {['left_safe', 'right_safe', 'center_safe', 'intro_safe', 'outro_safe', 'all_ok', 'not_applicable', 'frame', 'slideshow'].map(zone => (
+                  {getSafeZonesForTemplate(form.template).map((zone: string) => (
                     <label key={zone} className="flex items-center space-x-2">
                       <input
                         type="checkbox"
@@ -295,7 +401,7 @@ export default function PromptGeneratorPage() {
                           }
                         }}
                       />
-                      <span className="capitalize">{zone.replace('_', ' ')}</span>
+                      <span className="text-sm capitalize">{zone.replace('_', ' ')}</span>
                     </label>
                   ))}
                 </div>
@@ -438,7 +544,7 @@ export default function PromptGeneratorPage() {
 
                     {/* Metadata */}
                     <div className="border-t pt-4">
-                      <h4 className="font-medium text-gray-800 mb-2">Metadata</h4>
+                      <h4 className="font-medium text-gray-800 mb-2">Generation Details</h4>
                       <div className="grid grid-cols-2 gap-4 text-sm">
                         <div>
                           <span className="font-medium">Template:</span> {prompts.metadata.template}
@@ -459,6 +565,18 @@ export default function PromptGeneratorPage() {
                           <span className="font-medium">Art Style:</span> {prompts.metadata.artStyle || '2D Pixar Style'}
                         </div>
                       </div>
+                      {prompts.metadata.variations && prompts.metadata.variations.length > 0 && (
+                        <div className="mt-3">
+                          <span className="font-medium text-green-700">🎯 Variations Used:</span>
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            {prompts.metadata.variations.map((variation, idx) => (
+                              <span key={idx} className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                {variation}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}

@@ -1,15 +1,26 @@
 import OpenAI from 'openai';
+import { PromptEngine, PromptEngineContext } from './prompt-engine';
 
-// OpenAI Configuration
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// OpenAI Configuration - only instantiate on server-side
+const getOpenAIClient = () => {
+  if (typeof window !== 'undefined') {
+    throw new Error('OpenAI client should only be used on the server-side');
+  }
+  
+  if (!process.env.OPENAI_API_KEY) {
+    throw new Error('OPENAI_API_KEY environment variable is missing');
+  }
+  
+  return new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+  });
+};
 
 export interface PromptContext {
   childName?: string;
   theme: string;
   ageRange: string;
-  template: 'lullaby' | 'name-video';
+  template: 'lullaby' | 'name-video' | 'educational' | 'name-show';
   personalization?: 'general' | 'personalized';
   safeZone?: 'left_safe' | 'right_safe' | 'center_safe' | 'intro_safe' | 'outro_safe' | 'all_ok' | 'not_applicable' | 'frame' | 'slideshow';
   aspectRatio?: '16:9' | '9:16';
@@ -27,113 +38,88 @@ export interface GeneratedPrompts {
     ageRange: string;
     aspectRatio: string;
     artStyle: string;
+    variations?: string[];
     generatedAt: string;
   };
 }
 
 export class PromptGenerator {
-  private static readonly LULLABY_INSTRUCTIONS = `You are generating prompts for preschool lullaby videos with a calming bedtime theme. Follow these rules carefully.
-
-🧒 CHILD SAFETY REQUIREMENTS (CRITICAL)
-Content must be 100% appropriate for ages 2-5 years old.
-NO scary, frightening, or intense imagery whatsoever.
-NO violence, conflict, or aggressive behavior (even cartoon style).
-NO dark themes, shadows, or ominous elements.
-NO realistic depictions of dangerous situations.
-Characters and imagery must ALWAYS appear calm, peaceful, and friendly.
-Colors must be soft, warm, and inviting (avoid dark, overly saturated, or harsh tones).
-All imagery must be gentle, non-startling, and soothing.
-NO sudden movements, loud implications, or jarring visual themes.
-Themes must be interpreted in the most innocent, cozy, sleepy way possible.
-
-🎨 IMAGE REQUIREMENTS
-May include more than one character or object, but keep compositions simple, uncluttered, and clear.
-Calm, bedtime poses or states, such as:
-- Lying down asleep
-- Curled up peacefully
-- Eyes closed in calm rest
-- Sitting sleepily with a blanket or pillow
-Light, soft solid color backgrounds only.
-No gradients, patterns, detailed scenery, or environmental complexity.
-Must be a single light, soothing color that ensures black text is readable (for slideshow) or contrasts with the frame (for intro/outro).
-Bedtime props are allowed if calming and simple (e.g. blanket, pillow, teddy bear, moon, stars).
-No text or letters included in the image itself.
-
-🛌 BEDTIME THEME REQUIREMENTS
-The entire image must convey a peaceful bedtime or sleeping concept:
-Characters or items are asleep, resting, or in quiet bedtime preparation.
-Eyes closed if appropriate (e.g. animals, people).
-For objects (like moon, stars, sun), depict them with closed eyes and peaceful expressions.
-For animals, show them curled up or lying down calmly.
-For human-like characters, show them in pajamas or tucked into bed if applicable.
-
-🖼️ SAFE ZONE REQUIREMENTS
-Incorporate these placement rules directly into each prompt:
-FRAME (intro/outro): The image acts as a decorative frame around the edges, leaving the center area completely empty for a programmatically added title or ending text. No elements should enter or overlap the center area. The edges can have bedtime-themed decorations, characters, or objects.
-SLIDESHOW: The image is a simple, calm bedtime scene filling the entire frame. Composition must remain uncluttered, soothing, and age-appropriate. No text is included.
-
-📝 GENERAL PROMPT STRUCTURE
-Each prompt must include:
-Art Style: State the specified style (e.g. Pixar style).
-Theme Description: Clearly describe the bedtime characters or objects, including:
-- Species/breed/type if animals
-- Color details (fur, pajamas, blankets, pillows, etc.)
-- Expressions (calm, sleeping, peaceful)
-- Pose (lying down asleep, curled up, sitting sleepily)
-Placement Instructions:
-- FRAME: Characters and objects arranged around the edges only; center area completely empty for title overlay with no overlap.
-- SLIDESHOW: Calm, simple bedtime scene filling the frame with minimal elements and no text.
-Background Description: State it is a single light, soft solid color background with no gradients, patterns, textures, scenery, or text.
-Negative Instructions: Reinforce exclusion of complex backgrounds, busy scenes, text, dramatic poses, or frightening elements.`;
-
-  private static readonly NAME_VIDEO_INSTRUCTIONS = `You are generating prompts for preschool educational videos. Follow these rules carefully.
-
-🧒 CHILD SAFETY REQUIREMENTS (CRITICAL)
-Content must be 100% appropriate for ages 2-5 years old.
-NO scary, frightening, or intense imagery whatsoever.
-NO violence, conflict, or aggressive behavior (even cartoon style).
-NO dark themes, shadows, or ominous elements.
-NO realistic depictions of dangerous situations.
-Characters must ALWAYS appear happy, calm, and friendly.
-Colors must be bright, warm, and inviting (avoid dark or muted tones).
-All imagery must be gentle and non-startling.
-NO sudden movements, loud implications, or jarring visual themes.
-Themes must be interpreted in the most innocent, playful way possible.
-
-🎨 IMAGE REQUIREMENTS
-SINGLE character or object only (no groups, pairs, or busy scenes).
-Simple, clear pose (e.g. sitting, standing, smiling calmly).
-Light, solid color background only.
-No gradients, patterns, textures, scenery, or environmental elements.
-Must be a single light color that ensures black text is readable.
-No props, toys, or additional decorations unless explicitly requested.
-No text or letters included in the image itself.
-
-🖼️ SAFE ZONE REQUIREMENTS
-Incorporate these placement rules directly into each prompt:
-LEFT_SAFE: Character placed entirely on RIGHT side, left 40% completely empty for text overlay. No part of the character overlaps into the left area.
-RIGHT_SAFE: Character placed entirely on LEFT side, right 40% completely empty for text overlay. No part of the character overlaps into the right area.
-CENTER_SAFE: The image acts as a decorative frame around the edges, leaving the center area completely empty for text overlay. No elements should enter or overlap the center area. The edges can have themed decorations, characters, or objects.
-
-📝 GENERAL PROMPT STRUCTURE
-Each prompt must include:
-Art Style: State the specified style (e.g. Pixar style).
-Theme Description: Clearly describe the single character or object, including:
-- Species/breed/type if animal
-- Color details (fur, eyes, collar, etc.)
-- Expression (happy, calm, smiling)
-- Pose (sitting, standing, simple non-dynamic pose)
-Placement Instructions:
-- LEFT_SAFE: Character is on RIGHT side; LEFT 40% completely empty for text overlay with no overlap.
-- RIGHT_SAFE: Character is on LEFT side; RIGHT 40% completely empty for text overlay with no overlap.
-- CENTER_SAFE: Characters and objects arranged around the edges only; center area completely empty for text overlay with no overlap.
-Background Description: State it is a single light solid color background with no gradients, patterns, textures, scenery, other objects, or text.
-Negative Instructions: Reinforce exclusion of extra elements, props, scenery, text, multiple characters, or dynamic poses.`;
-
   static async generatePrompts(context: PromptContext): Promise<GeneratedPrompts> {
+    try {
+      // Map legacy safe zone names to new system
+      const safeZone = this.mapLegacySafeZone(context.safeZone, context.template);
+      
+      // Convert to new engine context
+      const engineContext: PromptEngineContext = {
+        theme: context.theme,
+        templateType: context.template,
+        ageRange: context.ageRange,
+        safeZone: safeZone,
+        aspectRatio: context.aspectRatio || '16:9',
+        artStyle: context.artStyle || '2D Pixar Style',
+        promptCount: context.promptCount || 3,
+        childName: context.childName,
+        additionalContext: context.additionalContext
+      };
+
+      // Use the new prompt engine
+      const result = await PromptEngine.generatePrompts(engineContext);
+      
+      return {
+        images: result.images,
+        metadata: {
+          template: context.template,
+          safeZone: safeZone,
+          theme: context.theme,
+          ageRange: context.ageRange,
+          aspectRatio: context.aspectRatio || '16:9',
+          artStyle: context.artStyle || '2D Pixar Style',
+          variations: result.metadata.variations,
+          generatedAt: result.metadata.generatedAt
+        }
+      };
+
+    } catch (error) {
+      console.error('Error generating prompts:', error);
+      
+      // Fallback to legacy system if new engine fails
+      console.log('Falling back to legacy prompt generation...');
+      return this.legacyGeneratePrompts(context);
+    }
+  }
+
+  private static mapLegacySafeZone(safeZone: string | undefined, template: string): string {
+    if (!safeZone) {
+      return this.getDefaultSafeZone(template);
+    }
+
+    // Map legacy safe zone names
+    const mappings: Record<string, string> = {
+      'frame': 'center_safe',
+      'not_applicable': 'all_ok'
+    };
+
+    return mappings[safeZone] || safeZone;
+  }
+
+  private static getDefaultSafeZone(template: string): string {
+    switch (template) {
+      case 'lullaby':
+        return 'slideshow';
+      case 'name-video':
+        return 'center_safe';
+      case 'educational':
+        return 'center_safe';
+      default:
+        return 'center_safe';
+    }
+  }
+
+  // Legacy fallback method
+  private static async legacyGeneratePrompts(context: PromptContext): Promise<GeneratedPrompts> {
     const instructions = context.template === 'lullaby' 
-      ? this.LULLABY_INSTRUCTIONS 
-      : this.NAME_VIDEO_INSTRUCTIONS;
+      ? this.getLullabyInstructions() 
+      : this.getNameVideoInstructions();
 
     const safeZone = context.safeZone || this.getDefaultSafeZone(context.template);
     
@@ -142,6 +128,7 @@ Negative Instructions: Reinforce exclusion of extra elements, props, scenery, te
     const userPrompt = this.buildUserPrompt(context, instructions, safeZone);
 
     try {
+      const openai = getOpenAIClient();
       const completion = await openai.chat.completions.create({
         model: 'gpt-4o',
         messages: [
@@ -176,6 +163,58 @@ Negative Instructions: Reinforce exclusion of extra elements, props, scenery, te
       console.error('Error generating prompts:', error);
       throw new Error('Failed to generate prompts');
     }
+  }
+
+  private static getLullabyInstructions(): string {
+    return `You are generating prompts for preschool lullaby videos with a calming bedtime theme. Follow these rules carefully.
+
+🧒 CHILD SAFETY REQUIREMENTS (CRITICAL)
+Content must be 100% appropriate for ages 2-5 years old.
+NO scary, frightening, or intense imagery whatsoever.
+NO violence, conflict, or aggressive behavior (even cartoon style).
+NO dark themes, shadows, or ominous elements.
+Characters and imagery must ALWAYS appear calm, peaceful, and friendly.
+Colors must be soft, warm, and inviting (avoid dark, overly saturated, or harsh tones).
+All imagery must be gentle, non-startling, and soothing.
+Themes must be interpreted in the most innocent, cozy, sleepy way possible.
+
+🎨 IMAGE REQUIREMENTS
+May include more than one character or object, but keep compositions simple, uncluttered, and clear.
+Calm, bedtime poses or states such as lying down asleep, curled up peacefully, eyes closed in calm rest.
+Light, soft solid color backgrounds only.
+Bedtime props are allowed if calming and simple (blanket, pillow, teddy bear, moon, stars).
+No text or letters included in the image itself.
+
+🛌 BEDTIME THEME REQUIREMENTS
+The entire image must convey a peaceful bedtime or sleeping concept.
+Characters or items are asleep, resting, or in quiet bedtime preparation.
+Eyes closed if appropriate (animals, people).
+
+📝 PROMPT STRUCTURE
+Each prompt must include art style, theme description with species/breed/type, color details, expressions, pose, background description, and negative instructions.`;
+  }
+
+  private static getNameVideoInstructions(): string {
+    return `You are generating prompts for preschool educational videos. Follow these rules carefully.
+
+🧒 CHILD SAFETY REQUIREMENTS (CRITICAL)
+Content must be 100% appropriate for ages 2-5 years old.
+NO scary, frightening, or intense imagery whatsoever.
+NO violence, conflict, or aggressive behavior (even cartoon style).
+Characters must ALWAYS appear happy, calm, and friendly.
+Colors must be bright, warm, and inviting (avoid dark or muted tones).
+All imagery must be gentle and non-startling.
+Themes must be interpreted in the most innocent, playful way possible.
+
+🎨 IMAGE REQUIREMENTS
+SINGLE character or object only (no groups, pairs, or busy scenes).
+Simple, clear pose (sitting, standing, smiling calmly).
+Light, solid color background only.
+No props, toys, or additional decorations unless explicitly requested.
+No text or letters included in the image itself.
+
+📝 PROMPT STRUCTURE
+Each prompt must include art style, theme description with species/breed/type, color details, expression, pose, background description, and negative instructions.`;
   }
 
   private static buildUserPrompt(context: PromptContext, instructions: string, safeZone: string): string {
@@ -217,17 +256,6 @@ IMPORTANT:
 - Make content engaging and age-appropriate
 - Ensure all prompts are consistent with the theme
 - Return ONLY the JSON object, no additional text`;
-  }
-
-  private static getDefaultSafeZone(template: string): string {
-    switch (template) {
-      case 'lullaby':
-        return 'slideshow';
-      case 'name-video':
-        return 'center_safe';
-      default:
-        return 'center_safe';
-    }
   }
 
   static async savePromptsToDatabase(projectId: string, prompts: GeneratedPrompts) {

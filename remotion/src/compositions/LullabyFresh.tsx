@@ -38,6 +38,7 @@ export const LullabyFresh: React.FC<LullabyFreshProps> = ({
   slideshowImages,
   debugMode = false,
 }) => {
+  const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
   const titleDuration = fps * 5; // 5s
@@ -51,6 +52,25 @@ export const LullabyFresh: React.FC<LullabyFreshProps> = ({
   const outroStart = fps * 102; // outro at 1:42
 
   const slideshowStart = titleDuration + introAudioDuration;
+
+  // Fade frames for 0.5 second transitions
+  const fadeFrames = fps * 0.5;
+  
+  // Calculate background music volume with fade in/out
+  const backgroundMusicVolumeWithFade = (() => {
+    // Fade in at start
+    if (frame < fadeFrames) {
+      return lullabySongVolume * (frame / fadeFrames);
+    }
+    
+    // Fade out at end
+    if (frame > totalVideoFrames - fadeFrames) {
+      return lullabySongVolume * ((totalVideoFrames - frame) / fadeFrames);
+    }
+    
+    // Normal volume in between
+    return lullabySongVolume;
+  })();
 
   // Calculate max number of images considering crossfade overlaps
   const availableSlideshowFrames = outroStart - slideshowStart;
@@ -105,7 +125,7 @@ export const LullabyFresh: React.FC<LullabyFreshProps> = ({
       {/* 🎵 Background music */}
       <Audio
         src={lullabySongUrl}
-        volume={lullabySongVolume}
+        volume={backgroundMusicVolumeWithFade}
       />
 
       {/* 💤 Intro */}
@@ -120,7 +140,25 @@ export const LullabyFresh: React.FC<LullabyFreshProps> = ({
 
       {/* 🗣️ Intro audio */}
       <Sequence from={titleDuration} durationInFrames={introAudioDuration}>
-        <Audio src={introAudioUrl} volume={1.0} />
+        <Audio 
+          src={introAudioUrl} 
+          volume={(frame) => {
+            const fadeFrames = fps * 0.5; // 0.5 second fade
+            
+            // Fade in at start
+            if (frame < fadeFrames) {
+              return 1.0 * (frame / fadeFrames);
+            }
+            
+            // Fade out at end
+            if (frame > introAudioDuration - fadeFrames) {
+              return 1.0 * ((introAudioDuration - frame) / fadeFrames);
+            }
+            
+            // Normal volume in between
+            return 1.0;
+          }}
+        />
       </Sequence>
 
       {/* 🖼️ Slideshow */}
@@ -141,7 +179,25 @@ export const LullabyFresh: React.FC<LullabyFreshProps> = ({
           debugMode={debugMode}
           segmentName="Outro"
         />
-        <Audio src={outroAudioUrl} volume={1.0} />
+        <Audio 
+          src={outroAudioUrl} 
+          volume={(frame) => {
+            const fadeFrames = fps * 0.5; // 0.5 second fade
+            
+            // Fade in at start
+            if (frame < fadeFrames) {
+              return 1.0 * (frame / fadeFrames);
+            }
+            
+            // Fade out at end
+            if (frame > outroAudioDuration - fadeFrames) {
+              return 1.0 * ((outroAudioDuration - frame) / fadeFrames);
+            }
+            
+            // Normal volume in between
+            return 1.0;
+          }}
+        />
       </Sequence>
 
       {/* 🚪 Fade to black */}

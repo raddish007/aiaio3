@@ -2,17 +2,15 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
 
 @layer base {
   html {
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: 'Poppins', system-ui, sans-serif;
   }
-  
   body {
-    @apply antialiased;
+    @apply antialiased bg-brand-yellow bg-opacity-10;
   }
-  
   img {
     @apply max-w-full h-auto;
   }
@@ -20,28 +18,48 @@
 
 @layer components {
   .btn-primary {
-    @apply bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition-colors font-medium;
+    @apply bg-brand-orange text-white px-6 py-3 rounded-2xl hover:bg-brand-pink transition-all duration-300 font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-1;
   }
-  
   .btn-secondary {
-    @apply border-2 border-primary-600 text-primary-600 px-4 py-2 rounded-lg hover:bg-primary-50 transition-colors font-medium;
+    @apply border-2 border-brand-purple text-brand-purple px-6 py-3 rounded-2xl hover:bg-brand-purple hover:text-white transition-all duration-300 font-semibold shadow-md hover:shadow-lg;
   }
-  
   .card {
-    @apply bg-white rounded-xl shadow-sm p-6;
+    @apply bg-white rounded-2xl shadow-card p-6 border-2 border-brand-yellow/40;
   }
-  
   .input-field {
-    @apply w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent;
+    @apply w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-orange focus:border-transparent transition-all duration-200;
+  }
+  .video-card {
+    @apply bg-white rounded-2xl p-4 shadow-card border-2 border-brand-yellow/60 hover:border-brand-orange transition-all duration-300 relative overflow-hidden;
+  }
+  .video-thumbnail {
+    @apply rounded-xl mb-3 flex items-center justify-center relative overflow-hidden shadow-lg border-4 border-brand-yellow;
+  }
+  .play-overlay {
+    @apply absolute inset-0 flex items-center justify-center z-10;
+  }
+  .play-button {
+    @apply bg-brand-yellow text-brand-purple rounded-full w-16 h-16 flex items-center justify-center shadow-lg border-4 border-white text-4xl transition-transform duration-200 hover:scale-110;
+  }
+  .video-duration {
+    @apply absolute bottom-2 right-3 bg-brand-purple text-white text-xs font-bold px-2 py-1 rounded-lg shadow-md z-20;
+  }
+  .playlist-title {
+    @apply text-2xl font-extrabold text-brand-purple mb-4 tracking-tight;
+  }
+  .playlist-subtitle {
+    @apply text-xs font-bold text-brand-orange uppercase;
   }
 }
 
 @layer utilities {
   .text-gradient {
-    @apply bg-gradient-to-r from-primary-600 to-accent-600 bg-clip-text text-transparent;
+    @apply bg-gradient-to-r from-brand-yellow to-brand-pink bg-clip-text text-transparent;
   }
-  
-  .bg-gradient-primary {
-    @apply bg-gradient-to-br from-primary-50 to-secondary-50;
+  .bg-gradient-card {
+    @apply bg-gradient-to-br from-brand-yellow/10 to-white;
+  }
+  .bg-spotlight {
+    @apply bg-brand-yellow/10;
   }
 } 

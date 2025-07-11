@@ -31,9 +31,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // Validate template
-    if (!['lullaby', 'name-video'].includes(template)) {
+    if (!['lullaby', 'name-video', 'educational', 'name-show'].includes(template)) {
       return res.status(400).json({ 
-        error: 'Invalid template. Must be "lullaby" or "name-video"' 
+        error: 'Invalid template. Must be "lullaby", "name-video", "educational", or "name-show"' 
       });
     }
 
@@ -127,10 +127,31 @@ async function savePromptsToDatabase(projectId: string, allPrompts: any) {
       }
     }
 
-    // Insert all prompts
+    // Check for existing prompts to avoid duplicates
+    const existingPrompts = new Set();
+    if (promptRecords.length > 0) {
+      const { data: existing } = await supabaseAdmin
+        .from('prompts')
+        .select('prompt_text')
+        .in('prompt_text', promptRecords.map(p => p.prompt_text));
+      
+      if (existing) {
+        existing.forEach(p => existingPrompts.add(p.prompt_text));
+      }
+    }
+
+    // Filter out duplicates
+    const uniquePrompts = promptRecords.filter(p => !existingPrompts.has(p.prompt_text));
+
+    if (uniquePrompts.length === 0) {
+      console.log('No new unique prompts to save');
+      return { success: true, promptCount: 0, duplicatesSkipped: promptRecords.length };
+    }
+
+    // Insert only unique prompts
     const { data, error } = await supabaseAdmin
       .from('prompts')
-      .insert(promptRecords)
+      .insert(uniquePrompts)
       .select();
 
     if (error) {
@@ -138,7 +159,7 @@ async function savePromptsToDatabase(projectId: string, allPrompts: any) {
       throw error;
     }
 
-    console.log(`Saved ${data?.length || 0} prompts to database`);
+    console.log(`Saved ${data?.length || 0} new prompts to database${promptRecords.length - uniquePrompts.length > 0 ? ` (skipped ${promptRecords.length - uniquePrompts.length} duplicates)` : ''}`);
 
     // Update project status
     await supabaseAdmin
@@ -147,12 +168,13 @@ async function savePromptsToDatabase(projectId: string, allPrompts: any) {
         status: 'prompts_generated',
         metadata: {
           promptCount: data?.length || 0,
-          safeZones: Object.keys(allPrompts)
+          safeZones: Object.keys(allPrompts),
+          duplicatesSkipped: promptRecords.length - uniquePrompts.length
         }
       })
       .eq('id', projectId);
 
-    return { success: true, promptCount: data?.length || 0 };
+    return { success: true, promptCount: data?.length || 0, duplicatesSkipped: promptRecords.length - uniquePrompts.length };
 
   } catch (error) {
     console.error('Error in savePromptsToDatabase:', error);

@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# Remotion Lullaby Template Deployment Script
+# Remotion Name Video Template Deployment Script
 # This script bundles and deploys the Remotion template to AWS Lambda
 
 set -e  # Exit on any error
 
-echo "🚀 Starting Remotion Lullaby Template Deployment..."
+echo "🚀 Starting Remotion Name Video Template Deployment..."
 
 # Check if we're in the right directory
 if [ ! -f "package.json" ]; then
@@ -37,7 +37,7 @@ fi
 
 # Step 3: Deploy the site
 echo "🌐 Deploying site..."
-npx remotion lambda sites create --site-name=aiaio3-lullaby-template
+npx remotion lambda sites create --site-name=name-video-fade-improved
 
 if [ $? -eq 0 ]; then
     echo "✅ Site deployed successfully"

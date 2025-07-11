@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '@/lib/supabase';
+import AdminHeader from '@/components/AdminHeader';
 
 interface Prompt {
   id: string;
@@ -27,6 +28,7 @@ interface GenerationJob {
 export default function AIGenerator() {
   const [prompts, setPrompts] = useState<Prompt[]>([]);
   const [selectedPrompt, setSelectedPrompt] = useState<Prompt | null>(null);
+  const [editedPromptText, setEditedPromptText] = useState('');
   const [generationForm, setGenerationForm] = useState({
     style: '',
     safeZone: 'center_safe' as 'left_safe' | 'right_safe' | 'center_safe' | 'intro_safe' | 'outro_safe' | 'all_ok' | 'not_applicable' | 'frame' | 'slideshow',
@@ -90,6 +92,17 @@ export default function AIGenerator() {
       return;
     }
 
+    // Check if prompt has been modified but not saved
+    if (editedPromptText !== selectedPrompt.prompt_text) {
+      const shouldContinue = confirm(
+        'You have unsaved changes to the prompt. Do you want to generate with the modified prompt?\n\n' +
+        'Click OK to generate with modified prompt, or Cancel to save first.'
+      );
+      if (!shouldContinue) {
+        return;
+      }
+    }
+
     setGenerating(true);
     setGenerationResult(null);
     setConfigError(null);
@@ -103,7 +116,7 @@ export default function AIGenerator() {
         body: JSON.stringify({
           promptId: selectedPrompt.id,
           assetType: 'image', // Always image for this page
-          prompt: selectedPrompt.prompt_text,
+          prompt: editedPromptText || selectedPrompt.prompt_text, // Use edited text if available
           aspectRatio: '16:9', // Hardcoded to 16:9
           duration: 30,
           style: generationForm.style,
@@ -329,6 +342,37 @@ export default function AIGenerator() {
     }
   };
 
+  const handleSavePrompt = async () => {
+    if (!selectedPrompt || !editedPromptText.trim()) {
+      alert('Please enter a prompt text');
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('prompts')
+        .update({ prompt_text: editedPromptText.trim() })
+        .eq('id', selectedPrompt.id);
+
+      if (error) {
+        console.error('Error updating prompt:', error);
+        alert('Failed to save prompt. Please try again.');
+        return;
+      }
+
+      // Update the local prompt data
+      setSelectedPrompt({ ...selectedPrompt, prompt_text: editedPromptText.trim() });
+      
+      // Refresh the prompts list
+      fetchPrompts();
+      
+      alert('Prompt saved successfully!');
+    } catch (error) {
+      console.error('Error saving prompt:', error);
+      alert('Failed to save prompt. Please try again.');
+    }
+  };
+
   const filteredPrompts = prompts.filter(prompt => {
     if (filter.assetType !== 'all' && prompt.asset_type !== filter.assetType) return false;
     if (filter.theme && !prompt.theme.toLowerCase().includes(filter.theme.toLowerCase())) return false;
@@ -344,28 +388,10 @@ export default function AIGenerator() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <h1 className="text-2xl font-bold text-gray-900">AI Asset Generator</h1>
-            <div className="flex space-x-3">
-              <button
-                onClick={() => router.push('/admin/assets')}
-                className="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 text-sm"
-              >
-                Back to Assets
-              </button>
-              <button
-                onClick={() => router.push('/admin')}
-                className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 text-sm"
-              >
-                Dashboard
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
+      <AdminHeader 
+        title="AI Asset Generator"
+        subtitle="Generate and manage AI assets with custom prompts"
+      />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {/* Quick Generation Section */}
@@ -641,7 +667,10 @@ export default function AIGenerator() {
                         ? 'border-blue-500 bg-blue-50'
                         : 'border-gray-200 hover:border-gray-300'
                     }`}
-                    onClick={() => setSelectedPrompt(prompt)}
+                    onClick={() => {
+                      setSelectedPrompt(prompt);
+                      setEditedPromptText(prompt.prompt_text);
+                    }}
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
@@ -686,8 +715,50 @@ export default function AIGenerator() {
                   {/* Selected Prompt Info */}
                   <div className="p-4 bg-gray-50 rounded-lg">
                     <h3 className="font-medium text-gray-900 mb-2">Selected Prompt</h3>
-                    <p className="text-sm text-gray-600 mb-2">{selectedPrompt.theme}</p>
-                    <p className="text-sm text-gray-700">{selectedPrompt.prompt_text}</p>
+                    <p className="text-sm text-gray-600 mb-3">{selectedPrompt.theme}</p>
+                    
+                    {/* Editable Prompt Text */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Prompt Text (Editable)
+                        {editedPromptText !== selectedPrompt.prompt_text && (
+                          <span className="ml-2 text-xs text-orange-600 font-normal">
+                            • Modified (unsaved)
+                          </span>
+                        )}
+                      </label>
+                      <textarea
+                        value={editedPromptText}
+                        onChange={(e) => setEditedPromptText(e.target.value)}
+                        rows={4}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                        placeholder="Edit the prompt text before generating..."
+                      />
+                      <div className="flex justify-between items-center mt-2">
+                        <p className="text-xs text-gray-500">
+                          {editedPromptText.length} characters
+                        </p>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => setEditedPromptText(selectedPrompt.prompt_text)}
+                            className="text-xs text-gray-600 hover:text-gray-800"
+                          >
+                            Reset to Original
+                          </button>
+                          <button
+                            onClick={handleSavePrompt}
+                            disabled={editedPromptText === selectedPrompt.prompt_text}
+                            className={`text-xs px-2 py-1 rounded ${
+                              editedPromptText === selectedPrompt.prompt_text
+                                ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                                : 'bg-blue-600 text-white hover:bg-blue-700'
+                            }`}
+                          >
+                            Save Changes
+                          </button>
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
                   {/* Generation Form */}

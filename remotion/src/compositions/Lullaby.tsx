@@ -34,10 +34,30 @@ export const Lullaby: React.FC<LullabyProps> = ({
   outroAudioUrl = '',
   // debugMode = false, // Debug mode removed for clean production output
 }) => {
+  const frame = useCurrentFrame();
   const { fps, width } = useVideoConfig();
   
   // Calculate duration in frames based on audio length
   const durationInFrames = Math.round(duration * fps);
+  
+  // Fade frames for 0.5 second transitions
+  const fadeFrames = fps * 0.5;
+  
+  // Calculate background music volume with fade in/out
+  const backgroundMusicVolumeWithFade = (() => {
+    // Fade in at start
+    if (frame < fadeFrames) {
+      return backgroundMusicVolume * (frame / fadeFrames);
+    }
+    
+    // Fade out at end
+    if (frame > durationInFrames - fadeFrames) {
+      return backgroundMusicVolume * ((durationInFrames - frame) / fadeFrames);
+    }
+    
+    // Normal volume in between
+    return backgroundMusicVolume;
+  })();
   
   // Part 1: Intro (5 seconds for title, then 4 seconds for audio)
   const titleDuration = 5 * fps; // 5 seconds for title display
@@ -174,7 +194,7 @@ export const Lullaby: React.FC<LullabyProps> = ({
       {/* Background Music - DreamDrip */}
       <Audio
         src={musicSrc}
-        volume={backgroundMusicVolume}
+        volume={backgroundMusicVolumeWithFade}
         startFrom={0}
         endAt={durationInFrames}
         loop
@@ -207,61 +227,37 @@ export const Lullaby: React.FC<LullabyProps> = ({
       
       {/* Part 1: Intro - Full intro period (0-9 seconds) */}
       <Sequence from={0} durationInFrames={introDuration}>
-        <AbsoluteFill style={{ backgroundColor: 'black' }}>
-          {/* Background Image */}
-          {introImageUrl ? (
-            <Img 
-              src={introImageUrl} 
-              style={{ 
-                width: '100%', 
-                height: '100%', 
-                objectFit: 'cover',
-                position: 'absolute',
-                top: 0,
-                left: 0
-              }} 
-              alt="Intro background"
-            />
-          ) : (
-            <div style={{
-              width: '100%',
-              height: '100%',
-              backgroundColor: 'black',
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-              color: '#666',
-              fontSize: 24
-            }}>
-              No Intro Image Available
-            </div>
-          )}
-          
-          {/* Personalized Text Overlay */}
-          <AbsoluteFill style={{
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            color: 'white',
-            fontSize: introFontSize,
-            fontFamily: 'Poppins, sans-serif',
-            fontWeight: 'bold',
-            textAlign: 'center',
-            lineHeight: 1.2,
-            padding: '0 5%',
-            textShadow: '2px 2px 4px rgba(0,0,0,0.7)',
-            wordBreak: 'break-word',
-            whiteSpace: 'pre-wrap',
-          }}>
-            {introText}
-          </AbsoluteFill>
-        </AbsoluteFill>
+        <IntroOutroSegment
+          imageUrl={introImageUrl}
+          text={introText}
+          fontSize={introFontSize}
+          segmentType="intro"
+          durationInFrames={introDuration}
+        />
       </Sequence>
       
       {/* Intro Audio - starts at 5 seconds, plays for 4 seconds */}
       {introAudioUrl && (
         <Sequence from={titleDuration} durationInFrames={introAudioDuration}>
-          <Audio src={introAudioUrl} volume={1.0} />
+          <Audio 
+            src={introAudioUrl} 
+            volume={(frame) => {
+              const fadeFrames = fps * 0.5; // 0.5 second fade
+              
+              // Fade in at start
+              if (frame < fadeFrames) {
+                return 1.0 * (frame / fadeFrames);
+              }
+              
+              // Fade out at end
+              if (frame > introAudioDuration - fadeFrames) {
+                return 1.0 * ((introAudioDuration - frame) / fadeFrames);
+              }
+              
+              // Normal volume in between
+              return 1.0;
+            }}
+          />
         </Sequence>
       )}
       
@@ -279,60 +275,14 @@ export const Lullaby: React.FC<LullabyProps> = ({
       
       {/* Part 3: Outro (5 seconds) - starts 1 second earlier */}
       <Sequence from={introDuration + mainContentDuration - fps} durationInFrames={outroDuration}>
-        <AbsoluteFill style={{ backgroundColor: 'black' }}>
-          {/* Background Image */}
-          {outroImageUrl ? (
-            <Img 
-              src={outroImageUrl} 
-              style={{ 
-                width: '100%', 
-                height: '100%', 
-                objectFit: 'cover',
-                position: 'absolute',
-                top: 0,
-                left: 0
-              }} 
-              alt="Outro background"
-            />
-          ) : (
-            <div style={{
-              width: '100%',
-              height: '100%',
-              backgroundColor: 'black',
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-              color: '#666',
-              fontSize: 24
-            }}>
-              No Outro Image Available
-            </div>
-          )}
-
-          {/* Personalized Text Overlay */}
-          <AbsoluteFill style={{
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            color: 'white',
-            fontSize: outroFontSize,
-            fontFamily: 'Poppins, sans-serif',
-            fontWeight: 'bold',
-            textAlign: 'center',
-            lineHeight: 1.2,
-            padding: '0 5%',
-            textShadow: '2px 2px 4px rgba(0,0,0,0.7)',
-            wordBreak: 'break-word',
-            whiteSpace: 'pre-wrap',
-          }}>
-            {outroText}
-          </AbsoluteFill>
-          
-          {/* Outro Audio */}
-          {outroAudioUrl && (
-            <Audio src={outroAudioUrl} volume={1.0} />
-          )}
-        </AbsoluteFill>
+        <IntroOutroSegment
+          imageUrl={outroImageUrl}
+          text={outroText}
+          fontSize={outroFontSize}
+          segmentType="outro"
+          durationInFrames={outroDuration}
+          audioUrl={outroAudioUrl}
+        />
       </Sequence>
       
       {/* Debug overlay removed for clean production output */}
@@ -457,6 +407,122 @@ const KenBurnsImage: React.FC<{
           {src ? ' ✅' : ' ❌'}
         </div>
       )} */}
+    </AbsoluteFill>
+  );
+}; 
+
+// IntroOutroSegment Component with Fade Effects
+const IntroOutroSegment: React.FC<{
+  imageUrl?: string;
+  text: string;
+  fontSize: number;
+  segmentType: 'intro' | 'outro';
+  durationInFrames: number;
+  audioUrl?: string;
+}> = ({ imageUrl, text, fontSize, segmentType, durationInFrames, audioUrl }) => {
+  const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  
+  // Fade frames for 0.5 second transitions
+  const fadeFrames = fps * 0.5;
+  
+  // Image fade in/out animation
+  const imageOpacity = interpolate(
+    frame,
+    [0, fadeFrames, durationInFrames - fadeFrames, durationInFrames],
+    [0, 1, 1, 0],
+    {
+      extrapolateLeft: 'clamp',
+      extrapolateRight: 'clamp',
+    }
+  );
+
+  // Text fade in/out animation
+  const textOpacity = interpolate(
+    frame,
+    [10, 40, durationInFrames - fadeFrames, durationInFrames],
+    [0, 1, 1, 0],
+    {
+      extrapolateLeft: 'clamp',
+      extrapolateRight: 'clamp',
+    }
+  );
+
+  return (
+    <AbsoluteFill style={{ backgroundColor: 'black' }}>
+      {/* Background Image */}
+      {imageUrl ? (
+        <Img 
+          src={imageUrl} 
+          style={{ 
+            width: '100%', 
+            height: '100%', 
+            objectFit: 'cover',
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            opacity: imageOpacity,
+          }} 
+          alt={`${segmentType} background`}
+        />
+      ) : (
+        <div style={{
+          width: '100%',
+          height: '100%',
+          backgroundColor: 'black',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          color: '#666',
+          fontSize: 24,
+          opacity: imageOpacity,
+        }}>
+          No {segmentType === 'intro' ? 'Intro' : 'Outro'} Image Available
+        </div>
+      )}
+      
+      {/* Personalized Text Overlay */}
+      <AbsoluteFill style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        color: 'white',
+        fontSize: fontSize,
+        fontFamily: 'Poppins, sans-serif',
+        fontWeight: 'bold',
+        textAlign: 'center',
+        lineHeight: 1.2,
+        padding: '0 5%',
+        textShadow: '2px 2px 4px rgba(0,0,0,0.7)',
+        wordBreak: 'break-word',
+        whiteSpace: 'pre-wrap',
+        opacity: textOpacity,
+      }}>
+        {text}
+      </AbsoluteFill>
+      
+      {/* Audio with fade effects */}
+      {audioUrl && (
+        <Audio 
+          src={audioUrl} 
+          volume={(frame) => {
+            const fadeFrames = fps * 0.5; // 0.5 second fade
+            
+            // Fade in at start
+            if (frame < fadeFrames) {
+              return 1.0 * (frame / fadeFrames);
+            }
+            
+            // Fade out at end
+            if (frame > durationInFrames - fadeFrames) {
+              return 1.0 * ((durationInFrames - frame) / fadeFrames);
+            }
+            
+            // Normal volume in between
+            return 1.0;
+          }}
+        />
+      )}
     </AbsoluteFill>
   );
 }; 

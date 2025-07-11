@@ -8,68 +8,23 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        primary: {
-          50: '#fef7ee',
-          100: '#fdecd3',
-          200: '#fbd5a5',
-          300: '#f8b86d',
-          400: '#f59332',
-          500: '#f2750a',
-          600: '#e35d05',
-          700: '#bc4508',
-          800: '#95370e',
-          900: '#782f0f',
-        },
-        secondary: {
-          50: '#f0f9ff',
-          100: '#e0f2fe',
-          200: '#bae6fd',
-          300: '#7dd3fc',
-          400: '#38bdf8',
-          500: '#0ea5e9',
-          600: '#0284c7',
-          700: '#0369a1',
-          800: '#075985',
-          900: '#0c4a6e',
-        },
-        accent: {
-          50: '#fdf4ff',
-          100: '#fae8ff',
-          200: '#f5d0fe',
-          300: '#f0abfc',
-          400: '#e879f9',
-          500: '#d946ef',
-          600: '#c026d3',
-          700: '#a21caf',
-          800: '#86198f',
-          900: '#701a75',
-        },
-        halloween: {
-          orange: '#FF6B35',
-          purple: '#1a1a2e',
-          gold: '#FFD700',
-          black: '#0a0a0a',
+        brand: {
+          yellow: '#FFB200',   // Bright yellow/orange
+          orange: '#EB5B00',   // Vivid orange
+          pink: '#D91656',     // Vivid pink/red
+          purple: '#640D5F',   // Deep purple
         },
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        sans: ['Poppins', 'system-ui', 'sans-serif'],
         display: ['Poppins', 'system-ui', 'sans-serif'],
       },
-      animation: {
-        'bounce-slow': 'bounce 2s infinite',
-        'pulse-slow': 'pulse 3s infinite',
-        'fade-in': 'fadeIn 0.5s ease-in-out',
-        'slide-up': 'slideUp 0.3s ease-out',
+      borderRadius: {
+        'xl': '1.25rem', // 20px for extra rounded cards
+        '2xl': '1.5rem', // 24px for extra rounded cards
       },
-      keyframes: {
-        fadeIn: {
-          '0%': { opacity: '0' },
-          '100%': { opacity: '1' },
-        },
-        slideUp: {
-          '0%': { transform: 'translateY(10px)', opacity: '0' },
-          '100%': { transform: 'translateY(0)', opacity: '1' },
-        },
+      boxShadow: {
+        card: '0 4px 24px 0 rgba(100,13,95,0.08)',
       },
     },
   },
