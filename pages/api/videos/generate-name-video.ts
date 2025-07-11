@@ -41,8 +41,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const totalSegments = letters.length + 2; // intro + letters + outro
     const durationInSeconds = totalSegments * 4; // 4 seconds per segment
 
-    // Get background music asset from database - use a real audio file that exists
-    let backgroundMusicUrl = 'https://etshvxrgbssginmzsczo.supabase.co/storage/v1/object/public/assets/assets/audio/elevenlabs_1752156347942_248nvfaZe8BXhKntjmpp.mp3'; // Use real audio file
+    // Get background music asset from database - use the correct asset ID
+    let backgroundMusicUrl = 'https://etshvxrgbssginmzsczo.supabase.co/storage/v1/object/public/assets/assets/audio/1752096424386.mp3'; // Use correct asset ID
     try {
       // Try to get a background music asset, but fallback to a working audio file
       const { data: musicAsset, error: musicError } = await supabaseAdmin
@@ -59,10 +59,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         backgroundMusicUrl = musicAsset.file_url;
         console.log(`✅ Using background music from database: ${backgroundMusicUrl}`);
       } else {
-        console.log(`⚠️ No background music found, using working audio file: ${backgroundMusicUrl}`);
+        console.log(`⚠️ No background music found, using default audio file: ${backgroundMusicUrl}`);
       }
     } catch (error) {
-      console.warn('⚠️ Failed to fetch background music from database, using working audio file:', error);
+      console.warn('⚠️ Failed to fetch background music from database, using default audio file:', error);
     }
 
     // IMPROVED: Get name audio asset for intro/outro with better debugging

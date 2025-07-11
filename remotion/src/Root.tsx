@@ -1,7 +1,6 @@
 import { Composition } from 'remotion';
 
 import { NameVideo } from './compositions/NameVideo';
-import { NameVideov2 } from './compositions/NameVideov2';
 import { Lullaby } from './compositions/Lullaby';
 import { HelloWorld } from './compositions/HelloWorld';
 import { HelloWorldWithImage } from './compositions/HelloWorldWithImage';
@@ -83,7 +82,7 @@ export const RemotionRoot: React.FC = () => {
           childName: 'Liam',
           childAge: 2,
           childTheme: 'dinosaurs',
-          backgroundMusicUrl: '',
+          backgroundMusicUrl: 'https://etshvxrgbssginmzsczo.supabase.co/storage/v1/object/public/assets/assets/audio/1752096424386.mp3',
           backgroundMusicVolume: 0.25,
           introImageUrl: '',
           outroImageUrl: '',
