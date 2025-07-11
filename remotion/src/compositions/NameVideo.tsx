@@ -53,7 +53,7 @@ export const NameVideo: React.FC<NameVideoProps> = ({
   childName,
   childAge,
   childTheme,
-  backgroundMusicUrl = 'https://etshvxrgbssginmzsczo.supabase.co/storage/v1/object/public/assets/assets/audio/1752096424386.mp3',
+  backgroundMusicUrl = 'https://etshvxrgbssginmzsczo.supabase.co/storage/v1/object/public/assets/assets/audio/happybg_low.MP3',
   backgroundMusicVolume = 0.25,
   introImageUrl = '',
   outroImageUrl = '',

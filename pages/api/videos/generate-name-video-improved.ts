@@ -43,7 +43,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const durationInSeconds = totalSegments * 4; // 4 seconds per segment
 
     // Get background music asset from database
-    let backgroundMusicUrl = 'https://etshvxrgbssginmzsczo.supabase.co/storage/v1/object/public/assets/assets/audio/happybg_low.MP3';
+    let backgroundMusicUrl = 'https://etshvxrgbssginmzsczo.supabase.co/storage/v1/object/public/assets/assets/audio/1752096424386.mp3';
     try {
       const { data: musicAsset, error: musicError } = await supabaseAdmin
         .from('assets')
