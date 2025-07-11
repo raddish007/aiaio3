@@ -261,21 +261,53 @@ const TextSegment: React.FC<TextSegmentProps> = ({
     extrapolateRight: 'clamp',
   });
 
-  // Dynamic font sizing
+  // Enhanced dynamic font sizing for 2-13 character names
   const baseFontSize = Math.min(width, height) * 0.3;
-  const fullNameSize = Math.min(baseFontSize * (isFullName ? 0.8 : 1.4), width * 0.8);
   
   let adjustedSize;
   if (isFullName) {
-    const lengthBasedSize = (width * 0.95) / text.length;
-    const minSize = Math.min(width, height) * 0.08;
-    const maxSize = Math.min(width, height) * 0.25;
-    adjustedSize = Math.min(Math.max(lengthBasedSize, minSize), Math.min(fullNameSize, maxSize));
+    // Smart sizing for full names (2-13 characters)
+    const nameLength = text.length;
+    
+    // Define size ranges for different name lengths
+    let targetSize;
+    if (nameLength <= 3) {
+      // Short names (2-3 chars): Large size
+      targetSize = Math.min(width, height) * 0.25;
+    } else if (nameLength <= 5) {
+      // Medium names (4-5 chars): Medium-large size
+      targetSize = Math.min(width, height) * 0.20;
+    } else if (nameLength <= 8) {
+      // Long names (6-8 chars): Medium size
+      targetSize = Math.min(width, height) * 0.15;
+    } else {
+      // Very long names (9-13 chars): Smaller size with length adjustment
+      const lengthBasedSize = (width * 0.9) / nameLength;
+      const minSize = Math.min(width, height) * 0.08;
+      targetSize = Math.max(lengthBasedSize, minSize);
+    }
+    
+    // Ensure it doesn't exceed maximum width
+    adjustedSize = Math.min(targetSize, width * 0.85);
   } else {
-    adjustedSize = fullNameSize;
+    // Individual letters: consistent large size
+    adjustedSize = Math.min(baseFontSize * 1.4, width * 0.8);
   }
 
-  const letterSpacing = isFullName ? `${adjustedSize * 0.03}px` : '0px';
+  // Dynamic letter spacing based on name length and font size
+  let letterSpacing;
+  if (isFullName) {
+    const nameLength = text.length;
+    if (nameLength <= 3) {
+      letterSpacing = `${adjustedSize * 0.05}px`; // More spacing for short names
+    } else if (nameLength <= 5) {
+      letterSpacing = `${adjustedSize * 0.03}px`; // Normal spacing for medium names
+    } else {
+      letterSpacing = `${adjustedSize * 0.02}px`; // Tighter spacing for long names
+    }
+  } else {
+    letterSpacing = '0px'; // No spacing for individual letters
+  }
 
   // Position text based on safe zone
   const getTextPosition = () => {
@@ -375,6 +407,8 @@ const TextSegment: React.FC<TextSegmentProps> = ({
         }}>
           <div><strong>🎬 Segment:</strong> {segmentInfo.type}</div>
           <div><strong>📝 Text:</strong> {segmentInfo.text}</div>
+          <div><strong>📏 Length:</strong> {segmentInfo.text.length} chars</div>
+          <div><strong>🔤 Font Size:</strong> {Math.round(adjustedSize)}px</div>
           <div><strong>🎞️ Frame:</strong> {frame}</div>
           <div><strong>⏱️ Time:</strong> {currentTime.toFixed(1)}s</div>
           {segmentInfo.safeZone && <div><strong>📍 Zone:</strong> {segmentInfo.safeZone}</div>}
