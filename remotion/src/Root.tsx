@@ -9,72 +9,14 @@ import { NameVideoTest } from './compositions/NameVideoTest';
 import { NameVideoSimple } from './compositions/NameVideoSimple';
 import { NameVideoUltraSimple } from './compositions/NameVideoUltraSimple';
 
-
 export const RemotionRoot: React.FC = () => {
   return (
     <>
-      {/* Name Video Composition - Nolan (5 letters) */}
+      {/* Name Video Composition - MAIN PRODUCTION VERSION */}
       <Composition
-        id="NameVideo-Nolan"
-        component={NameVideo}
-        durationInFrames={3600} // Maximum duration for up to 13 letters
-        fps={60}
-        width={1920}
-        height={1080}
-        defaultProps={{
-          childName: 'Nolan',
-          childTheme: 'halloween',
-          childAge: 3,
-          backgroundMusicUrl: 'https://etshvxrgbssginmzsczo.supabase.co/storage/v1/object/public/assets/assets/audio/1751989180199.wav',
-          backgroundMusicVolume: 0.5,
-          introImageUrl: '',
-          outroImageUrl: '',
-          letterImageUrls: [],
-          introAudioUrl: '',
-          outroAudioUrl: '',
-          audioAssets: {
-            fullName: '',
-            letters: {}
-          },
-          letterAudioUrls: {},
-          debugMode: false
-        }}
-      />
-
-
-      {/* Name Video Composition - Lorelei (8 letters) */}
-      <Composition
-        id="NameVideo-Lorelei"
-        component={NameVideo}
-        durationInFrames={3600} // Maximum duration for up to 13 letters
-        fps={60}
-        width={1920}
-        height={1080}
-        defaultProps={{
-          childName: 'Lorelei',
-          childTheme: 'halloween',
-          childAge: 3,
-          backgroundMusicUrl: 'https://etshvxrgbssginmzsczo.supabase.co/storage/v1/object/public/assets/assets/audio/1751989180199.wav',
-          backgroundMusicVolume: 0.5,
-          introImageUrl: '',
-          outroImageUrl: '',
-          letterImageUrls: [],
-          introAudioUrl: '',
-          outroAudioUrl: '',
-          audioAssets: {
-            fullName: '',
-            letters: {}
-          },
-          letterAudioUrls: {},
-          debugMode: false
-        }}
-      />
-
-{/* Name Video Composition */}
-<Composition
         id="NameVideo"
         component={NameVideo}
-        durationInFrames={720} // Default fallback (24 seconds for 4-letter name at 30fps)
+        durationInFrames={900} // Fallback for up to 8-letter names (30 segments * 30fps)
         fps={30}
         width={1920}
         height={1080}
@@ -90,11 +32,11 @@ export const RemotionRoot: React.FC = () => {
           introAudioUrl: '',
           outroAudioUrl: '',
           audioAssets: {
-            fullName: '',
-            letters: {}
+            fullName: '', // Will be populated by API
+            letters: {}   // Will be populated by API
           },
           letterAudioUrls: {}, // Support old structure as fallback
-          debugMode: true, // FORCE DEBUG MODE FOR TROUBLESHOOTING
+          debugMode: true, // Enable for troubleshooting audio timing
         }}
         calculateMetadata={({ props }) => {
           const nameLength = props.childName?.length || 4;
@@ -105,13 +47,72 @@ export const RemotionRoot: React.FC = () => {
           console.log(`🎬 Dynamic duration calculation for "${props.childName}":`, {
             nameLength,
             totalSegments,
-            durationSeconds: calculatedDuration / 30,
-            durationFrames: calculatedDuration
+            segmentDurationFrames: segmentDuration,
+            segmentDurationSeconds: 4,
+            totalDurationFrames: calculatedDuration,
+            totalDurationSeconds: calculatedDuration / 30,
+            fps: 30
           });
           
           return {
             durationInFrames: calculatedDuration,
           };
+        }}
+      />
+
+      {/* Name Video Composition - Nolan (5 letters) */}
+      <Composition
+        id="NameVideo-Nolan"
+        component={NameVideo}
+        durationInFrames={840} // 7 segments * 4 seconds * 30fps = 840 frames
+        fps={30} // Changed to match main composition
+        width={1920}
+        height={1080}
+        defaultProps={{
+          childName: 'Nolan',
+          childTheme: 'halloween',
+          childAge: 3,
+          backgroundMusicUrl: 'https://etshvxrgbssginmzsczo.supabase.co/storage/v1/object/public/assets/assets/audio/1751989180199.wav',
+          backgroundMusicVolume: 0.25, // Reduced to match main
+          introImageUrl: '',
+          outroImageUrl: '',
+          letterImageUrls: [],
+          introAudioUrl: '',
+          outroAudioUrl: '',
+          audioAssets: {
+            fullName: '',
+            letters: {}
+          },
+          letterAudioUrls: {},
+          debugMode: true
+        }}
+      />
+
+      {/* Name Video Composition - Lorelei (7 letters) */}
+      <Composition
+        id="NameVideo-Lorelei"
+        component={NameVideo}
+        durationInFrames={1080} // 9 segments * 4 seconds * 30fps = 1080 frames
+        fps={30} // Changed to match main composition
+        width={1920}
+        height={1080}
+        defaultProps={{
+          childName: 'Lorelei',
+          childTheme: 'halloween',
+          childAge: 3,
+          backgroundMusicUrl: 'https://etshvxrgbssginmzsczo.supabase.co/storage/v1/object/public/assets/assets/audio/1751989180199.wav',
+          backgroundMusicVolume: 0.25, // Reduced to match main
+          introImageUrl: '',
+          outroImageUrl: '',
+          letterImageUrls: [],
+          introAudioUrl: '',
+          outroAudioUrl: '',
+          audioAssets: {
+            fullName: '',
+            letters: {}
+          },
+          letterAudioUrls: {},
+          debugMode: true
         }}
       />
 
@@ -265,4 +266,4 @@ export const RemotionRoot: React.FC = () => {
 
     </>
   );
-}; 
+};

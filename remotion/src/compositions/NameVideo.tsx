@@ -53,6 +53,7 @@ export const NameVideo: React.FC<NameVideoProps> = ({
 }) => {
   const { fps } = useVideoConfig();
   const segmentDuration = fps * 4; // 4 seconds per segment
+  const oneSecondDelay = fps * 1; // 1 second delay in frames
   
   const nameUpper = childName.toUpperCase();
   const letters = nameUpper.split('');
@@ -72,16 +73,22 @@ export const NameVideo: React.FC<NameVideoProps> = ({
   const flatLetterAudio = letterAudioUrl && letterAudioUrl.startsWith('http') ? letterAudioUrl : '';
   const flatLetterName = letterName || '';
 
-  // STEP 2: Enhanced logging with letter audio debugging
-  console.log(`🎬 STEP 2 - NameVideo for "${childName}":`, {
+  // Enhanced logging with letter audio debugging
+  console.log(`🎬 NameVideo for "${childName}":`, {
     letters: letters.length,
     segments: totalSegments,
     durationSeconds: totalDuration / fps,
+    fps,
+    segmentDuration,
+    oneSecondDelay,
     hasBackgroundMusic: !!backgroundMusicUrl,
     rawNameAudio,
     isValidAudioUrl,
     hasNameAudio: !!nameAudio,
     nameAudioUrl: nameAudio,
+    // Audio timing
+    introAudioStartFrame: oneSecondDelay,
+    outroAudioStartFrame: segmentDuration * (letters.length + 1) + oneSecondDelay,
     // Letter audio debugging
     flatLetterAudio,
     flatLetterName,
@@ -103,8 +110,16 @@ export const NameVideo: React.FC<NameVideoProps> = ({
         />
       )}
 
-      {/* Letter Audio - Single component with proper timing */}
-      {/* COMMENTED OUT FOR DEBUGGING
+      {/* HYBRID APPROACH: Dynamic URLs with reliable Sequence timing */}
+      
+      {/* Name audio at start - using Sequence for reliable timing */}
+      {nameAudio && (
+        <Sequence from={oneSecondDelay} durationInFrames={segmentDuration - oneSecondDelay}>
+          <Audio src={nameAudio} volume={0.8} />
+        </Sequence>
+      )}
+      
+      {/* Letter audio for each letter - using Sequence for reliable timing */}
       {letters.map((letter, index) => {
         const nestedLetterAudioUrl = audioAssets?.letters?.[letter];
         const letterAudioUrl = nestedLetterAudioUrl || 
@@ -112,49 +127,40 @@ export const NameVideo: React.FC<NameVideoProps> = ({
         
         if (!letterAudioUrl) return null;
         
+        const letterSegmentStart = segmentDuration * (index + 1);
+        
+        console.log(`🎵 Letter "${letter}" audio timing:`, {
+          letter,
+          index,
+          segmentStart: letterSegmentStart,
+          audioUrl: letterAudioUrl,
+          startTime: `${(letterSegmentStart / fps).toFixed(1)}s`,
+          duration: `${((segmentDuration - oneSecondDelay) / fps).toFixed(1)}s`
+        });
+        
         return (
-          <Audio 
+          <Sequence
             key={`audio-${letter}-${index}`}
-            src={letterAudioUrl}
-            volume={0.8}
-            startFrom={segmentDuration * (index + 1)} // Start at the beginning of each letter segment
-            endAt={segmentDuration * (index + 2)} // End at the end of each letter segment
-          />
+            from={letterSegmentStart + oneSecondDelay}
+            durationInFrames={segmentDuration - oneSecondDelay}
+          >
+            <Audio src={letterAudioUrl} volume={0.8} />
+          </Sequence>
         );
       })}
-      */}
-
-      {/* Intro/Outro Audio (name pronunciation) */}
-      {/* COMMENTED OUT FOR DEBUGGING
-      {audioAssets?.fullName && (
-        <>
-          <Audio 
-            src={audioAssets.fullName}
-            volume={0.8}
-            startFrom={0}
-            endAt={segmentDuration}
-          />
-          <Audio 
-            src={audioAssets.fullName}
-            volume={0.8}
-            startFrom={segmentDuration * (letters.length + 1)}
-            endAt={segmentDuration * (letters.length + 2)}
-          />
-        </>
+      
+      {/* Name audio at end - using Sequence for reliable timing */}
+      {nameAudio && (
+        <Sequence 
+          from={segmentDuration * (letters.length + 1) + oneSecondDelay} 
+          durationInFrames={segmentDuration - oneSecondDelay}
+        >
+          <Audio src={nameAudio} volume={0.8} />
+        </Sequence>
       )}
-      */}
       
       {/* Part 1: Intro - 4 seconds - CENTER */}
       <Sequence from={0} durationInFrames={segmentDuration}>
-        {/* Intro Audio (name pronunciation) - COMMENTED OUT FOR DEBUGGING
-        {audioAssets?.fullName && (
-          <Audio 
-            src={audioAssets.fullName}
-            volume={0.8}
-          />
-        )}
-        */}
-        
         <TextSegment 
           text={nameUpper} 
           isFullName={true} 
@@ -172,22 +178,6 @@ export const NameVideo: React.FC<NameVideoProps> = ({
         const backgroundImage = letterImageUrls.length > 0 
           ? letterImageUrls[index % letterImageUrls.length]
           : undefined;
-        
-        // Get letter audio URL - support both flat and nested structures
-        const nestedLetterAudioUrl = audioAssets?.letters?.[letter];
-        const letterAudioUrl = nestedLetterAudioUrl || 
-          (flatLetterName === letter ? flatLetterAudio : '');
-        
-        // STEP 3: Debug letter audio resolution
-        console.log(`🎵 Letter "${letter}" audio debug:`, {
-          letter,
-          index,
-          nestedLetterAudioUrl,
-          flatLetterName,
-          flatLetterAudio,
-          finalLetterAudioUrl: letterAudioUrl,
-          hasAudio: !!letterAudioUrl
-        });
         
         return (
           <Sequence 
@@ -337,6 +327,12 @@ const TextSegment: React.FC<TextSegmentProps> = ({
     }
   };
 
+  // Calculate current time for debug display
+  const currentTime = frame / fps;
+  const segmentStartTime = segmentInfo.type === 'intro' ? 0 : 
+                          segmentInfo.type === 'outro' ? 'outro-start' : 
+                          'letter-segment';
+
   return (
     <AbsoluteFill>
       {/* Background Image */}
@@ -362,25 +358,52 @@ const TextSegment: React.FC<TextSegmentProps> = ({
         backgroundColor: 'rgba(0, 0, 0, 0.3)',
       }} />
 
-      {/* Debug info */}
+      {/* Enhanced Debug info with audio timing */}
       {debugMode && (
         <div style={{
           position: 'absolute',
           top: 20,
           left: 20,
-          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+          backgroundColor: 'rgba(0, 0, 0, 0.9)',
           color: 'white',
-          padding: '10px',
-          borderRadius: '5px',
-          fontSize: '12px',
+          padding: '15px',
+          borderRadius: '8px',
+          fontSize: '14px',
           fontFamily: 'monospace',
           zIndex: 1000,
+          lineHeight: '1.4',
         }}>
-          <div><strong>Type:</strong> {segmentInfo.type}</div>
-          <div><strong>Text:</strong> {segmentInfo.text}</div>
-          <div><strong>Frame:</strong> {frame}</div>
-          {segmentInfo.safeZone && <div><strong>Zone:</strong> {segmentInfo.safeZone}</div>}
-          {backgroundImage && <div><strong>Image:</strong> ✅</div>}
+          <div><strong>🎬 Segment:</strong> {segmentInfo.type}</div>
+          <div><strong>📝 Text:</strong> {segmentInfo.text}</div>
+          <div><strong>🎞️ Frame:</strong> {frame}</div>
+          <div><strong>⏱️ Time:</strong> {currentTime.toFixed(1)}s</div>
+          {segmentInfo.safeZone && <div><strong>📍 Zone:</strong> {segmentInfo.safeZone}</div>}
+          {backgroundImage && <div><strong>🖼️ Image:</strong> ✅</div>}
+          
+          {/* Audio timing info */}
+          {segmentInfo.type === 'intro' && (
+            <div style={{ marginTop: '8px', borderTop: '1px solid #555', paddingTop: '8px' }}>
+              <div><strong>🎤 Name Audio:</strong></div>
+              <div>▶️ Starts: 1.0s</div>
+              <div>⏹️ Ends: 4.0s</div>
+            </div>
+          )}
+          
+          {segmentInfo.type === 'outro' && (
+            <div style={{ marginTop: '8px', borderTop: '1px solid #555', paddingTop: '8px' }}>
+              <div><strong>🎤 Name Audio:</strong></div>
+              <div>▶️ Starts: +1.0s into outro</div>
+              <div>⏹️ Ends: at outro end</div>
+            </div>
+          )}
+          
+          {segmentInfo.type === 'letter' && (
+            <div style={{ marginTop: '8px', borderTop: '1px solid #555', paddingTop: '8px' }}>
+              <div><strong>🔤 Letter Audio:</strong></div>
+              <div>▶️ Starts: +1.0s into segment</div>
+              <div>⏹️ Ends: at segment end</div>
+            </div>
+          )}
         </div>
       )}
 
