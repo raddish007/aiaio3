@@ -369,35 +369,35 @@ const TextSegment: React.FC<TextSegmentProps> = ({
     extrapolateRight: 'clamp',
   });
 
-  // Enhanced dynamic font sizing for 2-13 character names
+  // Enhanced dynamic font sizing for 2-13 character names (10% smaller for long names)
   const baseFontSize = Math.min(width, height) * 0.3;
   
   let adjustedSize;
   if (isFullName) {
-    // Smart sizing for full names (2-13 characters)
+    // Smart sizing for full names (2-13 characters) - reduced by ~10% for longer names
     const nameLength = text.length;
     
     // Define size ranges for different name lengths
     let targetSize;
     if (nameLength <= 3) {
-      // Short names (2-3 chars): Large size
+      // Short names (2-3 chars): Large size (unchanged)
       targetSize = Math.min(width, height) * 0.25;
     } else if (nameLength <= 5) {
-      // Medium names (4-5 chars): Medium-large size
-      targetSize = Math.min(width, height) * 0.20;
+      // Medium names (4-5 chars): Medium-large size (slightly reduced)
+      targetSize = Math.min(width, height) * 0.18; // Reduced from 0.20
     } else if (nameLength <= 8) {
-      // Long names (6-8 chars): Medium size
-      targetSize = Math.min(width, height) * 0.15;
+      // Long names (6-8 chars): Medium size (reduced)
+      targetSize = Math.min(width, height) * 0.13; // Reduced from 0.15
     } else {
-      // Very long names (9-13 chars): Calculate to fit in single line
-      // Use 90% of width divided by character count, with better minimum size
-      const singleLineSize = (width * 0.85) / nameLength * 1.8; // Multiply by 1.8 for better character width estimation
-      const heightBasedSize = Math.min(width, height) * 0.10; // Minimum height-based size
+      // Very long names (9-13 chars): Further reduced for better fit
+      // Use 85% of width divided by character count, with smaller multiplier
+      const singleLineSize = (width * 0.80) / nameLength * 1.6; // Reduced from 0.85 width and 1.8 multiplier
+      const heightBasedSize = Math.min(width, height) * 0.08; // Reduced from 0.10
       targetSize = Math.max(singleLineSize, heightBasedSize);
     }
     
-    // Ensure it doesn't exceed maximum width and force single line
-    adjustedSize = Math.min(targetSize, width * 0.85 / nameLength * 1.8);
+    // Ensure it doesn't exceed maximum width and force single line (10% smaller calculation)
+    adjustedSize = Math.min(targetSize, width * 0.80 / nameLength * 1.6); // Reduced from 0.85 and 1.8
   } else {
     // Individual letters: consistent large size
     adjustedSize = Math.min(baseFontSize * 1.4, width * 0.8);
