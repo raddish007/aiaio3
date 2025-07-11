@@ -73,6 +73,22 @@ export const NameVideo: React.FC<NameVideoProps> = ({
   const flatLetterAudio = letterAudioUrl && letterAudioUrl.startsWith('http') ? letterAudioUrl : '';
   const flatLetterName = letterName || '';
 
+  // Create randomized image selection for letter segments
+  const getRandomLetterImage = (index: number) => {
+    if (letterImageUrls.length === 0) return undefined;
+    
+    // Use a seed based on the child name and letter index for consistent randomization
+    const seed = `${childName}-${index}`;
+    const hash = seed.split('').reduce((a, b) => {
+      a = ((a << 5) - a) + b.charCodeAt(0);
+      return a & a;
+    }, 0);
+    
+    // Use the hash to select a random image
+    const randomIndex = Math.abs(hash) % letterImageUrls.length;
+    return letterImageUrls[randomIndex];
+  };
+
   // Enhanced logging with letter audio debugging
   console.log(`🎬 NameVideo for "${childName}":`, {
     letters: letters.length,
@@ -175,9 +191,15 @@ export const NameVideo: React.FC<NameVideoProps> = ({
       {letters.map((letter, index) => {
         const isLeft = index % 2 === 0;
         const safeZone = isLeft ? 'left' : 'right';
-        const backgroundImage = letterImageUrls.length > 0 
-          ? letterImageUrls[index % letterImageUrls.length]
-          : undefined;
+        const backgroundImage = getRandomLetterImage(index);
+        
+        console.log(`🖼️ Letter "${letter}" image selection:`, {
+          letter,
+          index,
+          safeZone,
+          imageUrl: backgroundImage,
+          totalImages: letterImageUrls.length
+        });
         
         return (
           <Sequence 
