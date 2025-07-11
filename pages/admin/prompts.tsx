@@ -335,6 +335,7 @@ export default function PromptManagement() {
                 <option value="pending">Pending</option>
                 <option value="approved">Approved</option>
                 <option value="rejected">Rejected</option>
+                <option value="completed">Completed (Used)</option>
               </select>
             </div>
 
@@ -410,34 +411,34 @@ export default function PromptManagement() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
+              <table className="min-w-full divide-y divide-gray-200 table-fixed">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="w-12 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       <input type="checkbox" className="rounded" />
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="w-20 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Type
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="w-24 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Theme
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="w-24 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Style
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="w-24 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Safe Zone
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Prompt Text
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-96">
+                      Prompt Text (Full)
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="w-24 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Status
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="w-24 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Created
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="w-32 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Actions
                     </th>
                   </tr>
@@ -445,14 +446,14 @@ export default function PromptManagement() {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {prompts.map((prompt, index) => (
                     <tr key={prompt.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="w-12 px-6 py-4 whitespace-nowrap">
                         <input
                           type="checkbox"
                           id={`prompt-${index}`}
                           className="rounded"
                         />
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <td className="w-20 px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                           prompt.asset_type === 'image' ? 'bg-blue-100 text-blue-800' :
                           prompt.asset_type === 'audio' ? 'bg-green-100 text-green-800' :
@@ -462,35 +463,39 @@ export default function PromptManagement() {
                           {prompt.asset_type}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <td className="w-24 px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {prompt.theme}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <td className="w-24 px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {prompt.style || '-'}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <td className="w-24 px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {prompt.safe_zone || '-'}
                       </td>
-                      <td className="px-6 py-4 max-w-xs text-sm text-gray-900">
-                        <div className="truncate" title={prompt.prompt_text}>
-                          {prompt.prompt_text.length > 100 
-                            ? `${prompt.prompt_text.substring(0, 100)}...` 
-                            : prompt.prompt_text}
+                      <td className="px-6 py-4 max-w-2xl text-sm text-gray-900">
+                        <div className="relative">
+                          <div className="whitespace-pre-wrap break-words font-mono text-xs leading-relaxed bg-gray-50 p-3 rounded border max-h-32 overflow-y-auto">
+                            {prompt.prompt_text}
+                          </div>
+                          <div className="text-xs text-gray-500 mt-1">
+                            {prompt.prompt_text.length} characters
+                          </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <td className="w-24 px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                           prompt.status === 'approved' ? 'bg-green-100 text-green-800' :
                           prompt.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                          prompt.status === 'completed' ? 'bg-blue-100 text-blue-800' :
                           'bg-yellow-100 text-yellow-800'
                         }`}>
                           {prompt.status}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="w-24 px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {new Date(prompt.created_at).toLocaleDateString()}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+                      <td className="w-32 px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
                         <button
                           onClick={() => handleEdit(prompt)}
                           className="text-blue-600 hover:text-blue-900"
@@ -583,6 +588,7 @@ export default function PromptManagement() {
                     <option value="pending">Pending</option>
                     <option value="approved">Approved</option>
                     <option value="rejected">Rejected</option>
+                    <option value="completed">Completed (Used)</option>
                   </select>
                 </div>
 

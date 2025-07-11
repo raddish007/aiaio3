@@ -230,7 +230,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .update({ output_asset_id: assetRecord.id })
       .eq('id', jobRecord.id);
 
-    // Note: We no longer mark prompts as used to allow reusing them
+    // Mark prompt as completed when asset is successfully created
+    await supabaseAdmin
+      .from('prompts')
+      .update({ 
+        status: 'completed',
+        metadata: {
+          ...promptData.metadata,
+          completed_at: new Date().toISOString(),
+          used_for_asset_id: assetRecord.id
+        }
+      })
+      .eq('id', promptId);
 
     return res.status(200).json({
       success: true,

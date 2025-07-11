@@ -150,7 +150,7 @@ export default function AIGenerator() {
     let promptToUse = selectedPrompt;
     if (!promptToUse) {
       const availableImagePrompts = prompts.filter(p => 
-        p.asset_type === 'image' && p.status !== 'used'
+        p.asset_type === 'image' && p.status !== 'completed'
       );
       if (availableImagePrompts.length === 0) {
         alert('No available image prompts found. Please generate some prompts first.');
@@ -224,7 +224,7 @@ export default function AIGenerator() {
     let promptToUse = selectedPrompt;
     if (!promptToUse) {
       const availableImagePrompts = prompts.filter(p => 
-        p.asset_type === 'image' && p.status !== 'used'
+        p.asset_type === 'image' && p.status !== 'completed'
       );
       if (availableImagePrompts.length === 0) {
         alert('No available image prompts found. Please generate some prompts first.');
