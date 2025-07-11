@@ -39,36 +39,37 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Calculate video duration based on name length
     const letters = childName.toUpperCase().split('');
     const totalSegments = letters.length + 2; // intro + letters + outro
-    const durationInSeconds = totalSegments * 4; // 4 seconds per segment
+    const durationInSeconds = totalSegments * 2; // 2 seconds per segment (updated from 4)
 
-    // Get background music asset from database - use a real audio file that exists
-    let backgroundMusicUrl = 'https://etshvxrgbssginmzsczo.supabase.co/storage/v1/object/public/assets/assets/audio/elevenlabs_1752156347942_248nvfaZe8BXhKntjmpp.mp3'; // Use real audio file
+    console.log(`🎬 NameVideov2 generation for "${childName}":`, {
+      letters: letters,
+      totalSegments: totalSegments,
+      durationInSeconds: durationInSeconds,
+      childAge: childAge,
+      childTheme: childTheme
+    });
+
+    // Get background music asset from database
+    let backgroundMusicUrl = 'https://etshvxrgbssginmzsczo.supabase.co/storage/v1/object/public/assets/assets/audio/1751989180199.wav'; // Fallback
     try {
-      // Try to get a background music asset, but fallback to a working audio file
       const { data: musicAsset, error: musicError } = await supabaseAdmin
         .from('assets')
         .select('file_url')
-        .eq('type', 'audio')
-        .eq('status', 'approved')
-        .eq('metadata->>audio_class', 'background_music')
-        .order('created_at', { ascending: false })
-        .limit(1)
+        .eq('id', 'f7365c71-cd52-44d2-b289-02bdc6e74c74')
         .single();
 
       if (!musicError && musicAsset?.file_url) {
         backgroundMusicUrl = musicAsset.file_url;
-        console.log(`✅ Using background music from database: ${backgroundMusicUrl}`);
+        console.log(`Using background music from database: ${backgroundMusicUrl}`);
       } else {
-        console.log(`⚠️ No background music found, using working audio file: ${backgroundMusicUrl}`);
+        console.log(`Using fallback background music: ${backgroundMusicUrl}`);
       }
     } catch (error) {
-      console.warn('⚠️ Failed to fetch background music from database, using working audio file:', error);
+      console.warn('Failed to fetch background music from database, using fallback:', error);
     }
 
-    // IMPROVED: Get name audio asset for intro/outro with better debugging
+    // Get name audio asset for intro/outro (child's name pronunciation)
     let nameAudioUrl = '';
-    console.log(`🔍 DEBUGGING: Looking for name audio for child: "${childName}"`);
-    
     try {
       const { data: nameAudioAssets, error: nameAudioError } = await supabaseAdmin
         .from('assets')
@@ -80,36 +81,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         .order('created_at', { ascending: false })
         .limit(1);
 
-      console.log(`🔍 DEBUGGING: Query completed`);
-      console.log(`🔍 DEBUGGING: Error:`, nameAudioError);
-      console.log(`🔍 DEBUGGING: Data:`, nameAudioAssets);
-      console.log(`🔍 DEBUGGING: Found ${nameAudioAssets?.length || 0} results`);
-
       if (!nameAudioError && nameAudioAssets && nameAudioAssets.length > 0) {
         nameAudioUrl = nameAudioAssets[0].file_url;
-        console.log(`✅ DEBUGGING: Using name audio for ${childName}: ${nameAudioUrl}`);
+        console.log(`Using name audio for ${childName} from database: ${nameAudioUrl}`);
       } else {
-        console.error(`❌ DEBUGGING: No name audio found for child: ${childName}`);
-        console.error(`❌ DEBUGGING: Error details:`, nameAudioError);
-        
-        // FIXED: Don't fail the whole request - just proceed without name audio
-        console.log(`⚠️ Proceeding without name audio for ${childName}`);
-        
-        // Try a broader search for debugging
-        const { data: debugAssets } = await supabaseAdmin
-          .from('assets')
-          .select('metadata->child_name, metadata->audio_class, status')
-          .eq('type', 'audio')
-          .eq('metadata->>child_name', childName);
-        console.log(`🔍 DEBUGGING: All audio for ${childName}:`, debugAssets);
+        console.error(`No name audio found for child: ${childName}`);
+        return res.status(400).json({ 
+          error: `Name audio not found for child: ${childName}. Please create a name_audio asset for this child first.` 
+        });
       }
     } catch (error) {
-      console.error('❌ DEBUGGING: Exception in name audio fetch:', error);
-      // FIXED: Don't fail the whole request
-      console.log(`⚠️ Proceeding without name audio due to error`);
+      console.error('Failed to fetch name audio from database:', error);
+      return res.status(500).json({ 
+        error: 'Failed to fetch name audio from database',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
-
-    console.log(`🔍 DEBUGGING: Final nameAudioUrl: "${nameAudioUrl}"`);
 
     // Convert letterAudioUrls from asset objects to URL strings (_reference format)
     const letterAudioUrlStrings: { [letter: string]: string } = {};
@@ -123,28 +110,30 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     }
 
-    // Prepare input props for Lambda - use FLAT structure like working HelloWorldWithImageAndAudio
-    const inputProps = {
-      childName,
-      childAge: childAge || 3,
-      childTheme: childTheme || 'default',
+    // Validate and process assets
+    const processedAssets = {
       backgroundMusicUrl,
       backgroundMusicVolume: 0.25, // Reduced volume for better balance
       introImageUrl: introImageUrl || '',
       outroImageUrl: outroImageUrl || '',
-      letterImageUrls: letterImageUrls || [],
-      // Use FLAT structure for letter audio (like working HelloWorldWithImageAndAudio)
-      letterAudioUrl: Object.values(letterAudioUrlStrings)[0] || '', // Use first letter audio as flat URL
-      letterName: Object.keys(letterAudioUrlStrings)[0] || '', // Use first letter name
-      // Keep nested structure for compatibility
+      letterImageUrls: Array.isArray(letterImageUrls) ? letterImageUrls : [],
+      // _REFERENCE STRUCTURE: audioAssets instead of individual audio props
       audioAssets: {
-        fullName: nameAudioUrl || '', // Empty string instead of placeholder
+        fullName: nameAudioUrl, // Used for both intro and outro
         letters: letterAudioUrlStrings // Direct letter -> URL mapping
-      },
-      debugMode: false
+      }
     };
 
-    console.log(`🔍 DEBUGGING: Final inputProps.audioAssets:`, JSON.stringify(inputProps.audioAssets, null, 2));
+    // Log asset validation
+    console.log('📦 Asset validation:', {
+      hasBackgroundMusic: !!processedAssets.backgroundMusicUrl,
+      hasIntroImage: !!processedAssets.introImageUrl,
+      hasOutroImage: !!processedAssets.outroImageUrl,
+      letterImageCount: processedAssets.letterImageUrls.length,
+      hasNameAudio: !!processedAssets.audioAssets.fullName,
+      letterAudioCount: Object.keys(processedAssets.audioAssets.letters).length,
+      letterAudioKeys: Object.keys(processedAssets.audioAssets.letters)
+    });
 
     // Create a video generation job record
     const { data: jobRecord, error: jobError } = await supabaseAdmin
@@ -155,8 +144,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         submitted_by: userId,
         assets: [],
         template_data: {
-          composition: 'NameVideo',
-          props: inputProps // Use the _reference structure
+          composition: 'NameVideov2',
+          props: {
+            childName,
+            childAge: childAge || 3,
+            childTheme: childTheme || 'default',
+            ...processedAssets,
+            debugMode: false
+          }
         },
         created_at: new Date().toISOString(),
       })
@@ -168,48 +163,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(500).json({ error: 'Failed to create job record' });
     }
 
+    // Prepare input props for Lambda
+    const inputProps = {
+      childName,
+      childAge: childAge || 3,
+      childTheme: childTheme || 'default',
+      ...processedAssets,
+      debugMode: false
+    };
+
+    console.log('🚀 Submitting to Lambda with inputProps:', JSON.stringify(inputProps, null, 2));
+
     try {
-      console.log(`🚀 Starting Lambda render with FLAT structure:`, {
-        composition: 'NameVideo',
-        hasNameAudio: !!nameAudioUrl,
-        letterCount: Object.keys(letterAudioUrlStrings).length,
-        backgroundMusic: !!backgroundMusicUrl,
-        flatLetterAudio: inputProps.letterAudioUrl,
-        flatLetterName: inputProps.letterName,
-        payloadStructure: 'flat + nested (compatible)'
-      });
-
-      // Validate environment variables
-      if (!process.env.REMOTION_SITE_URL) {
-        throw new Error('REMOTION_SITE_URL environment variable is not set');
-      }
-      if (!process.env.AWS_LAMBDA_REMOTION_FUNCTION) {
-        throw new Error('AWS_LAMBDA_REMOTION_FUNCTION environment variable is not set');
-      }
-
-      console.log(`🔧 Using environment variables:`, {
-        REMOTION_SITE_URL: process.env.REMOTION_SITE_URL,
-        AWS_LAMBDA_REMOTION_FUNCTION: process.env.AWS_LAMBDA_REMOTION_FUNCTION,
-        AWS_REGION: process.env.AWS_REGION || 'us-east-1'
-      });
-
-      console.log(`🎬 FIXED: Using proper audio timing with startFrom/endAt props`);
-
-      // Enhanced debugging for letter audio
-      console.log(`🔍 LETTER AUDIO DEBUGGING:`, {
-        letterAudioUrls: letterAudioUrls,
-        letterAudioUrlStrings: letterAudioUrlStrings,
-        availableLetters: Object.keys(letterAudioUrlStrings),
-        flatLetterAudio: inputProps.letterAudioUrl,
-        flatLetterName: inputProps.letterName,
-        nestedLetters: inputProps.audioAssets.letters
-      });
-
       const result = await renderMediaOnLambda({
         region: (process.env.AWS_REGION as any) || 'us-east-1',
-        functionName: process.env.AWS_LAMBDA_REMOTION_FUNCTION,
-        serveUrl: process.env.REMOTION_SITE_URL,
-        composition: 'NameVideo',
+        functionName: process.env.AWS_LAMBDA_REMOTION_FUNCTION || 'remotion-render-4-0-322-mem2048mb-disk2048mb-120sec',
+        serveUrl: process.env.REMOTION_SITE_URL || 'https://remotionlambda-useast1-3pwoq46nsa.s3.us-east-1.amazonaws.com/sites/aiaio3-name-video-template/index.html',
+        composition: 'NameVideov2',
         inputProps,
         codec: 'h264',
         imageFormat: 'jpeg',
@@ -217,7 +187,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       const outputUrl = `https://remotionlambda-useast1-3pwoq46nsa.s3.us-east-1.amazonaws.com/renders/${result.renderId}/out.mp4`;
       
-      console.log(`✅ Lambda render started successfully: ${result.renderId}`);
+      console.log('✅ Lambda render started successfully:', {
+        renderId: result.renderId,
+        outputUrl: outputUrl
+      });
       
       // Update job with Lambda info
       await supabaseAdmin
@@ -236,7 +209,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         .insert({
           video_generation_job_id: jobRecord.id,
           video_url: outputUrl,
-          video_title: `Name Video for ${childName}`,
+          video_title: `NameVideov2 for ${childName}`,
           child_id: childId,
           child_name: childName,
           child_age: childAge || 3,
@@ -245,17 +218,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           approval_status: 'pending_review',
           submitted_by: userId,
           duration_seconds: durationInSeconds,
-          template_type: 'name-video',
+          template_type: 'name-video-v2',
           template_data: {
-            composition: 'NameVideo',
-            props: inputProps, // Use the _reference structure
+            composition: 'NameVideov2',
+            props: inputProps,
             used_assets: {
-              intro_image: introImageUrl,
-              outro_image: outroImageUrl,
-              letter_images: letterImageUrls,
-              name_audio: nameAudioUrl, // Single name audio used for intro/outro
-              letter_audios: letterAudioUrlStrings, // Direct letter -> URL mapping
-              background_music: backgroundMusicUrl
+              intro_image: processedAssets.introImageUrl,
+              outro_image: processedAssets.outroImageUrl,
+              letter_images: processedAssets.letterImageUrls,
+              name_audio: processedAssets.audioAssets.fullName,
+              letter_audios: processedAssets.audioAssets.letters,
+              background_music: processedAssets.backgroundMusicUrl
             }
           }
         })
@@ -292,20 +265,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         success: true,
         job_id: jobRecord.id,
         render_id: result.renderId,
-        output_url: `https://remotionlambda-useast1-3pwoq46nsa.s3.us-east-1.amazonaws.com/renders/${result.renderId}/out.mp4`,
+        output_url: outputUrl,
         job_tracking_url: `/admin/jobs?job_id=${jobRecord.id}`,
-        debug_info: {
-          hasNameAudio: !!nameAudioUrl,
-          nameAudioUrl: nameAudioUrl || 'not found',
-          letterAudioCount: Object.keys(letterAudioUrlStrings).length,
-          availableLetters: Object.keys(letterAudioUrlStrings),
-          flatLetterAudio: inputProps.letterAudioUrl,
-          flatLetterName: inputProps.letterName,
-          payloadStructure: 'flat + nested (compatible)'
+        payload: inputProps, // Return the payload for verification
+        duration_seconds: durationInSeconds,
+        segments: {
+          total: totalSegments,
+          intro: { duration: 4, safeZone: 'center' },
+          letters: letters.map((letter: string, index: number) => ({
+            letter,
+            duration: 4,
+            safeZone: index % 2 === 0 ? 'left' : 'right'
+          })),
+          outro: { duration: 4, safeZone: 'center' }
         }
       });
+
     } catch (lambdaError) {
-      console.error('❌ Lambda render failed:', lambdaError);
+      console.error('❌ Lambda render error:', lambdaError);
+      
       // Update job as failed
       await supabaseAdmin
         .from('video_generation_jobs')
@@ -315,14 +293,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           failed_at: new Date().toISOString(),
         })
         .eq('id', jobRecord.id);
-      return res.status(500).json({ error: 'Failed to start Remotion Lambda render' });
+
+      return res.status(500).json({ 
+        error: 'Failed to start Remotion Lambda render',
+        details: lambdaError instanceof Error ? lambdaError.message : 'Unknown error'
+      });
     }
 
   } catch (error) {
-    console.error('Name video generation error:', error);
+    console.error('❌ NameVideov2 generation error:', error);
     return res.status(500).json({ 
-      error: 'Failed to generate name video',
+      error: 'Failed to generate NameVideov2',
       details: error instanceof Error ? error.message : 'Unknown error'
     });
   }
-}
+} 

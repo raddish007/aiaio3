@@ -49,7 +49,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     console.log('Final trimmed audio size:', finalTrimmedAudioData.length);
 
     // Upload trimmed audio to Supabase Storage using admin client
-    const fileExt = 'wav';
+    const fileExt = 'mp3';
     const fileName = `trimmed_${Date.now()}_${originalAssetId}.${fileExt}`;
     const filePath = `assets/audio/${fileName}`;
     
@@ -62,7 +62,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Supabase storage expects a Blob or File in browser, Buffer in Node.js
     const { error: uploadError } = await supabaseAdmin.storage
       .from('assets')
-      .upload(filePath, audioBuffer, { contentType: 'audio/wav', upsert: true });
+      .upload(filePath, audioBuffer, { contentType: 'audio/mpeg', upsert: true });
     if (uploadError) {
       console.error('Error uploading trimmed audio to storage:', uploadError);
       return res.status(500).json({ error: 'Failed to upload audio to storage', details: uploadError.message });
@@ -111,7 +111,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           start_time: startTime,
           end_time: endTime,
           duration: trimmedDuration, // Use extracted duration
-          audio_data: `data:audio/wav;base64,${finalTrimmedAudioData}`,
+          audio_data: `data:audio/mpeg;base64,${finalTrimmedAudioData}`,
           script: originalScript,
           template: originalTemplate,
           voice: 'trimmed',
@@ -138,7 +138,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     res.status(200).json({
       success: true,
       asset,
-      audioData: `data:audio/wav;base64,${finalTrimmedAudioData}`,
+      audioData: `data:audio/mpeg;base64,${finalTrimmedAudioData}`,
     });
 
   } catch (error) {

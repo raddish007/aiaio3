@@ -42,20 +42,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const assetIds = new Set<string>();
     
     // Global elements
-    template.global_elements?.forEach(el => {
+    template.global_elements?.forEach((el: any) => {
       if (el.asset_type === 'specific' && el.specific_asset_id) {
         assetIds.add(el.specific_asset_id);
       }
     });
 
     // Parts elements
-    template.parts?.forEach(part => {
-      part.audio_elements?.forEach(el => {
+    template.parts?.forEach((part: any) => {
+      part.audio_elements?.forEach((el: any) => {
         if (el.asset_type === 'specific' && el.specific_asset_id) {
           assetIds.add(el.specific_asset_id);
         }
       });
-      part.image_elements?.forEach(el => {
+      part.image_elements?.forEach((el: any) => {
         if (el.asset_type === 'specific' && el.specific_asset_id) {
           assetIds.add(el.specific_asset_id);
         }
@@ -114,7 +114,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // Calculate total duration for the video
-    const totalDuration = template.parts?.reduce((total, part) => total + part.duration, 0) || 10;
+    const totalDuration = template.parts?.reduce((total: number, part: any) => total + part.duration, 0) || 10;
     const totalFrames = totalDuration * 60; // 60fps
 
     // Prepare Lambda payload

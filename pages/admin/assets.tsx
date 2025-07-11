@@ -57,7 +57,7 @@ export default function AssetManagement() {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadForm, setUploadForm] = useState({
     theme: '',
-    type: 'image' as const,
+    type: 'image' as 'image' | 'audio' | 'video' | 'prompt',
     description: '',
     tags: '',
     project_id: '',

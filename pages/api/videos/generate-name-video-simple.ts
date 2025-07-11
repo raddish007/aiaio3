@@ -8,20 +8,42 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     const { 
+      childName,
+      childAge,
+      childTheme,
       backgroundMusicUrl,
       backgroundMusicVolume,
+      letterAudioUrl,
+      letterName,
       submitted_by
     } = req.body;
 
-    console.log('🎵 Audio Test API received:', {
+    console.log('🎵 NameVideo Simple API received:', {
+      childName,
+      childAge,
+      childTheme,
       backgroundMusic: backgroundMusicUrl,
-      volume: backgroundMusicVolume
+      volume: backgroundMusicVolume,
+      letterAudio: letterAudioUrl,
+      letterName: letterName
     });
 
-    // Prepare input props for Lambda - ONLY background music
+    // Prepare input props for Lambda - use the SAME flat structure as HelloWorldWithImageAndAudio
     const inputProps = {
+      childName: childName || 'Test',
+      childAge: childAge || 3,
+      childTheme: childTheme || 'default',
       backgroundMusicUrl: backgroundMusicUrl || '',
-      backgroundMusicVolume: backgroundMusicVolume || 0.25
+      backgroundMusicVolume: backgroundMusicVolume || 0.25,
+      // Use flat structure like HelloWorldWithImageAndAudio
+      letterAudioUrl: letterAudioUrl || '',
+      letterName: letterName || '',
+      // Keep the nested structure for compatibility but use flat values
+      audioAssets: {
+        fullName: '', // Empty for now
+        letters: letterAudioUrl ? { [letterName]: letterAudioUrl } : {}
+      },
+      debugMode: true
     };
 
     console.log('🚀 Sending to Remotion Lambda:', inputProps);
@@ -30,8 +52,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const result = await renderMediaOnLambda({
         region: (process.env.AWS_REGION as any) || 'us-east-1',
         functionName: process.env.AWS_LAMBDA_REMOTION_FUNCTION || 'remotion-render-4-0-322-mem2048mb-disk2048mb-120sec',
-        serveUrl: process.env.REMOTION_SITE_URL || 'https://remotionlambda-useast1-3pwoq46nsa.s3.us-east-1.amazonaws.com/sites/aiaio3-name-video-template-v39/index.html',
-        composition: 'HelloWorldWithAudio',
+        serveUrl: process.env.REMOTION_SITE_URL || 'https://remotionlambda-useast1-3pwoq46nsa.s3.us-east-1.amazonaws.com/sites/aiaio3-name-video-template-v46/index.html',
+        composition: 'NameVideo',
         inputProps,
         codec: 'h264',
         imageFormat: 'jpeg',
@@ -43,7 +65,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         success: true,
         render_id: result.renderId,
         output_url: outputUrl,
-        message: 'Audio test video generation started successfully'
+        message: 'NameVideo simple test started successfully',
+        debug_info: {
+          hasBackgroundMusic: !!backgroundMusicUrl,
+          hasLetterAudio: !!letterAudioUrl,
+          letterName: letterName,
+          payload_structure: 'flat'
+        }
       });
     } catch (lambdaError) {
       console.error('Lambda error:', lambdaError);
@@ -54,10 +82,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
   } catch (error) {
-    console.error('Audio test generation error:', error);
+    console.error('NameVideo simple generation error:', error);
     return res.status(500).json({ 
-      error: 'Failed to generate audio test video',
+      error: 'Failed to generate NameVideo simple test',
       details: error instanceof Error ? error.message : 'Unknown error'
     });
   }
-}
+} 

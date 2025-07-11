@@ -586,6 +586,18 @@ export default function VideoTemplates() {
     return formats.map(format => format.toUpperCase()).join(', ');
   };
 
+  const getEligibleAssets = (assetPurpose: PartAsset) => {
+    // This function should return assets that match the asset purpose criteria
+    // For now, return an empty array - this can be implemented later
+    return [];
+  };
+
+  const handleUpload = (assetPurpose: PartAsset) => {
+    // This function should handle uploading assets for a specific purpose
+    // For now, just redirect to the assets page
+    router.push('/admin/assets');
+  };
+
   const generateRemotionComposition = (template: VideoTemplate) => {
     const compositionName = template.name.replace(/\s+/g, '') + 'Composition';
     

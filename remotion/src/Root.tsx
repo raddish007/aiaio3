@@ -5,7 +5,10 @@ import { NameVideov2 } from './compositions/NameVideov2';
 import { Lullaby } from './compositions/Lullaby';
 import { HelloWorld } from './compositions/HelloWorld';
 import { HelloWorldWithImage } from './compositions/HelloWorldWithImage';
-
+import { HelloWorldWithImageAndAudio } from './compositions/HelloWorldWithImageAndAudio';
+import { NameVideoTest } from './compositions/NameVideoTest';
+import { NameVideoSimple } from './compositions/NameVideoSimple';
+import { NameVideoUltraSimple } from './compositions/NameVideoUltraSimple';
 
 
 export const RemotionRoot: React.FC = () => {
@@ -154,6 +157,7 @@ export const RemotionRoot: React.FC = () => {
             'https://etshvxrgbssginmzsczo.supabase.co/storage/v1/object/public/assets/assets/image/1751981193321_7ch9q7v0y.png',
             'https://etshvxrgbssginmzsczo.supabase.co/storage/v1/object/public/assets/assets/image/1751981193321_7ch9q7v0y.png',
             'https://etshvxrgbssginmzsczo.supabase.co/storage/v1/object/public/assets/assets/image/1751981193321_7ch9q7v0y.png',
+            'https://etshvxrgbssginmzsczo.supabase.co/storage/v1/object/public/assets/assets/image/1751981193321_7ch9q7v0y.png',
           ],
           introAudioUrl: '', // Personalized audio for intro (empty for now)
           debugMode: true, // Enable debug mode to see what's missing
@@ -180,6 +184,83 @@ export const RemotionRoot: React.FC = () => {
         height={1080}
         defaultProps={{
           backgroundImageUrl: 'https://picsum.photos/1920/1080'
+        }}
+      />
+
+      {/* Hello World with Image and Audio Composition */}
+      <Composition
+        id="HelloWorldWithImageAndAudio"
+        component={HelloWorldWithImageAndAudio}
+        durationInFrames={1800} // 30 seconds at 60fps
+        fps={60}
+        width={1920}
+        height={1080}
+        defaultProps={{
+          backgroundImageUrl: 'https://picsum.photos/1920/1080',
+          backgroundMusicUrl: '',
+          backgroundMusicVolume: 0.25,
+          letterAudioUrl: '',
+          letterName: ''
+        }}
+      />
+
+      {/* Name Video Test Composition */}
+      <Composition
+        id="NameVideoTest"
+        component={NameVideoTest}
+        durationInFrames={300} // 5 seconds at 60fps
+        fps={60}
+        width={1920}
+        height={1080}
+        defaultProps={{
+          childName: 'Nolan',
+          letterAudioUrls: {
+            "N": "https://etshvxrgbssginmzsczo.supabase.co/storage/v1/object/public/assets/assets/audio/trimmed_1752104463999_c0863a2b-e7d0-486e-ab56-60af273272e0.mp3",
+            "O": "https://etshvxrgbssginmzsczo.supabase.co/storage/v1/object/public/assets/assets/audio/trimmed_1752104444762_02af0b39-c151-4505-b349-c9ff821533f7.mp3",
+            "L": "https://etshvxrgbssginmzsczo.supabase.co/storage/v1/object/public/assets/assets/audio/trimmed_1752104503689_52de36b2-f8bd-4094-9127-649676d399d5.mp3",
+            "A": "https://etshvxrgbssginmzsczo.supabase.co/storage/v1/object/public/assets/assets/audio/trimmed_1752101241031_60a6ea3c-4658-413c-b66d-cffa571955c6.mp3"
+          },
+          debugMode: true
+        }}
+      />
+
+      {/* Name Video Simple Composition */}
+      <Composition
+        id="NameVideoSimple"
+        component={NameVideoSimple}
+        durationInFrames={1800} // 30 seconds at 60fps
+        fps={60}
+        width={1920}
+        height={1080}
+        defaultProps={{
+          childName: 'Nolan',
+          childAge: 3,
+          childTheme: 'halloween',
+          backgroundMusicUrl: 'https://etshvxrgbssginmzsczo.supabase.co/storage/v1/object/public/assets/assets/audio/1751989180199.wav',
+          backgroundMusicVolume: 0.25,
+          introImageUrl: '',
+          outroImageUrl: '',
+          letterImageUrls: [],
+          letterAudioUrls: {
+            "N": "https://etshvxrgbssginmzsczo.supabase.co/storage/v1/object/public/assets/assets/audio/trimmed_1752104463999_c0863a2b-e7d0-486e-ab56-60af273272e0.mp3",
+            "O": "https://etshvxrgbssginmzsczo.supabase.co/storage/v1/object/public/assets/assets/audio/trimmed_1752104444762_02af0b39-c151-4505-b349-c9ff821533f7.mp3",
+            "L": "https://etshvxrgbssginmzsczo.supabase.co/storage/v1/object/public/assets/assets/audio/trimmed_1752104503689_52de36b2-f8bd-4094-9127-649676d399d5.mp3",
+            "A": "https://etshvxrgbssginmzsczo.supabase.co/storage/v1/object/public/assets/assets/audio/trimmed_1752101241031_60a6ea3c-4658-413c-b66d-cffa571955c6.mp3"
+          },
+          debugMode: true
+        }}
+      />
+
+      <Composition
+        id="NameVideoUltraSimple"
+        component={NameVideoUltraSimple}
+        durationInFrames={30 * 30} // 30 seconds
+        fps={30}
+        width={1920}
+        height={1080}
+        defaultProps={{
+          childName: 'Nolan',
+          backgroundMusic: 'https://example.com/background.mp3',
         }}
       />
 

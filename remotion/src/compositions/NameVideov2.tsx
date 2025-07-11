@@ -6,53 +6,42 @@ import {
   useCurrentFrame,
   spring,
   interpolate,
-  Img,
-  Audio
+  Img
+  // Audio
 } from 'remotion';
 
-export interface NameVideoProps {
+export interface NameVideov2Props {
   childName: string;
   childAge: number;
   childTheme: string;
-  backgroundMusicUrl?: string;
-  backgroundMusicVolume?: number;
+  // backgroundMusicUrl?: string;
+  // backgroundMusicVolume?: number;
   introImageUrl?: string;
   outroImageUrl?: string;
   letterImageUrls?: string[];
-  introAudioUrl?: string;
-  outroAudioUrl?: string;
-  // Flat structure (like HelloWorldWithImageAndAudio)
-  letterAudioUrl?: string;
-  letterName?: string;
-  // Nested structure (original NameVideo)
-  audioAssets?: {
-    fullName?: string;
-    letters?: { [letter: string]: string };
-  };
-  letterAudioUrls?: { [letter: string]: { file_url: string } };
+  // introAudioUrl?: string;
+  // outroAudioUrl?: string;
+  // letterAudioUrls?: { [letter: string]: string };
   debugMode?: boolean;
 }
 
-export const NameVideo: React.FC<NameVideoProps> = ({
+export const NameVideov2: React.FC<NameVideov2Props> = ({
   childName,
   childAge,
   childTheme,
-  backgroundMusicUrl = '',
-  backgroundMusicVolume = 0.25,
+  // backgroundMusicUrl = '',
+  // backgroundMusicVolume = 0.5,
   introImageUrl = '',
   outroImageUrl = '',
   letterImageUrls = [],
-  introAudioUrl,
-  outroAudioUrl,
-  // Flat structure (like HelloWorldWithImageAndAudio)
-  letterAudioUrl,
-  letterName,
-  // Nested structure (original NameVideo)
-  audioAssets,
+  // introAudioUrl = '',
+  // outroAudioUrl = '',
+  // letterAudioUrls = {},
   debugMode = false
 }) => {
   const { fps } = useVideoConfig();
-  const segmentDuration = fps * 4; // 4 seconds per segment
+  const frame = useCurrentFrame();
+  const segmentDuration = fps * 2; // 2 seconds per segment
   
   const nameUpper = childName.toUpperCase();
   const letters = nameUpper.split('');
@@ -61,33 +50,33 @@ export const NameVideo: React.FC<NameVideoProps> = ({
   const totalSegments = letters.length + 2; // intro + letters + outro
   const totalDuration = totalSegments * segmentDuration;
   
-  // Get name audio from audioAssets - skip if it's a placeholder
-  const rawNameAudio = audioAssets?.fullName || introAudioUrl || outroAudioUrl || '';
-  const isValidAudioUrl = rawNameAudio && 
-    rawNameAudio.startsWith('http') && 
-    !rawNameAudio.includes('[Will be fetched');
-  const nameAudio = isValidAudioUrl ? rawNameAudio : '';
-
-  // Handle flat structure (like HelloWorldWithImageAndAudio)
-  const flatLetterAudio = letterAudioUrl && letterAudioUrl.startsWith('http') ? letterAudioUrl : '';
-  const flatLetterName = letterName || '';
-
-  // STEP 2: Enhanced logging with letter audio debugging
-  console.log(`🎬 STEP 2 - NameVideo for "${childName}":`, {
-    letters: letters.length,
+  // Log video info for debugging
+  console.log(`🎬 NameVideov2 for "${childName}" (${letters.length} letters):`, {
     segments: totalSegments,
     durationSeconds: totalDuration / fps,
-    hasBackgroundMusic: !!backgroundMusicUrl,
-    rawNameAudio,
-    isValidAudioUrl,
-    hasNameAudio: !!nameAudio,
-    nameAudioUrl: nameAudio,
-    // Letter audio debugging
-    flatLetterAudio,
-    flatLetterName,
-    audioAssetsLetters: audioAssets?.letters,
-    letterAudioUrls: Object.keys(audioAssets?.letters || {}),
-    hasLetterAudio: !!Object.keys(audioAssets?.letters || {}).length
+    durationFrames: totalDuration,
+    theme: childTheme,
+    age: childAge,
+    // hasBackgroundMusic: !!backgroundMusicUrl,
+    // backgroundMusicVolume,
+    hasIntroImage: !!introImageUrl,
+    // hasIntroAudio: !!introAudioUrl,
+    letterImageCount: letterImageUrls.length,
+    // letterAudioCount: Object.keys(letterAudioUrls).length,
+    hasOutroImage: !!outroImageUrl,
+    // hasOutroAudio: !!outroAudioUrl,
+    letters: letters,
+    segmentDuration: segmentDuration,
+    timing: {
+      intro: { from: 0, duration: segmentDuration },
+      letters: letters.map((letter, index) => ({
+        letter,
+        from: segmentDuration * (index + 1),
+        duration: segmentDuration,
+        safeZone: index % 2 === 0 ? 'left' : 'right'
+      })),
+      outro: { from: segmentDuration * (letters.length + 1), duration: segmentDuration }
+    }
   });
   
   return (
@@ -96,98 +85,48 @@ export const NameVideo: React.FC<NameVideoProps> = ({
     }}>
       
       {/* Background Music */}
-      {backgroundMusicUrl && backgroundMusicUrl.trim() !== '' && (
+      {/* {backgroundMusicUrl && backgroundMusicUrl.trim() !== '' && (
         <Audio 
           src={backgroundMusicUrl}
           volume={backgroundMusicVolume}
+          startFrom={0}
+          endAt={totalDuration}
+          loop={false}
         />
-      )}
-
-      {/* Letter Audio - Single component with proper timing */}
-      {/* COMMENTED OUT FOR DEBUGGING
-      {letters.map((letter, index) => {
-        const nestedLetterAudioUrl = audioAssets?.letters?.[letter];
-        const letterAudioUrl = nestedLetterAudioUrl || 
-          (flatLetterName === letter ? flatLetterAudio : '');
-        
-        if (!letterAudioUrl) return null;
-        
-        return (
-          <Audio 
-            key={`audio-${letter}-${index}`}
-            src={letterAudioUrl}
-            volume={0.8}
-            startFrom={segmentDuration * (index + 1)} // Start at the beginning of each letter segment
-            endAt={segmentDuration * (index + 2)} // End at the end of each letter segment
-          />
-        );
-      })}
-      */}
-
-      {/* Intro/Outro Audio (name pronunciation) */}
-      {/* COMMENTED OUT FOR DEBUGGING
-      {audioAssets?.fullName && (
-        <>
-          <Audio 
-            src={audioAssets.fullName}
-            volume={0.8}
-            startFrom={0}
-            endAt={segmentDuration}
-          />
-          <Audio 
-            src={audioAssets.fullName}
-            volume={0.8}
-            startFrom={segmentDuration * (letters.length + 1)}
-            endAt={segmentDuration * (letters.length + 2)}
-          />
-        </>
-      )}
-      */}
+      )} */}
       
       {/* Part 1: Intro - 4 seconds - CENTER */}
       <Sequence from={0} durationInFrames={segmentDuration}>
-        {/* Intro Audio (name pronunciation) - COMMENTED OUT FOR DEBUGGING
-        {audioAssets?.fullName && (
-          <Audio 
-            src={audioAssets.fullName}
-            volume={0.8}
-          />
-        )}
-        */}
-        
         <TextSegment 
           text={nameUpper} 
           isFullName={true} 
           safeZone="center"
           backgroundImage={introImageUrl}
+          // audioUrl={introAudioUrl}
           debugMode={debugMode}
-          segmentInfo={{ type: 'intro', text: nameUpper }}
+          segmentInfo={{
+            type: 'intro',
+            childName,
+            childAge,
+            childTheme,
+            segmentIndex: 0
+          }}
         />
       </Sequence>
 
       {/* Part 2: Individual letters - 4 seconds each - ALTERNATING LEFT/RIGHT */}
       {letters.map((letter, index) => {
+        // Alternate between left and right
         const isLeft = index % 2 === 0;
         const safeZone = isLeft ? 'left' : 'right';
+        
+        // Get image for this letter (cycle through available images)
         const backgroundImage = letterImageUrls.length > 0 
           ? letterImageUrls[index % letterImageUrls.length]
           : undefined;
         
-        // Get letter audio URL - support both flat and nested structures
-        const nestedLetterAudioUrl = audioAssets?.letters?.[letter];
-        const letterAudioUrl = nestedLetterAudioUrl || 
-          (flatLetterName === letter ? flatLetterAudio : '');
-        
-        // STEP 3: Debug letter audio resolution
-        console.log(`🎵 Letter "${letter}" audio debug:`, {
-          letter,
-          index,
-          nestedLetterAudioUrl,
-          flatLetterName,
-          flatLetterAudio,
-          finalLetterAudioUrl: letterAudioUrl,
-          hasAudio: !!letterAudioUrl
-        });
+        // Get audio for this letter
+        // const letterAudio = letterAudioUrls[letter] || undefined;
         
         return (
           <Sequence 
@@ -200,8 +139,17 @@ export const NameVideo: React.FC<NameVideoProps> = ({
               isFullName={false} 
               safeZone={safeZone}
               backgroundImage={backgroundImage}
+              // audioUrl={letterAudio}
               debugMode={debugMode}
-              segmentInfo={{ type: 'letter', text: letter, safeZone }}
+              segmentInfo={{
+                type: 'letter',
+                childName,
+                childAge,
+                childTheme,
+                segmentIndex: index + 1,
+                letter,
+                safeZone
+              }}
             />
           </Sequence>
         );
@@ -217,8 +165,15 @@ export const NameVideo: React.FC<NameVideoProps> = ({
           isFullName={true} 
           safeZone="center"
           backgroundImage={outroImageUrl}
+          // audioUrl={outroAudioUrl}
           debugMode={debugMode}
-          segmentInfo={{ type: 'outro', text: nameUpper }}
+          segmentInfo={{
+            type: 'outro',
+            childName,
+            childAge,
+            childTheme,
+            segmentIndex: letters.length + 1
+          }}
         />
       </Sequence>
       
@@ -231,10 +186,15 @@ interface TextSegmentProps {
   isFullName: boolean;
   safeZone: 'left' | 'center' | 'right';
   backgroundImage?: string;
+  // audioUrl?: string;
   debugMode?: boolean;
   segmentInfo: {
     type: 'intro' | 'letter' | 'outro';
-    text: string;
+    childName: string;
+    childAge: number;
+    childTheme: string;
+    segmentIndex: number;
+    letter?: string;
     safeZone?: string;
   };
 }
@@ -244,6 +204,7 @@ const TextSegment: React.FC<TextSegmentProps> = ({
   isFullName, 
   safeZone, 
   backgroundImage, 
+  // audioUrl, 
   debugMode,
   segmentInfo
 }) => {
@@ -271,20 +232,24 @@ const TextSegment: React.FC<TextSegmentProps> = ({
     extrapolateRight: 'clamp',
   });
 
-  // Dynamic font sizing
-  const baseFontSize = Math.min(width, height) * 0.3;
+  // Dynamic font sizing optimized for 2-13 character names
+  const baseFontSize = Math.min(width, height) * 0.3; // 30% of smaller dimension
   const fullNameSize = Math.min(baseFontSize * (isFullName ? 0.8 : 1.4), width * 0.8);
   
+  // Smart sizing for different name lengths
   let adjustedSize;
   if (isFullName) {
+    // For full names: ensure readability for long names, prevent oversizing for short names
     const lengthBasedSize = (width * 0.95) / text.length;
-    const minSize = Math.min(width, height) * 0.08;
-    const maxSize = Math.min(width, height) * 0.25;
+    const minSize = Math.min(width, height) * 0.08; // Minimum 8% for very long names
+    const maxSize = Math.min(width, height) * 0.25; // Maximum 25% for very short names
     adjustedSize = Math.min(Math.max(lengthBasedSize, minSize), Math.min(fullNameSize, maxSize));
   } else {
+    // Individual letters: consistent large size
     adjustedSize = fullNameSize;
   }
 
+  // Letter spacing for full names - adjusted for larger text
   const letterSpacing = isFullName ? `${adjustedSize * 0.03}px` : '0px';
 
   // Position text based on safe zone
@@ -300,7 +265,9 @@ const TextSegment: React.FC<TextSegmentProps> = ({
       lineHeight: '1.1',
       transform: `scale(${textScale})`,
       opacity: textOpacity,
-      wordBreak: 'break-word' as const,
+      whiteSpace: 'nowrap' as const, // Prevent line breaks
+      overflow: 'hidden' as const,
+      textOverflow: 'ellipsis' as const,
     };
 
     switch (safeZone) {
@@ -333,6 +300,7 @@ const TextSegment: React.FC<TextSegmentProps> = ({
           top: '50%',
           transform: `translate(-50%, -50%) scale(${textScale})`,
           maxWidth: `${width * 0.95}px`,
+          width: 'auto', // Allow natural width for center text
         };
     }
   };
@@ -362,7 +330,15 @@ const TextSegment: React.FC<TextSegmentProps> = ({
         backgroundColor: 'rgba(0, 0, 0, 0.3)',
       }} />
 
-      {/* Debug info */}
+      {/* Audio for this segment */}
+      {/* {audioUrl && (
+        <Audio 
+          src={audioUrl}
+          volume={0.25}
+        />
+      )} */}
+
+      {/* Debug Overlay */}
       {debugMode && (
         <div style={{
           position: 'absolute',
@@ -376,18 +352,22 @@ const TextSegment: React.FC<TextSegmentProps> = ({
           fontFamily: 'monospace',
           zIndex: 1000,
         }}>
-          <div><strong>Type:</strong> {segmentInfo.type}</div>
-          <div><strong>Text:</strong> {segmentInfo.text}</div>
+          <div><strong>Segment:</strong> {segmentInfo.type}</div>
+          <div><strong>Child:</strong> {segmentInfo.childName} ({segmentInfo.childAge})</div>
+          <div><strong>Theme:</strong> {segmentInfo.childTheme}</div>
+          <div><strong>Safe Zone:</strong> {safeZone}</div>
+          <div><strong>Text:</strong> {text}</div>
           <div><strong>Frame:</strong> {frame}</div>
-          {segmentInfo.safeZone && <div><strong>Zone:</strong> {segmentInfo.safeZone}</div>}
+          {segmentInfo.letter && <div><strong>Letter:</strong> {segmentInfo.letter}</div>}
           {backgroundImage && <div><strong>Image:</strong> ✅</div>}
+          {/* {audioUrl && <div><strong>Audio:</strong> ✅</div>} */}
         </div>
       )}
 
-      {/* Text */}
+      {/* Text positioned in safe zone */}
       <div style={getTextPosition()}>
         {text}
       </div>
     </AbsoluteFill>
   );
-};
+}; 

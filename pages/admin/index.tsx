@@ -209,6 +209,19 @@ export default function AdminDashboard() {
             </button>
 
             <button
+              onClick={() => router.push('/admin/name-video-v2-request')}
+              className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-200 border border-gray-200 hover:border-indigo-300 group"
+            >
+              <div className="text-center">
+                <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-indigo-200 transition-colors">
+                  <span className="text-3xl">🎯</span>
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">NameVideov2</h3>
+                <p className="text-sm text-gray-600">Create enhanced name spelling videos</p>
+              </div>
+            </button>
+
+            <button
               onClick={() => router.push('/admin/video-moderation')}
               className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-200 border border-gray-200 hover:border-red-300 group"
             >
@@ -270,18 +283,7 @@ export default function AdminDashboard() {
               </div>
             </button>
 
-            <button
-              onClick={() => router.push('/admin/audio-trimmer')}
-              className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-200 border border-gray-200 hover:border-red-300 group"
-            >
-              <div className="text-center">
-                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-red-200 transition-colors">
-                  <span className="text-3xl">✂️</span>
-                </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Audio Trimmer</h3>
-                <p className="text-sm text-gray-600">Trim and edit audio files</p>
-              </div>
-            </button>
+
 
             <button
               onClick={() => router.push('/admin/template-audio')}
@@ -415,14 +417,7 @@ export default function AdminDashboard() {
               <p className="text-sm text-gray-600">Generate new video content</p>
             </button>
 
-            <button
-              onClick={() => router.push('/admin/audio-trimmer')}
-              className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 text-left"
-            >
-              <div className="text-2xl mb-2">✂️</div>
-              <h3 className="font-medium text-gray-900">Audio Trimmer</h3>
-              <p className="text-sm text-gray-600">Trim and edit audio files</p>
-            </button>
+
           </div>
         </div>
 

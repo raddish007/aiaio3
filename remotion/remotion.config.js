@@ -18,7 +18,7 @@ module.exports = {
     "Lullaby"
   ],
   // Optional: customize region, memory, timeout, etc.
-  // region: "us-east-1",
-  // memorySize: 2048,
-  // timeoutInSeconds: 120,
+  region: "us-east-1",
+  memorySize: 2048,
+  timeoutInSeconds: 120,
 };

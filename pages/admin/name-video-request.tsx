@@ -208,10 +208,10 @@ export default function NameVideoRequest() {
         introImage,
         outroImage,
         letterImages,
-        introAudio: personalizedIntroAudio,
-        outroAudio: personalizedOutroAudio,
+        introAudio: personalizedIntroAudio || undefined,
+        outroAudio: personalizedOutroAudio || undefined,
         letterAudios: personalizedLetterAudios,
-        backgroundMusic: backgroundMusicAsset
+        backgroundMusic: backgroundMusicAsset || undefined
       });
 
       console.log('✅ Theme assets loaded:', {
@@ -290,14 +290,20 @@ export default function NameVideoRequest() {
           childAge: selectedChild.age,
           childTheme: selectedChild.primary_interest,
           childId: selectedChild.id,
-          debugMode: debugMode,
+          submitted_by: null, // Will use default admin user
           introImageUrl: themeAssets.introImage?.file_url || '',
           outroImageUrl: themeAssets.outroImage?.file_url || '',
           letterImageUrls: themeAssets.letterImages?.map(img => img.file_url) || [],
-          introAudioUrl: themeAssets.introAudio?.file_url || '',
-          outroAudioUrl: themeAssets.outroAudio?.file_url || '',
-          letterAudioUrls: themeAssets.letterAudios || {},
-          backgroundMusicUrl: 'https://etshvxrgbssginmzsczo.supabase.co/storage/v1/object/public/assets/assets/audio/1751989180199.wav'
+          // New audioAssets structure matching the API
+          letterAudioUrls: Object.fromEntries(
+            Object.entries(themeAssets.letterAudios || {}).map(([letter, asset]) => [
+              letter, 
+              (asset as any).file_url
+            ])
+          ) || {},
+          // These will be fetched by the API from the database
+          introAudioUrl: null,
+          outroAudioUrl: null
         }),
       });
 
@@ -458,15 +464,15 @@ export default function NameVideoRequest() {
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Intro Audio:</span>
-                    <span className={themeAssets?.introAudio ? 'text-green-600' : 'text-yellow-600'}>
-                      {themeAssets?.introAudio ? '✅ Found' : '⚠️ Not found'}
+                    <span className="text-gray-600">Name Audio:</span>
+                    <span className="text-green-600">
+                      ✅ Will be fetched from database
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Outro Audio:</span>
-                    <span className={themeAssets?.outroAudio ? 'text-green-600' : 'text-yellow-600'}>
-                      {themeAssets?.outroAudio ? '✅ Found' : '⚠️ Not found'}
+                    <span className="text-gray-600">Audio Class:</span>
+                    <span className="text-blue-600">
+                      name_audio for {selectedChild.name}
                     </span>
                   </div>
                   <div className="flex justify-between">
@@ -522,16 +528,9 @@ export default function NameVideoRequest() {
                         Letter Images: {themeAssets.letterImages.length} images (IDs: {themeAssets.letterImages.map(img => img.id).join(', ')})
                       </div>
                     )}
-                    {themeAssets.introAudio && (
-                      <div className="mt-1 text-xs">
-                        Intro Audio: {themeAssets.introAudio.id} ({themeAssets.introAudio.theme})
-                      </div>
-                    )}
-                    {themeAssets.outroAudio && (
-                      <div className="mt-1 text-xs">
-                        Outro Audio: {themeAssets.outroAudio.id} ({themeAssets.outroAudio.theme})
-                      </div>
-                    )}
+                    <div className="mt-1 text-xs">
+                      Name Audio: Will be fetched from database (name_audio class for {selectedChild.name})
+                    </div>
                     {themeAssets.letterAudios && Object.keys(themeAssets.letterAudios).length > 0 && (
                       <div className="mt-1 text-xs">
                         Letter Audios: {Object.keys(themeAssets.letterAudios).join(', ')} ({Object.keys(themeAssets.letterAudios).length} letters)
@@ -540,40 +539,57 @@ export default function NameVideoRequest() {
                   </div>
                 )}
 
-                <pre className="text-sm text-blue-800 bg-blue-100 p-3 rounded overflow-x-auto">
+                <div className="space-y-4">
+                  <div>
+                    <h4 className="font-medium text-gray-900 mb-2">📤 Input Payload (sent to API):</h4>
+                    <pre className="text-sm text-blue-800 bg-blue-100 p-3 rounded overflow-x-auto">
 {JSON.stringify({
   childName: selectedChild.name,
   childAge: selectedChild.age,
   childTheme: selectedChild.primary_interest,
   childId: selectedChild.id,
-  debugMode: debugMode,
+  submitted_by: null,
   introImageUrl: themeAssets?.introImage?.file_url || 'No intro image found',
   outroImageUrl: themeAssets?.outroImage?.file_url || 'No outro image found',
   letterImageUrls: themeAssets?.letterImages?.map(img => img.file_url) || [],
-  introAudioUrl: themeAssets?.introAudio?.file_url || '',
-  outroAudioUrl: themeAssets?.outroAudio?.file_url || '',
-  letterAudioUrls: themeAssets?.letterAudios || {},
-  backgroundMusicUrl: themeAssets?.backgroundMusic?.file_url || 'https://etshvxrgbssginmzsczo.supabase.co/storage/v1/object/public/assets/assets/audio/1751989180199.wav',
-  assetInfo: {
-    introImage: themeAssets?.introImage ? {
-      id: themeAssets.introImage.id,
-      theme: themeAssets.introImage.theme,
-      safe_zone: themeAssets.introImage.safe_zone
-    } : null,
-    outroImage: themeAssets?.outroImage ? {
-      id: themeAssets.outroImage.id,
-      theme: themeAssets.outroImage.theme,
-      safe_zone: themeAssets.outroImage.safe_zone
-    } : null,
-    letterImages: themeAssets?.letterImages?.map(img => ({
-      id: img.id,
-      theme: img.theme,
-      safe_zone: img.safe_zone
-    })) || [],
-    letterAudios: themeAssets?.letterAudios || {}
-  }
+  introAudioUrl: null, // Will be fetched by API from database
+  outroAudioUrl: null, // Will be fetched by API from database
+  letterAudioUrls: Object.fromEntries(
+    Object.entries(themeAssets?.letterAudios || {}).map(([letter, asset]) => [
+      letter, 
+      (asset as any).file_url
+    ])
+  ) || {}
 }, null, 2)}
-                </pre>
+                    </pre>
+                  </div>
+                  
+                  <div>
+                    <h4 className="font-medium text-gray-900 mb-2">🎬 Output Payload (created by API for Remotion):</h4>
+                    <pre className="text-sm text-green-800 bg-green-100 p-3 rounded overflow-x-auto">
+{JSON.stringify({
+  childName: selectedChild.name,
+  childAge: selectedChild.age,
+  childTheme: selectedChild.primary_interest,
+  childId: selectedChild.id,
+  submitted_by: null,
+  introImageUrl: themeAssets?.introImage?.file_url || '',
+  outroImageUrl: themeAssets?.outroImage?.file_url || '',
+  letterImageUrls: themeAssets?.letterImages?.map(img => img.file_url) || [],
+  // CORRECT: letterAudioUrls as flat object (what API actually receives)
+  letterAudioUrls: Object.fromEntries(
+    Object.entries(themeAssets?.letterAudios || {}).map(([letter, asset]) => [
+      letter, 
+      (asset as any).file_url
+    ])
+  ) || {},
+  // These will be fetched by the API from the database
+  introAudioUrl: null,
+  outroAudioUrl: null
+}, null, 2)}
+                    </pre>
+                  </div>
+                </div>
               </div>
 
               {/* Asset Visual Preview */}

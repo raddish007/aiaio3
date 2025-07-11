@@ -8,20 +8,29 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     const { 
+      backgroundImageUrl,
       backgroundMusicUrl,
       backgroundMusicVolume,
+      letterAudioUrl,
+      letterName,
       submitted_by
     } = req.body;
 
-    console.log('🎵 Audio Test API received:', {
+    console.log('🎵 Image and Audio Test API received:', {
+      backgroundImage: backgroundImageUrl,
       backgroundMusic: backgroundMusicUrl,
-      volume: backgroundMusicVolume
+      volume: backgroundMusicVolume,
+      letterAudio: letterAudioUrl,
+      letterName: letterName
     });
 
-    // Prepare input props for Lambda - ONLY background music
+    // Prepare input props for Lambda
     const inputProps = {
+      backgroundImageUrl: backgroundImageUrl || 'https://picsum.photos/1920/1080',
       backgroundMusicUrl: backgroundMusicUrl || '',
-      backgroundMusicVolume: backgroundMusicVolume || 0.25
+      backgroundMusicVolume: backgroundMusicVolume || 0.25,
+      letterAudioUrl: letterAudioUrl || '',
+      letterName: letterName || ''
     };
 
     console.log('🚀 Sending to Remotion Lambda:', inputProps);
@@ -30,8 +39,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const result = await renderMediaOnLambda({
         region: (process.env.AWS_REGION as any) || 'us-east-1',
         functionName: process.env.AWS_LAMBDA_REMOTION_FUNCTION || 'remotion-render-4-0-322-mem2048mb-disk2048mb-120sec',
-        serveUrl: process.env.REMOTION_SITE_URL || 'https://remotionlambda-useast1-3pwoq46nsa.s3.us-east-1.amazonaws.com/sites/aiaio3-name-video-template-v39/index.html',
-        composition: 'HelloWorldWithAudio',
+        serveUrl: process.env.REMOTION_SITE_URL || 'https://remotionlambda-useast1-3pwoq46nsa.s3.us-east-1.amazonaws.com/sites/aiaio3-name-video-template-v40/index.html',
+        composition: 'HelloWorldWithImageAndAudio',
         inputProps,
         codec: 'h264',
         imageFormat: 'jpeg',
@@ -43,7 +52,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         success: true,
         render_id: result.renderId,
         output_url: outputUrl,
-        message: 'Audio test video generation started successfully'
+        message: 'Image and audio test video generation started successfully'
       });
     } catch (lambdaError) {
       console.error('Lambda error:', lambdaError);
@@ -54,10 +63,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
   } catch (error) {
-    console.error('Audio test generation error:', error);
+    console.error('Image and audio test generation error:', error);
     return res.status(500).json({ 
-      error: 'Failed to generate audio test video',
+      error: 'Failed to generate image and audio test video',
       details: error instanceof Error ? error.message : 'Unknown error'
     });
   }
-}
+} 
