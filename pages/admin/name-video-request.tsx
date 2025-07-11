@@ -27,7 +27,7 @@ export default function NameVideoRequest() {
   const [themeAssets, setThemeAssets] = useState<{
     introImage?: { id: string; file_url: string; theme: string; safe_zone: string };
     outroImage?: { id: string; file_url: string; theme: string; safe_zone: string };
-    letterImages?: { id: string; file_url: string; theme: string; safe_zone: string }[];
+    letterImages?: { id: string; file_url: string; theme: string; safe_zone: string; metadata?: any }[];
     introAudio?: { id: string; file_url: string; theme: string };
     outroAudio?: { id: string; file_url: string; theme: string };
     letterAudios?: { [letter: string]: { id: string; file_url: string; theme: string } };
@@ -110,18 +110,21 @@ export default function NameVideoRequest() {
         return safeZones.includes('right_safe');
       });
 
-      // Combine left and right images for letter segments
-      const letterImages = [...leftImages, ...rightImages];
+      // Combine left and right images for letter segments and shuffle them for randomization
+      const allLetterImages = [...leftImages, ...rightImages];
+      
+      // Shuffle the images to ensure randomization
+      const letterImages = allLetterImages.sort(() => Math.random() - 0.5);
 
-      // Select different assets for intro and outro when possible
-      let introImage = introImages[0];
-      let outroImage = outroImages[0];
+      // Select random assets for intro and outro when possible
+      let introImage = introImages.length > 0 ? introImages[Math.floor(Math.random() * introImages.length)] : undefined;
+      let outroImage = outroImages.length > 0 ? outroImages[Math.floor(Math.random() * outroImages.length)] : undefined;
 
       // If we have the same asset for both, try to find a different one for outro
       if (introImage && outroImage && introImage.id === outroImage.id) {
-        const differentOutroImage = outroImages.find(img => img.id !== introImage.id);
-        if (differentOutroImage) {
-          outroImage = differentOutroImage;
+        const differentOutroImages = outroImages.filter(img => img.id !== introImage.id);
+        if (differentOutroImages.length > 0) {
+          outroImage = differentOutroImages[Math.floor(Math.random() * differentOutroImages.length)];
         }
       }
 
@@ -218,6 +221,9 @@ export default function NameVideoRequest() {
         introImage,
         outroImage,
         letterImages: letterImages.length,
+        leftImages: leftImages.length,
+        rightImages: rightImages.length,
+        shuffledLetterImages: letterImages.map(img => img.id),
         introAudio: personalizedIntroAudio,
         outroAudio: personalizedOutroAudio,
         letterAudios: Object.keys(personalizedLetterAudios)
@@ -294,6 +300,11 @@ export default function NameVideoRequest() {
           introImageUrl: themeAssets.introImage?.file_url || '',
           outroImageUrl: themeAssets.outroImage?.file_url || '',
           letterImageUrls: themeAssets.letterImages?.map(img => img.file_url) || [],
+          // NEW: Pass letter images with safe zone metadata
+          letterImagesWithMetadata: themeAssets.letterImages?.map(img => ({
+            url: img.file_url,
+            safeZone: img.metadata?.review?.safe_zone?.includes('left_safe') ? 'left' : 'right'
+          })) || [],
           // New audioAssets structure matching the API
           letterAudioUrls: Object.fromEntries(
             Object.entries(themeAssets.letterAudios || {}).map(([letter, asset]) => [

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   AbsoluteFill, 
   Sequence, 
@@ -19,6 +19,8 @@ export interface NameVideoProps {
   introImageUrl?: string;
   outroImageUrl?: string;
   letterImageUrls?: string[];
+  // NEW: Letter images with safe zone metadata
+  letterImagesWithMetadata?: { url: string; safeZone: 'left' | 'right' }[];
   introAudioUrl?: string;
   outroAudioUrl?: string;
   // Flat structure (like HelloWorldWithImageAndAudio)
@@ -33,6 +35,20 @@ export interface NameVideoProps {
   debugMode?: boolean;
 }
 
+// Helper function to get theme-based gradient colors
+const getThemeGradient = (theme: string): string => {
+  const gradients: { [key: string]: string } = {
+    halloween: '#FF6B35, #F7931E, #FFB84D',
+    space: '#1A1A2E, #16213E, #0F3460',
+    dinosaurs: '#2E7D32, #388E3C, #4CAF50',
+    animals: '#8D6E63, #A1887F, #BCAAA4',
+    princesses: '#E91E63, #F06292, #F8BBD9',
+    default: '#4A90E2, #6BB6FF, #90CAF9'
+  };
+  
+  return gradients[theme.toLowerCase()] || gradients.default;
+};
+
 export const NameVideo: React.FC<NameVideoProps> = ({
   childName,
   childAge,
@@ -42,6 +58,7 @@ export const NameVideo: React.FC<NameVideoProps> = ({
   introImageUrl = '',
   outroImageUrl = '',
   letterImageUrls = [],
+  letterImagesWithMetadata = [],
   introAudioUrl,
   outroAudioUrl,
   // Flat structure (like HelloWorldWithImageAndAudio)
@@ -73,21 +90,82 @@ export const NameVideo: React.FC<NameVideoProps> = ({
   const flatLetterAudio = letterAudioUrl && letterAudioUrl.startsWith('http') ? letterAudioUrl : '';
   const flatLetterName = letterName || '';
 
-  // Create randomized image selection for letter segments
-  const getRandomLetterImage = (index: number) => {
-    if (letterImageUrls.length === 0) return undefined;
+  // Calculate safe zone requirements for the name
+  const leftLetterCount = Math.ceil(letters.length / 2); // Even indices (0, 2, 4, 6...)
+  const rightLetterCount = Math.floor(letters.length / 2); // Odd indices (1, 3, 5...)
+  
+  console.log(`🗺️ Safe zone mapping for "${childName}":`, {
+    totalLetters: letters.length,
+    leftLetters: leftLetterCount,
+    rightLetters: rightLetterCount,
+    totalImages: letterImageUrls.length,
+    pattern: letters.map((letter, i) => `${letter}(${i % 2 === 0 ? 'LEFT' : 'RIGHT'})`).join(' ')
+  });
+
+  // Pre-select all letter images once to prevent flashing
+  const preSelectedLetterImages = useMemo(() => {
+    const selectedImages: string[] = [];
     
-    // Use a seed based on the child name and letter index for consistent randomization
-    const seed = `${childName}-${index}`;
-    const hash = seed.split('').reduce((a, b) => {
-      a = ((a << 5) - a) + b.charCodeAt(0);
-      return a & a;
-    }, 0);
+    letters.forEach((letter, index) => {
+      const isLeft = index % 2 === 0;
+      const safeZone = isLeft ? 'left' : 'right';
+      
+      // Use the new metadata-based approach if available
+      if (letterImagesWithMetadata && letterImagesWithMetadata.length > 0) {
+        // Filter images by the requested safe zone
+        const zoneImages = letterImagesWithMetadata.filter(img => img.safeZone === safeZone);
+        
+        console.log(`🖼️ Pre-selecting image for letter ${index} (${safeZone}):`, {
+          totalImages: letterImagesWithMetadata.length,
+          zoneImages: zoneImages.length,
+          requestedZone: safeZone
+        });
+        
+        if (zoneImages.length === 0) {
+          console.warn(`⚠️ No ${safeZone} images available in metadata, using fallback`);
+          // Use any available image as fallback
+          selectedImages[index] = letterImagesWithMetadata[0]?.url || '';
+        } else {
+          // Use deterministic selection based on index to prevent flickering
+          const imageIndex = index % zoneImages.length;
+          const selectedImage = zoneImages[imageIndex];
+          
+          console.log(`🖼️ Letter ${index} (${safeZone}): Selected image ${imageIndex}/${zoneImages.length} = ${selectedImage.url}`);
+          selectedImages[index] = selectedImage.url;
+        }
+      } else {
+        // Fallback to old logic if metadata not available
+        if (letterImageUrls.length === 0) {
+          selectedImages[index] = '';
+        } else {
+          console.warn(`⚠️ Using fallback image splitting logic (no metadata available)`);
+          
+          // Split images by safe zone - assume first half are left-safe, second half are right-safe
+          const midPoint = Math.ceil(letterImageUrls.length / 2);
+          const leftImages = letterImageUrls.slice(0, midPoint);
+          const rightImages = letterImageUrls.slice(midPoint);
+          
+          // Select the appropriate image pool based on safe zone
+          const zoneImages = safeZone === 'left' ? leftImages : rightImages;
+          
+          if (zoneImages.length === 0) {
+            console.warn(`⚠️ No ${safeZone} images available, using any available image`);
+            selectedImages[index] = letterImageUrls[0] || '';
+          } else {
+            // Use deterministic selection based on index to prevent flickering
+            const imageIndex = index % zoneImages.length;
+            const selectedImage = zoneImages[imageIndex];
+            
+            console.log(`🖼️ Letter ${index} (${safeZone}): Selected fallback image ${imageIndex}/${zoneImages.length} = ${selectedImage}`);
+            selectedImages[index] = selectedImage;
+          }
+        }
+      }
+    });
     
-    // Use the hash to select a random image
-    const randomIndex = Math.abs(hash) % letterImageUrls.length;
-    return letterImageUrls[randomIndex];
-  };
+    console.log(`🖼️ Pre-selected all letter images:`, selectedImages);
+    return selectedImages;
+  }, [letters, letterImagesWithMetadata, letterImageUrls]);
 
   // Enhanced logging with letter audio debugging
   console.log(`🎬 NameVideo for "${childName}":`, {
@@ -182,6 +260,7 @@ export const NameVideo: React.FC<NameVideoProps> = ({
           isFullName={true} 
           safeZone="center"
           backgroundImage={introImageUrl}
+          childTheme={childTheme}
           debugMode={debugMode}
           segmentInfo={{ type: 'intro', text: nameUpper }}
         />
@@ -191,14 +270,17 @@ export const NameVideo: React.FC<NameVideoProps> = ({
       {letters.map((letter, index) => {
         const isLeft = index % 2 === 0;
         const safeZone = isLeft ? 'left' : 'right';
-        const backgroundImage = getRandomLetterImage(index);
+        const backgroundImage = preSelectedLetterImages[index];
         
-        console.log(`🖼️ Letter "${letter}" image selection:`, {
+        console.log(`🎬 Letter "${letter}" rendering:`, {
           letter,
           index,
+          isLeft,
           safeZone,
           imageUrl: backgroundImage,
-          totalImages: letterImageUrls.length
+          totalImages: letterImageUrls.length,
+          segmentStart: segmentDuration * (index + 1),
+          segmentDuration
         });
         
         return (
@@ -212,6 +294,7 @@ export const NameVideo: React.FC<NameVideoProps> = ({
               isFullName={false} 
               safeZone={safeZone}
               backgroundImage={backgroundImage}
+              childTheme={childTheme}
               debugMode={debugMode}
               segmentInfo={{ type: 'letter', text: letter, safeZone }}
             />
@@ -229,6 +312,7 @@ export const NameVideo: React.FC<NameVideoProps> = ({
           isFullName={true} 
           safeZone="center"
           backgroundImage={outroImageUrl}
+          childTheme={childTheme}
           debugMode={debugMode}
           segmentInfo={{ type: 'outro', text: nameUpper }}
         />
@@ -243,6 +327,7 @@ interface TextSegmentProps {
   isFullName: boolean;
   safeZone: 'left' | 'center' | 'right';
   backgroundImage?: string;
+  childTheme: string;
   debugMode?: boolean;
   segmentInfo: {
     type: 'intro' | 'letter' | 'outro';
@@ -256,6 +341,7 @@ const TextSegment: React.FC<TextSegmentProps> = ({
   isFullName, 
   safeZone, 
   backgroundImage, 
+  childTheme,
   debugMode,
   segmentInfo
 }) => {
@@ -389,7 +475,7 @@ const TextSegment: React.FC<TextSegmentProps> = ({
 
   return (
     <AbsoluteFill>
-      {/* Background Image */}
+      {/* Background Image with Error Handling */}
       {backgroundImage && (
         <Img
           src={backgroundImage}
@@ -399,7 +485,22 @@ const TextSegment: React.FC<TextSegmentProps> = ({
             objectFit: 'cover',
             opacity: imageOpacity,
           }}
+          onError={(e) => {
+            console.warn(`🖼️ Image failed to load: ${backgroundImage}`);
+            // Hide the image if it fails to load
+            (e.target as HTMLImageElement).style.display = 'none';
+          }}
         />
+      )}
+      
+      {/* Fallback gradient background if no image or image fails */}
+      {!backgroundImage && (
+        <div style={{
+          width: '100%',
+          height: '100%',
+          background: `linear-gradient(135deg, ${getThemeGradient(childTheme)})`,
+          opacity: imageOpacity,
+        }} />
       )}
       
       {/* Dark overlay for text readability */}

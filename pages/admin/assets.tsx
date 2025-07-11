@@ -102,6 +102,7 @@ export default function AssetManagement() {
     template: 'all',
     search: ''
   });
+  const [searchTerm, setSearchTerm] = useState('');
   const [view, setView] = useState<'all' | 'review' | 'viewer'>('all');
   const [userNames, setUserNames] = useState<Record<string, string>>({});
   const [currentPage, setCurrentPage] = useState(1);
@@ -113,8 +114,34 @@ export default function AssetManagement() {
 
   useEffect(() => {
     checkAdminAccess();
-    fetchAssets(1);
+    fetchAssets(1, filter);
   }, []);
+
+  // Reset filters when view changes
+  useEffect(() => {
+    if (view === 'review') {
+      setFilter(prev => ({ ...prev, status: 'pending' }));
+    } else if (view === 'all') {
+      setFilter(prev => ({ ...prev, status: 'all' }));
+    }
+  }, [view]);
+
+  // Debounced search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setFilter(prev => ({ ...prev, search: searchTerm }));
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  // Refetch assets when filters change
+  useEffect(() => {
+    if (view === 'all') {
+      setCurrentPage(1);
+      fetchAssets(1, filter);
+    }
+  }, [filter.status, filter.type, filter.template, filter.search, view]);
 
   // Fetch user names for reviewer display
   useEffect(() => {
@@ -173,40 +200,79 @@ export default function AssetManagement() {
     }
   };
 
-  const fetchAssets = async (page: number = 1) => {
-    // Get total count for pagination
-    const { count: totalCount, error: countError } = await supabase
-      .from('assets')
-      .select('*', { count: 'exact', head: true });
-
+  const fetchAssets = async (page: number = 1, filters = filter) => {
+    setLoading(true);
+    
+    // Build query based on filters
+    let query = supabase.from('assets').select('*');
+    
+    // Apply status filter
+    if (filters.status !== 'all') {
+      query = query.eq('status', filters.status);
+    }
+    
+    // Apply type filter
+    if (filters.type !== 'all') {
+      query = query.eq('type', filters.type);
+    }
+    
+    // Apply template filter
+    if (filters.template !== 'all') {
+      query = query.eq('metadata->template', filters.template);
+    }
+    
+    // Apply search filter
+    if (filters.search) {
+      // Search across multiple fields using OR conditions
+      query = query.or(`theme.ilike.%${filters.search}%,metadata->description.ilike.%${filters.search}%,metadata->child_name.ilike.%${filters.search}%,metadata->prompt.ilike.%${filters.search}%,metadata->audio_class.ilike.%${filters.search}%,metadata->letter.ilike.%${filters.search}%`);
+    }
+    
+    // Get total count for pagination with filters applied
+    let countQuery = supabase.from('assets').select('*', { count: 'exact', head: true });
+    
+    // Apply the same filters to count query
+    if (filters.status !== 'all') {
+      countQuery = countQuery.eq('status', filters.status);
+    }
+    if (filters.type !== 'all') {
+      countQuery = countQuery.eq('type', filters.type);
+    }
+    if (filters.template !== 'all') {
+      countQuery = countQuery.eq('metadata->template', filters.template);
+    }
+    if (filters.search) {
+      countQuery = countQuery.or(`theme.ilike.%${filters.search}%,metadata->description.ilike.%${filters.search}%,metadata->child_name.ilike.%${filters.search}%,metadata->prompt.ilike.%${filters.search}%,metadata->audio_class.ilike.%${filters.search}%,metadata->letter.ilike.%${filters.search}%`);
+    }
+    
+    const { count: totalCount, error: countError } = await countQuery;
+    
     if (countError) {
       console.error('Error fetching total count:', countError);
     } else {
       setTotalAssets(totalCount || 0);
     }
-
+    
     // Get pending assets count for review queue
     const { count: pendingCount, error: pendingError } = await supabase
       .from('assets')
       .select('*', { count: 'exact', head: true })
       .eq('status', 'pending');
-
+    
     if (pendingError) {
       console.error('Error fetching pending count:', pendingError);
     } else {
       setPendingAssetsCount(pendingCount || 0);
     }
-
+    
     // Calculate pagination
     const from = (page - 1) * assetsPerPage;
     const to = from + assetsPerPage - 1;
-
-    const { data, error } = await supabase
-      .from('assets')
-      .select('*')
+    
+    // Apply pagination and ordering
+    const { data, error } = await query
       .order('created_at', { ascending: false })
       .range(from, to);
-
+    
     if (error) {
       console.error('Error fetching assets:', error);
     } else {
@@ -294,7 +360,7 @@ export default function AssetManagement() {
       if (view === 'review') {
         fetchPendingAssets();
       } else {
-        fetchAssets(currentPage);
+        fetchAssets(currentPage, filter);
       }
       setShowModal(false);
     }
@@ -330,7 +396,7 @@ export default function AssetManagement() {
       if (view === 'review') {
         fetchPendingAssets();
       } else {
-        fetchAssets(currentPage);
+        fetchAssets(currentPage, filter);
       }
       setShowModal(false);
     }
@@ -401,7 +467,7 @@ export default function AssetManagement() {
         if (view === 'review') {
           await fetchPendingAssets(); // Wait for assets to refresh
         } else {
-          await fetchAssets(currentPage); // Wait for assets to refresh
+          await fetchAssets(currentPage, filter); // Wait for assets to refresh
         }
         openNextAsset(assetId); // Auto-advance to next asset
       }
@@ -453,7 +519,7 @@ export default function AssetManagement() {
         if (view === 'review') {
           await fetchPendingAssets(); // Wait for assets to refresh
         } else {
-          await fetchAssets(currentPage); // Wait for assets to refresh
+          await fetchAssets(currentPage, filter); // Wait for assets to refresh
         }
         openNextAsset(assetId); // Auto-advance to next asset
       }
@@ -556,7 +622,7 @@ export default function AssetManagement() {
         
         // Refresh assets to show updated status
         setTimeout(() => {
-          fetchAssets();
+          fetchAssets(currentPage, filter);
         }, 2000);
       } else {
         console.error('Failed to generate asset');
@@ -691,7 +757,7 @@ export default function AssetManagement() {
       if (view === 'review') {
         fetchPendingAssets();
       } else {
-        fetchAssets(currentPage);
+        fetchAssets(currentPage, filter);
       }
 
     } catch (error) {
@@ -782,7 +848,7 @@ export default function AssetManagement() {
       if (view === 'review') {
         fetchPendingAssets();
       } else {
-        fetchAssets(currentPage);
+        fetchAssets(currentPage, filter);
       }
     } catch (error) {
       console.error('Error uploading bulk assets:', error);
@@ -802,24 +868,8 @@ export default function AssetManagement() {
     }
   };
 
-  const filteredAssets = assets.filter(asset => {
-    // View-based filtering
-    if (view === 'review' && asset.status !== 'pending') return false;
-    
-    // Status filtering
-    if (filter.status !== 'all' && asset.status !== filter.status) return false;
-    
-    // Type filtering
-    if (filter.type !== 'all' && asset.type !== filter.type) return false;
-    
-    // Template filtering
-    if (filter.template !== 'all' && asset.metadata?.template !== filter.template) return false;
-    
-    // Search filtering
-    if (filter.search && !asset.theme.toLowerCase().includes(filter.search.toLowerCase())) return false;
-    
-    return true;
-  });
+  // Use assets directly since filtering is now done server-side
+  const filteredAssets = assets;
 
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
@@ -924,14 +974,45 @@ export default function AssetManagement() {
           {/* Filters */}
           <div className="bg-white rounded-lg shadow-sm mb-4">
             <div className="p-4">
+              {/* Active filters indicator */}
+              {(filter.status !== 'all' || filter.type !== 'all' || filter.template !== 'all' || filter.search) && (
+                <div className="mb-3 p-2 bg-blue-50 border border-blue-200 rounded-md">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-blue-800 font-medium">Active Filters:</span>
+                    <button
+                      onClick={() => {
+                        setFilter({ status: 'all', type: 'all', template: 'all', search: '' });
+                        setSearchTerm('');
+                      }}
+                      className="text-xs text-blue-600 hover:text-blue-800 underline"
+                    >
+                      Clear All
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap gap-2 mt-1">
+                    {filter.status !== 'all' && (
+                      <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">Status: {filter.status}</span>
+                    )}
+                    {filter.type !== 'all' && (
+                      <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">Type: {filter.type}</span>
+                    )}
+                    {filter.template !== 'all' && (
+                      <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">Template: {filter.template}</span>
+                    )}
+                    {filter.search && (
+                      <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">Search: "{filter.search}"</span>
+                    )}
+                  </div>
+                </div>
+              )}
               <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Search</label>
                   <input
                     type="text"
-                    placeholder="Search by theme..."
-                    value={filter.search}
-                    onChange={(e) => setFilter(prev => ({ ...prev, search: e.target.value }))}
+                    placeholder="Search by theme, description, child name, tags..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
@@ -959,7 +1040,7 @@ export default function AssetManagement() {
                     <option value="image">Image</option>
                     <option value="audio">Audio</option>
                     <option value="video">Video</option>
-                    <option value="text">Text</option>
+                    <option value="prompt">Prompt</option>
                   </select>
                 </div>
                 <div>
@@ -978,7 +1059,10 @@ export default function AssetManagement() {
                 </div>
                 <div className="flex items-end">
                   <button
-                    onClick={() => setFilter({ status: 'all', type: 'all', template: 'all', search: '' })}
+                    onClick={() => {
+                      setFilter({ status: 'all', type: 'all', template: 'all', search: '' });
+                      setSearchTerm('');
+                    }}
                     className="w-full bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700"
                   >
                     Clear Filters
@@ -999,7 +1083,7 @@ export default function AssetManagement() {
                     onClick={() => {
                       setView('all');
                       setCurrentPage(1);
-                      fetchAssets(1);
+                      fetchAssets(1, filter);
                     }}
                     className={`px-4 py-2 rounded-md text-sm font-medium ${
                       view === 'all' 
@@ -1019,7 +1103,7 @@ export default function AssetManagement() {
                       view === 'review' 
                         ? 'bg-blue-600 text-white' 
                         : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                    }`}
+                      }`}
                   >
                     Review Queue ({pendingAssetsCount})
                   </button>
@@ -1041,8 +1125,8 @@ export default function AssetManagement() {
           <div className="bg-white rounded-lg shadow-sm">
             <div className="px-4 py-3 border-b border-gray-200">
               <h2 className="text-lg font-semibold text-gray-900">
-                {view === 'all' && `All Assets (${filteredAssets.length} assets)`}
-                {view === 'review' && `Review Queue (${pendingAssetsCount} assets)`}
+                {view === 'all' && `All Assets (${filteredAssets.length} of ${assets.length} assets)`}
+                {view === 'review' && `Review Queue (${filteredAssets.length} of ${pendingAssetsCount} assets)`}
                 {view === 'viewer' && `Asset Viewer (${filteredAssets.length} assets)`}
               </h2>
             </div>
@@ -1281,8 +1365,8 @@ export default function AssetManagement() {
                 </div>
               )}
 
-              {/* Pagination - Only show for 'all' view */}
-              {view === 'all' && totalAssets > assetsPerPage && (
+              {/* Pagination - Show for all views when there are many assets */}
+              {totalAssets > assetsPerPage && (
                 <div className="mt-6 flex items-center justify-between">
                   <div className="text-sm text-gray-700">
                     Showing {((currentPage - 1) * assetsPerPage) + 1} to {Math.min(currentPage * assetsPerPage, totalAssets)} of {totalAssets} assets
@@ -1292,7 +1376,7 @@ export default function AssetManagement() {
                       onClick={() => {
                         const newPage = currentPage - 1;
                         setCurrentPage(newPage);
-                        fetchAssets(newPage);
+                        fetchAssets(newPage, filter);
                       }}
                       disabled={currentPage === 1}
                       className={`px-3 py-2 text-sm font-medium rounded-md ${
@@ -1311,7 +1395,7 @@ export default function AssetManagement() {
                             key={pageNum}
                             onClick={() => {
                               setCurrentPage(pageNum);
-                              fetchAssets(pageNum);
+                              fetchAssets(pageNum, filter);
                             }}
                             className={`px-3 py-2 text-sm font-medium rounded-md ${
                               currentPage === pageNum
@@ -1328,7 +1412,7 @@ export default function AssetManagement() {
                       onClick={() => {
                         const newPage = currentPage + 1;
                         setCurrentPage(newPage);
-                        fetchAssets(newPage);
+                        fetchAssets(newPage, filter);
                       }}
                       disabled={currentPage >= Math.ceil(totalAssets / assetsPerPage)}
                       className={`px-3 py-2 text-sm font-medium rounded-md ${

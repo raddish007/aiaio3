@@ -42,9 +42,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const totalSegments = letters.length + 2; // intro + letters + outro
     const durationInSeconds = totalSegments * 4; // 4 seconds per segment
 
-    // Get background music asset from database
-    let backgroundMusicUrl = 'https://etshvxrgbssginmzsczo.supabase.co/storage/v1/object/public/assets/assets/audio/1752096424386.mp3';
+    // Get background music asset from database - use the correct asset ID
+    let backgroundMusicUrl = 'https://etshvxrgbssginmzsczo.supabase.co/storage/v1/object/public/assets/assets/audio/1752096424386.mp3'; // Use correct asset ID
     try {
+      // Try to get a background music asset, but fallback to a working audio file
       const { data: musicAsset, error: musicError } = await supabaseAdmin
         .from('assets')
         .select('file_url')
@@ -65,9 +66,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       console.warn('⚠️ Failed to fetch background music from database, using default audio file:', error);
     }
 
-    // Get name audio asset for intro/outro
+    // IMPROVED: Get name audio asset for intro/outro with better debugging
     let nameAudioUrl = '';
-    console.log(`🔍 Looking for name audio for child: "${childName}"`);
+    console.log(`🔍 DEBUGGING: Looking for name audio for child: "${childName}"`);
     
     try {
       const { data: nameAudioAssets, error: nameAudioError } = await supabaseAdmin
@@ -80,98 +81,110 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         .order('created_at', { ascending: false })
         .limit(1);
 
+      console.log(`🔍 DEBUGGING: Query completed`);
+      console.log(`🔍 DEBUGGING: Error:`, nameAudioError);
+      console.log(`🔍 DEBUGGING: Data:`, nameAudioAssets);
+      console.log(`🔍 DEBUGGING: Found ${nameAudioAssets?.length || 0} results`);
+
       if (!nameAudioError && nameAudioAssets && nameAudioAssets.length > 0) {
         nameAudioUrl = nameAudioAssets[0].file_url;
-        console.log(`✅ Using name audio for ${childName}: ${nameAudioUrl}`);
+        console.log(`✅ DEBUGGING: Using name audio for ${childName}: ${nameAudioUrl}`);
       } else {
-        console.log(`⚠️ No name audio found for child: ${childName}, proceeding without it`);
+        console.error(`❌ DEBUGGING: No name audio found for child: ${childName}`);
+        console.error(`❌ DEBUGGING: Error details:`, nameAudioError);
+        
+        // FIXED: Don't fail the whole request - just proceed without name audio
+        console.log(`⚠️ Proceeding without name audio for ${childName}`);
+        
+        // Try a broader search for debugging
+        const { data: debugAssets } = await supabaseAdmin
+          .from('assets')
+          .select('metadata->child_name, metadata->audio_class, status')
+          .eq('type', 'audio')
+          .eq('metadata->>child_name', childName);
+        console.log(`🔍 DEBUGGING: All audio for ${childName}:`, debugAssets);
       }
     } catch (error) {
-      console.warn('⚠️ Exception in name audio fetch:', error);
+      console.error('❌ DEBUGGING: Exception in name audio fetch:', error);
+      // FIXED: Don't fail the whole request
+      console.log(`⚠️ Proceeding without name audio due to error`);
     }
 
-    // IMPROVED: Use dedicated API for theme-appropriate background images
+    // IMPROVED: Fetch theme-appropriate background images
     let processedLetterImages: { url: string; safeZone: 'left' | 'right' }[] = [];
     let processedIntroImage = '';
     let processedOutroImage = '';
 
     try {
-      console.log(`🖼️ Fetching background images for theme: ${childTheme}`);
+      console.log(`�️ Fetching background images for theme: ${childTheme}`);
       
-      // Use the dedicated get-theme-images API for better image selection
-      const imageApiUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/assets/get-theme-images?theme=${encodeURIComponent(childTheme || 'halloween')}&childName=${encodeURIComponent(childName)}`;
-      
-      const imageResponse = await fetch(imageApiUrl);
-      if (!imageResponse.ok) {
-        throw new Error(`Image API returned ${imageResponse.status}: ${imageResponse.statusText}`);
-      }
-      
-      const imageData = await imageResponse.json();
-      console.log(`🖼️ Image API response:`, {
-        success: imageData.success,
-        statistics: imageData.statistics,
-        introImages: imageData.images?.intro_images?.length || 0,
-        outroImages: imageData.images?.outro_images?.length || 0,
-        letterImages: imageData.images?.letter_images_with_metadata?.length || 0
-      });
+      // Query for theme-matching images with proper safe zone filtering
+      const { data: themeImages, error: themeImagesError } = await supabaseAdmin
+        .from('assets')
+        .select('id, file_url, theme, safe_zone, tags, metadata')
+        .eq('type', 'image')
+        .eq('status', 'approved')
+        .or(`theme.ilike.%${childTheme || 'halloween'}%,tags.cs.{${(childTheme || 'halloween').toLowerCase()}}`)
+        .limit(50);
 
-      if (imageData.success && imageData.images) {
-        // Select intro/outro images
-        if (imageData.images.intro_images?.length > 0) {
-          processedIntroImage = imageData.images.intro_images[0].file_url;
-        }
-        if (imageData.images.outro_images?.length > 0) {
-          processedOutroImage = imageData.images.outro_images[0].file_url;
+      if (themeImagesError) {
+        console.warn('Error fetching theme images:', themeImagesError);
+      } else if (themeImages && themeImages.length > 0) {
+        console.log(`Found ${themeImages.length} theme images`);
+        
+        // Filter images by safe zones
+        const centerSafeImages = themeImages.filter(img => {
+          const safeZones = img.metadata?.review?.safe_zone || [];
+          return safeZones.includes('center_safe');
+        });
+        
+        const leftSafeImages = themeImages.filter(img => {
+          const safeZones = img.metadata?.review?.safe_zone || [];
+          return safeZones.includes('left_safe');
+        });
+        
+        const rightSafeImages = themeImages.filter(img => {
+          const safeZones = img.metadata?.review?.safe_zone || [];
+          return safeZones.includes('right_safe');
+        });
+
+        // Select intro/outro images from center-safe images
+        if (centerSafeImages.length > 0) {
+          processedIntroImage = centerSafeImages[Math.floor(Math.random() * centerSafeImages.length)].file_url;
+          processedOutroImage = centerSafeImages[Math.floor(Math.random() * centerSafeImages.length)].file_url;
         }
 
-        // Use the letter images with metadata for proper safe zone handling
-        if (imageData.images.letter_images_with_metadata?.length > 0) {
-          const letterImagesWithMeta = imageData.images.letter_images_with_metadata;
-          
+        // Create letter images with safe zone metadata
+        const letterImagePool = [...leftSafeImages, ...rightSafeImages];
+        if (letterImagePool.length > 0) {
           // Create enough images for all letters in the name
           for (let i = 0; i < letters.length; i++) {
             const isLeft = i % 2 === 0;
-            const requestedZone = isLeft ? 'left' : 'right';
+            const availableImages = isLeft ? leftSafeImages : rightSafeImages;
             
-            // Filter images by the requested safe zone
-            const zoneImages = letterImagesWithMeta.filter((img: any) => img.safeZone === requestedZone);
-            
-            if (zoneImages.length > 0) {
-              // Use deterministic selection based on index to prevent flickering
-              const imageIndex = i % zoneImages.length;
-              const selectedImage = zoneImages[imageIndex];
-              
+            if (availableImages.length > 0) {
+              const selectedImage = availableImages[Math.floor(Math.random() * availableImages.length)];
               processedLetterImages.push({
-                url: selectedImage.url,
-                safeZone: requestedZone
-              });
-              
-              console.log(`🔤 Letter ${i} (${requestedZone}): Selected image ${imageIndex}/${zoneImages.length}`);
-            } else {
-              // Fallback to any available image
-              console.warn(`⚠️ No ${requestedZone} images available, using fallback`);
-              const fallbackImage = letterImagesWithMeta[i % letterImagesWithMeta.length];
-              processedLetterImages.push({
-                url: fallbackImage.url,
-                safeZone: requestedZone // Keep the requested zone for layout
+                url: selectedImage.file_url,
+                safeZone: isLeft ? 'left' : 'right'
               });
             }
           }
-        } else {
-          console.warn(`⚠️ No letter images with metadata found for theme: ${childTheme}`);
         }
         
         console.log(`🖼️ Processed images:`, {
+          centerSafe: centerSafeImages.length,
+          leftSafe: leftSafeImages.length,
+          rightSafe: rightSafeImages.length,
+          processedLetterImages: processedLetterImages.length,
           hasIntroImage: !!processedIntroImage,
-          hasOutroImage: !!processedOutroImage,
-          letterImagesCount: processedLetterImages.length,
-          letterSafeZones: processedLetterImages.map(img => img.safeZone)
+          hasOutroImage: !!processedOutroImage
         });
       } else {
-        console.warn(`⚠️ Image API returned no data for theme: ${childTheme}`);
+        console.warn(`No theme images found for: ${childTheme}`);
       }
     } catch (error) {
-      console.warn('⚠️ Error fetching theme images, will use fallback:', error);
+      console.warn('Error processing theme images:', error);
     }
 
     // Use processed images if available, otherwise fall back to provided images
@@ -180,7 +193,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const finalLetterImages = processedLetterImages.length > 0 ? processedLetterImages.map(img => img.url) : (letterImageUrls || []);
     const finalLetterImagesWithMetadata = processedLetterImages.length > 0 ? processedLetterImages : (letterImagesWithMetadata || []);
 
-    // Convert letterAudioUrls from asset objects to URL strings
+    // Convert letterAudioUrls from asset objects to URL strings (_reference format)
     const letterAudioUrlStrings: { [letter: string]: string } = {};
     if (letterAudioUrls) {
       Object.entries(letterAudioUrls).forEach(([letter, asset]) => {
@@ -192,27 +205,30 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     }
 
-    // Prepare input props for Lambda
+    // Prepare input props for Lambda - use FLAT structure like working HelloWorldWithImageAndAudio
     const inputProps = {
       childName,
       childAge: childAge || 3,
       childTheme: childTheme || 'default',
       backgroundMusicUrl,
-      backgroundMusicVolume: 0.25,
+      backgroundMusicVolume: 0.25, // Reduced volume for better balance
       introImageUrl: finalIntroImage,
       outroImageUrl: finalOutroImage,
       letterImageUrls: finalLetterImages,
+      // NEW: Pass letter images with safe zone metadata
       letterImagesWithMetadata: finalLetterImagesWithMetadata,
-      letterAudioUrl: Object.values(letterAudioUrlStrings)[0] || '',
-      letterName: Object.keys(letterAudioUrlStrings)[0] || '',
+      // Use FLAT structure for letter audio (like working HelloWorldWithImageAndAudio)
+      letterAudioUrl: Object.values(letterAudioUrlStrings)[0] || '', // Use first letter audio as flat URL
+      letterName: Object.keys(letterAudioUrlStrings)[0] || '', // Use first letter name
+      // Keep nested structure for compatibility
       audioAssets: {
-        fullName: nameAudioUrl || '',
-        letters: letterAudioUrlStrings
+        fullName: nameAudioUrl || '', // Empty string instead of placeholder
+        letters: letterAudioUrlStrings // Direct letter -> URL mapping
       },
       debugMode: false
     };
 
-    console.log(`🔍 Final inputProps:`, {
+    console.log(`🔍 DEBUGGING: Final inputProps:`, {
       hasIntroImage: !!inputProps.introImageUrl,
       hasOutroImage: !!inputProps.outroImageUrl,
       letterImageCount: inputProps.letterImageUrls.length,
@@ -225,13 +241,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const { data: jobRecord, error: jobError } = await supabaseAdmin
       .from('video_generation_jobs')
       .insert({
-        template_id: 'dcf10e2a-d7df-4e72-ab25-d6c9b1f00bd8',
+        template_id: 'dcf10e2a-d7df-4e72-ab25-d6c9b1f00bd8', // NameVideo template UUID
         status: 'pending',
         submitted_by: userId,
         assets: [],
         template_data: {
           composition: 'NameVideo',
-          props: inputProps
+          props: inputProps // Use the _reference structure
         },
         created_at: new Date().toISOString(),
       })
@@ -244,7 +260,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     try {
-      console.log(`🚀 Starting Lambda render for NameVideo composition`);
+      console.log(`🚀 Starting Lambda render with FLAT structure:`, {
+        composition: 'NameVideo',
+        hasNameAudio: !!nameAudioUrl,
+        letterCount: Object.keys(letterAudioUrlStrings).length,
+        backgroundMusic: !!backgroundMusicUrl,
+        flatLetterAudio: inputProps.letterAudioUrl,
+        flatLetterName: inputProps.letterName,
+        payloadStructure: 'flat + nested (compatible)'
+      });
 
       // Validate environment variables
       if (!process.env.REMOTION_SITE_URL) {
@@ -253,6 +277,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (!process.env.AWS_LAMBDA_REMOTION_FUNCTION) {
         throw new Error('AWS_LAMBDA_REMOTION_FUNCTION environment variable is not set');
       }
+
+      console.log(`🔧 Using environment variables:`, {
+        REMOTION_SITE_URL: process.env.REMOTION_SITE_URL,
+        AWS_LAMBDA_REMOTION_FUNCTION: process.env.AWS_LAMBDA_REMOTION_FUNCTION,
+        AWS_REGION: process.env.AWS_REGION || 'us-east-1'
+      });
+
+      console.log(`🎬 FIXED: Using proper audio timing with startFrom/endAt props`);
+
+      // Enhanced debugging for letter audio
+      console.log(`🔍 LETTER AUDIO DEBUGGING:`, {
+        letterAudioUrls: letterAudioUrls,
+        letterAudioUrlStrings: letterAudioUrlStrings,
+        availableLetters: Object.keys(letterAudioUrlStrings),
+        flatLetterAudio: inputProps.letterAudioUrl,
+        flatLetterName: inputProps.letterName,
+        nestedLetters: inputProps.audioAssets.letters
+      });
 
       const result = await renderMediaOnLambda({
         region: (process.env.AWS_REGION as any) || 'us-east-1',
@@ -290,20 +332,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           child_name: childName,
           child_age: childAge || 3,
           child_theme: childTheme || 'default',
-          personalization_level: 'child_specific',
+          personalization_level: 'child_specific', // Since it's personalized with child name
           approval_status: 'pending_review',
           submitted_by: userId,
           duration_seconds: durationInSeconds,
           template_type: 'name-video',
           template_data: {
             composition: 'NameVideo',
-            props: inputProps,
+            props: inputProps, // Use the _reference structure
             used_assets: {
-              intro_image: finalIntroImage,
-              outro_image: finalOutroImage,
-              letter_images: finalLetterImages,
-              name_audio: nameAudioUrl,
-              letter_audios: letterAudioUrlStrings,
+              intro_image: introImageUrl,
+              outro_image: outroImageUrl,
+              letter_images: letterImageUrls,
+              name_audio: nameAudioUrl, // Single name audio used for intro/outro
+              letter_audios: letterAudioUrlStrings, // Direct letter -> URL mapping
               background_music: backgroundMusicUrl
             }
           }
@@ -313,6 +355,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       if (approvedVideoError) {
         console.error('Error creating approved video record:', approvedVideoError);
+        // Don't fail the whole request, just log the error
       } else {
         console.log('✅ Created child approved video record for moderation:', approvedVideoRecord.id);
         
@@ -321,8 +364,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           .from('video_moderation_queue')
           .insert({
             child_approved_video_id: approvedVideoRecord.id,
-            assigned_to: null,
-            priority: 1,
+            assigned_to: null, // Will be assigned by admin
+            priority: 1, // Default priority
             status: 'pending_review',
             review_notes: null
           })
@@ -340,24 +383,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         success: true,
         job_id: jobRecord.id,
         render_id: result.renderId,
-        output_url: outputUrl,
+        output_url: `https://remotionlambda-useast1-3pwoq46nsa.s3.us-east-1.amazonaws.com/renders/${result.renderId}/out.mp4`,
         job_tracking_url: `/admin/jobs?job_id=${jobRecord.id}`,
         debug_info: {
           hasNameAudio: !!nameAudioUrl,
           nameAudioUrl: nameAudioUrl || 'not found',
           letterAudioCount: Object.keys(letterAudioUrlStrings).length,
           availableLetters: Object.keys(letterAudioUrlStrings),
-          imageSelection: {
-            introImage: !!finalIntroImage,
-            outroImage: !!finalOutroImage,
-            letterImages: finalLetterImagesWithMetadata.length,
-            usedAPI: true
-          }
+          flatLetterAudio: inputProps.letterAudioUrl,
+          flatLetterName: inputProps.letterName,
+          payloadStructure: 'flat + nested (compatible)'
         }
       });
     } catch (lambdaError) {
       console.error('❌ Lambda render failed:', lambdaError);
-      
       // Update job as failed
       await supabaseAdmin
         .from('video_generation_jobs')
