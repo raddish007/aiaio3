@@ -389,14 +389,15 @@ const TextSegment: React.FC<TextSegmentProps> = ({
       // Long names (6-8 chars): Medium size
       targetSize = Math.min(width, height) * 0.15;
     } else {
-      // Very long names (9-13 chars): Smaller size with length adjustment
-      const lengthBasedSize = (width * 0.9) / nameLength;
-      const minSize = Math.min(width, height) * 0.08;
-      targetSize = Math.max(lengthBasedSize, minSize);
+      // Very long names (9-13 chars): Calculate to fit in single line
+      // Use 90% of width divided by character count, with better minimum size
+      const singleLineSize = (width * 0.85) / nameLength * 1.8; // Multiply by 1.8 for better character width estimation
+      const heightBasedSize = Math.min(width, height) * 0.10; // Minimum height-based size
+      targetSize = Math.max(singleLineSize, heightBasedSize);
     }
     
-    // Ensure it doesn't exceed maximum width
-    adjustedSize = Math.min(targetSize, width * 0.85);
+    // Ensure it doesn't exceed maximum width and force single line
+    adjustedSize = Math.min(targetSize, width * 0.85 / nameLength * 1.8);
   } else {
     // Individual letters: consistent large size
     adjustedSize = Math.min(baseFontSize * 1.4, width * 0.8);
@@ -430,7 +431,8 @@ const TextSegment: React.FC<TextSegmentProps> = ({
       lineHeight: '1.1',
       transform: `scale(${textScale})`,
       opacity: textOpacity,
-      wordBreak: 'break-word' as const,
+      whiteSpace: 'nowrap' as const, // Force single line
+      overflow: 'visible' as const, // Allow text to extend if needed
     };
 
     switch (safeZone) {
@@ -462,7 +464,7 @@ const TextSegment: React.FC<TextSegmentProps> = ({
           left: '50%',
           top: '50%',
           transform: `translate(-50%, -50%) scale(${textScale})`,
-          maxWidth: `${width * 0.95}px`,
+          maxWidth: 'none', // Remove max width constraint to allow single line
         };
     }
   };
