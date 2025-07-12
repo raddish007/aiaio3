@@ -674,7 +674,234 @@ Your video will be available for review in the admin dashboard once complete.`);
               </p>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: 20 }}>
+            {/* Letter Hunt Video Parts - Organized by Segments */}
+            <div className="space-y-8">
+              
+              {/* Part 1: Title Card (3 seconds) */}
+              <div className="bg-white rounded-lg shadow-sm p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                  <span className="bg-blue-100 text-blue-800 text-sm font-medium px-2.5 py-0.5 rounded mr-3">Part 1</span>
+                  Title Card (0-3 seconds)
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Title Card Image */}
+                  <div className="border border-gray-200 rounded-lg p-4" 
+                       style={{ background: payload.assets.titleCard.status === 'ready' ? '#f0f8f0' : 
+                                           payload.assets.titleCard.status === 'generating' ? '#fff8dc' : '#f9f9f9' }}>
+                    <h4 className="font-medium text-gray-900 mb-2 flex items-center">
+                      {payload.assets.titleCard.name}
+                      <span className={`ml-2 text-xs font-bold uppercase px-2 py-1 rounded ${
+                        payload.assets.titleCard.status === 'ready' ? 'bg-green-100 text-green-800' :
+                        payload.assets.titleCard.status === 'generating' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-red-100 text-red-800'
+                      }`}>
+                        {payload.assets.titleCard.status}
+                      </span>
+                    </h4>
+                    <p className="text-sm text-gray-600 mb-3">{payload.assets.titleCard.description}</p>
+                    
+                    {payload.assets.titleCard.status === 'ready' && payload.assets.titleCard.url && (
+                      <div className="mb-3">
+                        <img 
+                          src={payload.assets.titleCard.url} 
+                          alt={payload.assets.titleCard.name}
+                          className="w-full h-auto rounded border"
+                        />
+                      </div>
+                    )}
+                    
+                    <button
+                      onClick={() => generateAsset('titleCard')}
+                      disabled={payload.assets.titleCard.status === 'generating'}
+                      className={`px-4 py-2 rounded text-sm font-medium ${
+                        payload.assets.titleCard.status === 'ready' ? 'bg-green-600 text-white' :
+                        payload.assets.titleCard.status === 'generating' ? 'bg-yellow-500 text-white cursor-not-allowed' :
+                        'bg-blue-600 text-white hover:bg-blue-700'
+                      }`}
+                    >
+                      {payload.assets.titleCard.status === 'ready' ? 'Regenerate' :
+                       payload.assets.titleCard.status === 'generating' ? 'Generating...' : 
+                       'Generate Image'}
+                    </button>
+                  </div>
+                  
+                  {/* Title Audio */}
+                  <div className="border border-gray-200 rounded-lg p-4"
+                       style={{ background: payload.assets.titleAudio.status === 'ready' ? '#f0f8f0' : 
+                                           payload.assets.titleAudio.status === 'generating' ? '#fff8dc' : '#f9f9f9' }}>
+                    <h4 className="font-medium text-gray-900 mb-2 flex items-center">
+                      {payload.assets.titleAudio.name}
+                      <span className={`ml-2 text-xs font-bold uppercase px-2 py-1 rounded ${
+                        payload.assets.titleAudio.status === 'ready' ? 'bg-green-100 text-green-800' :
+                        payload.assets.titleAudio.status === 'generating' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-red-100 text-red-800'
+                      }`}>
+                        {payload.assets.titleAudio.status}
+                      </span>
+                    </h4>
+                    <p className="text-sm text-gray-600 mb-3">{payload.assets.titleAudio.description}</p>
+                    
+                    {payload.assets.titleAudio.status === 'ready' && payload.assets.titleAudio.url && (
+                      <div className="mb-3">
+                        <audio controls className="w-full">
+                          <source src={payload.assets.titleAudio.url} type="audio/mpeg" />
+                        </audio>
+                      </div>
+                    )}
+                    
+                    <button
+                      onClick={() => generateAsset('titleAudio')}
+                      disabled={payload.assets.titleAudio.status === 'generating'}
+                      className={`px-4 py-2 rounded text-sm font-medium ${
+                        payload.assets.titleAudio.status === 'ready' ? 'bg-green-600 text-white' :
+                        payload.assets.titleAudio.status === 'generating' ? 'bg-yellow-500 text-white cursor-not-allowed' :
+                        'bg-blue-600 text-white hover:bg-blue-700'
+                      }`}
+                    >
+                      {payload.assets.titleAudio.status === 'ready' ? 'Regenerate' :
+                       payload.assets.titleAudio.status === 'generating' ? 'Generating...' : 
+                       'Generate Audio'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Part 2: Introduction (3-6 seconds) */}
+              <div className="bg-white rounded-lg shadow-sm p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                  <span className="bg-purple-100 text-purple-800 text-sm font-medium px-2.5 py-0.5 rounded mr-3">Part 2</span>
+                  Introduction (3-6 seconds)
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Intro Video */}
+                  <div className="border border-gray-200 rounded-lg p-4"
+                       style={{ background: payload.assets.introVideo.status === 'ready' ? '#f0f8f0' : 
+                                           payload.assets.introVideo.status === 'generating' ? '#fff8dc' : '#f9f9f9' }}>
+                    <h4 className="font-medium text-gray-900 mb-2 flex items-center">
+                      {payload.assets.introVideo.name}
+                      <span className={`ml-2 text-xs font-bold uppercase px-2 py-1 rounded ${
+                        payload.assets.introVideo.status === 'ready' ? 'bg-green-100 text-green-800' :
+                        payload.assets.introVideo.status === 'generating' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-red-100 text-red-800'
+                      }`}>
+                        {payload.assets.introVideo.status}
+                      </span>
+                    </h4>
+                    <p className="text-sm text-gray-600 mb-3">{payload.assets.introVideo.description}</p>
+                    
+                    {payload.assets.introVideo.status === 'ready' && payload.assets.introVideo.url && (
+                      <div className="mb-3">
+                        <video controls className="w-full h-auto rounded border">
+                          <source src={payload.assets.introVideo.url} type="video/mp4" />
+                        </video>
+                      </div>
+                    )}
+                    
+                    <button
+                      onClick={() => generateAsset('introVideo')}
+                      disabled={payload.assets.introVideo.status === 'generating'}
+                      className={`px-4 py-2 rounded text-sm font-medium ${
+                        payload.assets.introVideo.status === 'ready' ? 'bg-green-600 text-white' :
+                        payload.assets.introVideo.status === 'generating' ? 'bg-yellow-500 text-white cursor-not-allowed' :
+                        'bg-blue-600 text-white hover:bg-blue-700'
+                      }`}
+                    >
+                      {payload.assets.introVideo.status === 'ready' ? 'Regenerate' :
+                       payload.assets.introVideo.status === 'generating' ? 'Generating...' : 
+                       'Generate Video'}
+                    </button>
+                  </div>
+                  
+                  {/* Intro Audio */}
+                  <div className="border border-gray-200 rounded-lg p-4"
+                       style={{ background: payload.assets.introAudio.status === 'ready' ? '#f0f8f0' : 
+                                           payload.assets.introAudio.status === 'generating' ? '#fff8dc' : '#f9f9f9' }}>
+                    <h4 className="font-medium text-gray-900 mb-2 flex items-center">
+                      {payload.assets.introAudio.name}
+                      <span className={`ml-2 text-xs font-bold uppercase px-2 py-1 rounded ${
+                        payload.assets.introAudio.status === 'ready' ? 'bg-green-100 text-green-800' :
+                        payload.assets.introAudio.status === 'generating' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-red-100 text-red-800'
+                      }`}>
+                        {payload.assets.introAudio.status}
+                      </span>
+                    </h4>
+                    <p className="text-sm text-gray-600 mb-3">{payload.assets.introAudio.description}</p>
+                    
+                    {payload.assets.introAudio.status === 'ready' && payload.assets.introAudio.url && (
+                      <div className="mb-3">
+                        <audio controls className="w-full">
+                          <source src={payload.assets.introAudio.url} type="audio/mpeg" />
+                        </audio>
+                      </div>
+                    )}
+                    
+                    <button
+                      onClick={() => generateAsset('introAudio')}
+                      disabled={payload.assets.introAudio.status === 'generating'}
+                      className={`px-4 py-2 rounded text-sm font-medium ${
+                        payload.assets.introAudio.status === 'ready' ? 'bg-green-600 text-white' :
+                        payload.assets.introAudio.status === 'generating' ? 'bg-yellow-500 text-white cursor-not-allowed' :
+                        'bg-blue-600 text-white hover:bg-blue-700'
+                      }`}
+                    >
+                      {payload.assets.introAudio.status === 'ready' ? 'Regenerate' :
+                       payload.assets.introAudio.status === 'generating' ? 'Generating...' : 
+                       'Generate Audio'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Background Music - Global Asset */}
+              <div className="bg-gray-50 rounded-lg shadow-sm p-6 border-2 border-dashed border-gray-300">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                  <span className="bg-gray-100 text-gray-800 text-sm font-medium px-2.5 py-0.5 rounded mr-3">🎵</span>
+                  Background Music (0-24 seconds - Throughout Video)
+                </h3>
+                <div className="max-w-md">
+                  <div className="border border-gray-200 rounded-lg p-4 bg-white">
+                    <h4 className="font-medium text-gray-900 mb-2 flex items-center">
+                      {payload.assets.backgroundMusic.name}
+                      <span className="ml-2 text-xs font-bold uppercase px-2 py-1 rounded bg-green-100 text-green-800">
+                        {payload.assets.backgroundMusic.status}
+                      </span>
+                    </h4>
+                    <p className="text-sm text-gray-600 mb-3">{payload.assets.backgroundMusic.description}</p>
+                    
+                    {payload.assets.backgroundMusic.status === 'ready' && payload.assets.backgroundMusic.url && (
+                      <div className="mb-3">
+                        <audio controls className="w-full">
+                          <source src={payload.assets.backgroundMusic.url} type="audio/mpeg" />
+                        </audio>
+                      </div>
+                    )}
+                    
+                    <div className="text-xs text-gray-500">
+                      ✅ Background music is automatically included in all Letter Hunt videos
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: 20, marginTop: 32 }}>
+              <div style={{ gridColumn: '1 / -1' }}>
+                <h3 style={{ margin: '0 0 16px 0', fontSize: 18, fontWeight: 'bold' }}>
+                  🚧 Additional Parts (Coming Soon)
+                </h3>
+                <div style={{ background: '#f8f9fa', border: '1px solid #e9ecef', borderRadius: 8, padding: 16 }}>
+                  <p style={{ margin: 0, color: '#6c757d' }}>
+                    Parts 3-8 include letter searching segments (signs, books, grocery store), happy dance, and ending.
+                    Asset generation for these parts will be available soon.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Remaining assets in old format for now */}
+            <div style={{ display: 'none' }}>
               {Object.entries(payload.assets).map(([key, asset]) => (
                 <div
                   key={key}
