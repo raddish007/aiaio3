@@ -20,21 +20,25 @@ export default function AdminDashboard() {
 
   const checkAdminAccess = async () => {
     const { data: { user } } = await supabase.auth.getUser();
-    console.log('Supabase Auth user:', user);
     if (!user) {
       router.push('/login');
       return;
     }
 
     // Check if user has admin role
-    const { data: userData } = await supabase
+    const { data: userData, error: dbError } = await supabase
       .from('users')
       .select('role')
       .eq('id', user.id)
       .single();
-    console.log('DB userData:', userData);
 
-    if (!userData || !['content_manager', 'asset_creator', 'video_ops'].includes(userData.role)) {
+    if (dbError || !userData) {
+      router.push('/dashboard');
+      return;
+    }
+
+    const allowedRoles = ['content_manager', 'asset_creator', 'video_ops', 'content-manager'];
+    if (!allowedRoles.includes(userData.role)) {
       router.push('/dashboard');
       return;
     }
@@ -44,39 +48,43 @@ export default function AdminDashboard() {
   };
 
   const fetchAdminData = async () => {
-    // Fetch stats
-    const { count: usersCount } = await supabase
-      .from('users')
-      .select('*', { count: 'exact', head: true });
+    try {
+      // Fetch stats
+      const { count: usersCount } = await supabase
+        .from('users')
+        .select('*', { count: 'exact', head: true });
 
-    const { count: childrenCount } = await supabase
-      .from('children')
-      .select('*', { count: 'exact', head: true });
+      const { count: childrenCount } = await supabase
+        .from('children')
+        .select('*', { count: 'exact', head: true });
 
-    const { count: assetsCount } = await supabase
-      .from('assets')
-      .select('*', { count: 'exact', head: true });
+      const { count: assetsCount } = await supabase
+        .from('assets')
+        .select('*', { count: 'exact', head: true });
 
-    const { count: videosCount } = await supabase
-      .from('content')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'pending');
+      const { count: videosCount } = await supabase
+        .from('content')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'pending');
 
-    setStats({
-      totalUsers: usersCount || 0,
-      totalChildren: childrenCount || 0,
-      pendingVideos: videosCount || 0,
-      totalAssets: assetsCount || 0
-    });
+      setStats({
+        totalUsers: usersCount || 0,
+        totalChildren: childrenCount || 0,
+        pendingVideos: videosCount || 0,
+        totalAssets: assetsCount || 0
+      });
 
-    // Fetch recent activity
-    const { data: activity } = await supabase
-      .from('assets')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(5);
+      // Fetch recent activity
+      const { data: activity } = await supabase
+        .from('assets')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(5);
 
-    setRecentActivity(activity || []);
+      setRecentActivity(activity || []);
+    } catch (error) {
+      console.error('Error fetching admin data:', error);
+    }
   };
 
   const handleLogout = async () => {
@@ -219,6 +227,45 @@ export default function AdminDashboard() {
             </button>
 
             <button
+              onClick={() => router.push('/letter-hunt-request')}
+              className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-200 border border-gray-200 hover:border-orange-300 group"
+            >
+              <div className="text-center">
+                <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-orange-200 transition-colors">
+                  <span className="text-3xl">🔤</span>
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Letter Hunt Video</h3>
+                <p className="text-sm text-gray-600">Create personalized letter hunt videos</p>
+              </div>
+            </button>
+
+            <button
+              onClick={() => router.push('/admin/video-assignment-manager')}
+              className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-200 border border-gray-200 hover:border-teal-300 group"
+            >
+              <div className="text-center">
+                <div className="w-16 h-16 bg-teal-100 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-teal-200 transition-colors">
+                  <span className="text-3xl">📋</span>
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Assignment Manager</h3>
+                <p className="text-sm text-gray-600">Manage child video assignments</p>
+              </div>
+            </button>
+
+            <button
+              onClick={() => router.push('/admin/video-status-dashboard')}
+              className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-200 border border-gray-200 hover:border-cyan-300 group"
+            >
+              <div className="text-center">
+                <div className="w-16 h-16 bg-cyan-100 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-cyan-200 transition-colors">
+                  <span className="text-3xl">📊</span>
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Video Status Dashboard</h3>
+                <p className="text-sm text-gray-600">Track video assignment status</p>
+              </div>
+            </button>
+
+            <button
               onClick={() => router.push('/admin/jobs')}
               className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-200 border border-gray-200 hover:border-yellow-300 group"
             >
@@ -288,21 +335,32 @@ export default function AdminDashboard() {
             <h2 className="text-3xl font-bold text-gray-900 mb-2">System Management</h2>
             <p className="text-gray-600">Advanced system and user management tools</p>
           </div>
-          
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <button
-              onClick={() => router.push('/admin/users')}
-              className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-200 border border-gray-200 hover:border-orange-300 group"
+              onClick={() => router.push('/admin/create-account')}
+              className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-200 border border-gray-200 hover:border-blue-300 group"
             >
               <div className="text-center">
-                <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-orange-200 transition-colors">
-                  <span className="text-3xl">👥</span>
+                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-blue-200 transition-colors">
+                  <span className="text-3xl">👤</span>
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">User Management</h3>
-                <p className="text-sm text-gray-600">Manage users and permissions</p>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Create Account</h3>
+                <p className="text-sm text-gray-600">Add new parent and child accounts</p>
               </div>
             </button>
 
+            <button
+              onClick={() => router.push('/admin/manage-accounts')}
+              className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-200 border border-gray-200 hover:border-green-300 group"
+            >
+              <div className="text-center">
+                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-green-200 transition-colors">
+                  <span className="text-3xl">👥</span>
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Manage Accounts</h3>
+                <p className="text-sm text-gray-600">Add/remove children from existing accounts</p>
+              </div>
+            </button>
             <button
               onClick={() => router.push('/admin/template-audio')}
               className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-200 border border-gray-200 hover:border-purple-300 group"
@@ -315,7 +373,6 @@ export default function AdminDashboard() {
                 <p className="text-sm text-gray-600">Manage reusable audio templates</p>
               </div>
             </button>
-
             <button
               onClick={() => router.push('/admin/template-images')}
               className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-200 border border-gray-200 hover:border-green-300 group"
@@ -415,4 +472,4 @@ export default function AdminDashboard() {
       </div>
     </div>
   );
-} 
+}

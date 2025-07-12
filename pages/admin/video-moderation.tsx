@@ -6,6 +6,7 @@ interface VideoForModeration {
   id: string;
   video_url: string;
   video_title: string;
+  child_id: string;
   child_name: string;
   child_age: number;
   child_theme: string;
@@ -131,6 +132,36 @@ export default function VideoModeration() {
           review_notes: reviewNotes
         })
         .eq('child_approved_video_id', videoId);
+
+      // Find and update corresponding assignment if it exists
+      const selectedVideoData = videos.find(v => v.id === videoId);
+      if (selectedVideoData) {
+        try {
+          const { data: assignment, error: assignmentFindError } = await supabase
+            .from('child_video_assignments')
+            .select('id')
+            .eq('child_id', selectedVideoData.child_id)
+            .eq('template_type', selectedVideoData.template_type)
+            .single();
+
+          if (!assignmentFindError && assignment) {
+            await supabase
+              .from('child_video_assignments')
+              .update({
+                status: 'approved',
+                output_video_url: selectedVideoData.video_url,
+                approved_at: new Date().toISOString(),
+                approved_by: user.id
+              })
+              .eq('id', assignment.id);
+            
+            console.log('✅ Assignment status updated to approved');
+          }
+        } catch (assignmentError) {
+          console.warn('Could not update assignment status:', assignmentError);
+          // Don't fail the whole approval if assignment update fails
+        }
+      }
 
       setReviewNotes('');
       setSelectedVideo(null);

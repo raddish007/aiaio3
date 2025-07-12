@@ -8,7 +8,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const { childName, childAge, childTheme, childId, submitted_by, introImageUrl, outroImageUrl, slideshowImageUrls, introAudioUrl, outroAudioUrl } = req.body;
+    const { childName, childAge, childTheme, childId, submitted_by, introImageUrl, outroImageUrl, slideshowImageUrls, introAudioUrl, outroAudioUrl, backgroundMusicUrl } = req.body;
 
     if (!childName || !childId) {
       return res.status(400).json({ 
@@ -24,23 +24,49 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(500).json({ error: 'Database admin client not available' });
     }
 
-    // Get DreamDrip asset duration from database
+    // Get DreamDrip asset duration and file URL from database
     let dreamDripDuration = 88; // Default fallback (updated to 88 seconds)
-    try {
-      const { data: dreamDripAsset, error: assetError } = await supabaseAdmin
-        .from('assets')
-        .select('metadata')
-        .eq('id', '2095fd08-1cb1-4373-bafa-f6115dd7dad2')
-        .single();
+    let dreamDripUrl = backgroundMusicUrl || ''; // Use frontend-provided URL first, otherwise get from database
+    
+    // If no background music URL provided from frontend, fetch from database
+    if (!dreamDripUrl) {
+      try {
+        const { data: dreamDripAsset, error: assetError } = await supabaseAdmin
+          .from('assets')
+          .select('metadata, file_url')
+          .eq('id', '2095fd08-1cb1-4373-bafa-f6115dd7dad2')
+          .single();
 
-      if (!assetError && dreamDripAsset?.metadata?.duration) {
-        dreamDripDuration = dreamDripAsset.metadata.duration;
-        console.log(`Using DreamDrip duration from database: ${dreamDripDuration} seconds`);
-      } else {
-        console.log(`Using default DreamDrip duration: ${dreamDripDuration} seconds`);
+        if (!assetError && dreamDripAsset) {
+          if (dreamDripAsset.metadata?.duration) {
+            dreamDripDuration = dreamDripAsset.metadata.duration;
+          }
+          if (dreamDripAsset.file_url) {
+            dreamDripUrl = dreamDripAsset.file_url;
+          }
+          console.log(`Using DreamDrip asset from database - Duration: ${dreamDripDuration} seconds, URL: ${dreamDripUrl}`);
+        } else {
+          console.log(`Using default DreamDrip duration: ${dreamDripDuration} seconds, no background music URL from database`);
+        }
+      } catch (error) {
+        console.warn('Failed to fetch DreamDrip asset from database, using defaults:', error);
       }
-    } catch (error) {
-      console.warn('Failed to fetch DreamDrip duration, using default:', error);
+    } else {
+      // Still try to get duration from database even if URL was provided
+      try {
+        const { data: dreamDripAsset, error: assetError } = await supabaseAdmin
+          .from('assets')
+          .select('metadata')
+          .eq('id', '2095fd08-1cb1-4373-bafa-f6115dd7dad2')
+          .single();
+
+        if (!assetError && dreamDripAsset?.metadata?.duration) {
+          dreamDripDuration = dreamDripAsset.metadata.duration;
+        }
+        console.log(`Using DreamDrip asset from frontend - Duration: ${dreamDripDuration} seconds, URL: ${dreamDripUrl}`);
+      } catch (error) {
+        console.warn('Failed to fetch DreamDrip duration from database:', error);
+      }
     }
 
     // Create a video generation job record
@@ -57,7 +83,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             childName,
             childAge: childAge || 3,
             childTheme: childTheme || 'default',
-            backgroundMusicUrl: '',
+            backgroundMusicUrl: dreamDripUrl,
             backgroundMusicVolume: 0.8,
             duration: dreamDripDuration,
             debugMode: true
@@ -78,7 +104,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       childName,
       childAge: childAge || 3,
       childTheme: childTheme || 'default',
-      backgroundMusicUrl: '',
+      backgroundMusicUrl: dreamDripUrl,
       backgroundMusicVolume: 0.8,
       duration: dreamDripDuration,
       introImageUrl: introImageUrl || 'https://etshvxrgbssginmzsczo.supabase.co/storage/v1/object/public/assets/assets/image/1751981193321_7ch9q7v0y.png',

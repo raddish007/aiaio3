@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '@/lib/supabase';
+import MissingVideoTracker from '../../components/MissingVideoTracker';
 
 interface Child {
   id: string;
@@ -31,6 +32,7 @@ export default function LullabyVideoRequest() {
     slideshowImages?: { id: string; file_url: string; theme: string; safe_zone: string }[];
     introAudio?: { id: string; file_url: string; theme: string };
     outroAudio?: { id: string; file_url: string; theme: string };
+    backgroundMusic?: { id: string; file_url: string; theme: string; duration?: number };
   } | null>(null);
   const [assetLoading, setAssetLoading] = useState(false);
   const [assetError, setAssetError] = useState<string | null>(null);
@@ -275,6 +277,36 @@ export default function LullabyVideoRequest() {
       // If we still don't have personalized audio, don't fall back to theme-based audio
       // This ensures we only use audio that's specifically for the child
 
+      // Fetch DreamDrip background music asset
+      console.log('🎼 Fetching DreamDrip background music asset...');
+      let backgroundMusic: any = null;
+      try {
+        const { data: dreamDripAsset, error: dreamDripError } = await supabase
+          .from('assets')
+          .select('id, file_url, theme, metadata')
+          .eq('id', '2095fd08-1cb1-4373-bafa-f6115dd7dad2')
+          .eq('type', 'audio')
+          .eq('status', 'approved')
+          .single();
+
+        if (!dreamDripError && dreamDripAsset) {
+          backgroundMusic = dreamDripAsset;
+          const duration = dreamDripAsset.metadata?.duration;
+          if (duration) {
+            setDreamDripDuration(duration);
+          }
+          console.log('✅ DreamDrip background music found:', {
+            id: dreamDripAsset.id,
+            duration: duration,
+            file_url: dreamDripAsset.file_url
+          });
+        } else {
+          console.warn('⚠️ DreamDrip background music not found:', dreamDripError);
+        }
+      } catch (error) {
+        console.error('❌ Error fetching DreamDrip background music:', error);
+      }
+
       // Filter safe zones to only show intro_safe and outro_safe for lullaby videos
       const getLullabySafeZones = (safeZones: string[]) => {
         return safeZones.filter(zone => zone === 'intro_safe' || zone === 'outro_safe');
@@ -318,6 +350,12 @@ export default function LullabyVideoRequest() {
           id: outroAudio.id,
           theme: outroAudio.theme,
           file_url: outroAudio.file_url
+        } : null,
+        backgroundMusic: backgroundMusic ? {
+          id: backgroundMusic.id,
+          theme: backgroundMusic.theme,
+          file_url: backgroundMusic.file_url,
+          duration: backgroundMusic.metadata?.duration
         } : null
       });
 
@@ -349,6 +387,12 @@ export default function LullabyVideoRequest() {
           id: outroAudio.id,
           file_url: outroAudio.file_url,
           theme: outroAudio.theme
+        } : undefined,
+        backgroundMusic: backgroundMusic ? {
+          id: backgroundMusic.id,
+          file_url: backgroundMusic.file_url,
+          theme: backgroundMusic.theme,
+          duration: backgroundMusic.metadata?.duration
         } : undefined
       });
 
@@ -379,6 +423,11 @@ export default function LullabyVideoRequest() {
         warnings.push(`❌ No personalized outro audio found for "${child.name}". Personalized outro audio is required.`);
       }
       
+      // Background music requirement
+      if (!backgroundMusic) {
+        warnings.push(`❌ DreamDrip background music asset not found. Background music is required for lullaby videos.`);
+      }
+      
       if (warnings.length > 0) {
         setAssetError(warnings.join(' '));
       }
@@ -406,6 +455,16 @@ export default function LullabyVideoRequest() {
     fetchChildren();
     fetchDreamDripDuration();
   }, []);
+
+  // Handle URL parameters (child_id, assignment_id)
+  useEffect(() => {
+    if (router.query.child_id && children.length > 0) {
+      const child = children.find(c => c.id === router.query.child_id);
+      if (child) {
+        setSelectedChild(child);
+      }
+    }
+  }, [router.query.child_id, children]);
 
   const fetchDreamDripDuration = async () => {
     try {
@@ -463,8 +522,21 @@ export default function LullabyVideoRequest() {
 
   const submitLullabyVideo = async () => {
     if (!selectedChild) return;
-    if (assetError) {
-      setError('Cannot submit video: Missing required personalized audio files.');
+    
+    // Check for required assets
+    const missingAssets = [];
+    if (!themeAssets?.introAudio) {
+      missingAssets.push('personalized intro audio');
+    }
+    if (!themeAssets?.outroAudio) {
+      missingAssets.push('personalized outro audio');
+    }
+    if (!themeAssets?.backgroundMusic) {
+      missingAssets.push('background music (DreamDrip)');
+    }
+    
+    if (missingAssets.length > 0 || assetError) {
+      setError(`Cannot submit video: Missing required assets: ${missingAssets.join(', ')}`);
       return;
     }
 
@@ -489,6 +561,7 @@ export default function LullabyVideoRequest() {
           slideshowImageUrls: themeAssets?.slideshowImages?.map(img => img.file_url) || [],
           introAudioUrl: themeAssets?.introAudio?.file_url,
           outroAudioUrl: themeAssets?.outroAudio?.file_url,
+          backgroundMusicUrl: themeAssets?.backgroundMusic?.file_url,
           debugMode: debugMode
         })
       });
@@ -506,6 +579,29 @@ export default function LullabyVideoRequest() {
         output_url: result.output_url,
         job_tracking_url: result.job_tracking_url
       });
+
+      // If this was called from an assignment, mark it as completed
+      if (router.query.assignment_id) {
+        try {
+          const assignmentResponse = await fetch('/api/admin/manage-assignments', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              assignment_id: router.query.assignment_id,
+              status: 'completed',
+              output_video_url: result.output_url,
+              updated_by: 'current-user-id'
+            })
+          });
+
+          if (assignmentResponse.ok) {
+            setSuccess(`Lullaby video generation started successfully! Assignment marked as completed.`);
+          }
+        } catch (assignmentError) {
+          console.error('Error updating assignment:', assignmentError);
+          // Don't fail the whole operation if assignment update fails
+        }
+      }
       
       // Reset form
       setSelectedChild(null);
@@ -535,7 +631,14 @@ export default function LullabyVideoRequest() {
       <header className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
-            <h1 className="text-2xl font-bold text-gray-900">Lullaby Video Request</h1>
+            <h1 className="text-2xl font-bold text-gray-900">
+              Lullaby Video Request
+              {router.query.assignment_id && (
+                <span className="ml-2 text-sm font-normal text-blue-600 bg-blue-100 px-2 py-1 rounded">
+                  Assignment Mode
+                </span>
+              )}
+            </h1>
             <button
               onClick={() => router.push('/admin')}
               className="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 text-sm"
@@ -547,6 +650,17 @@ export default function LullabyVideoRequest() {
       </header>
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Missing Video Tracker */}
+        <MissingVideoTracker
+          videoType="lullaby"
+          templateName="Lullaby Video"
+          className="mb-6"
+          onChildSelect={(child) => {
+            setSelectedChild(child);
+            fetchThemeAssets(child.primary_interest, child);
+          }}
+        />
+        
         {/* Step 1: Select Child */}
         <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Step 1: Select Child</h2>
@@ -641,7 +755,9 @@ export default function LullabyVideoRequest() {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Background Music:</span>
-                    <span className="text-yellow-600">⚠️ Not yet implemented</span>
+                    <span className={themeAssets?.backgroundMusic ? 'text-green-600' : 'text-red-600'}>
+                      {themeAssets?.backgroundMusic ? '✅ DreamDrip' : '❌ Not found'}
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Intro Audio:</span>
@@ -902,9 +1018,15 @@ export default function LullabyVideoRequest() {
                         Background Music
                       </h5>
                       <div className="text-sm text-gray-600">
-                        <div><strong>Source:</strong> DreamDrip (Ambient lullaby music)</div>
-                        <div><strong>Duration:</strong> {dreamDripDuration || 'Loading...'} seconds</div>
+                        <div><strong>Source:</strong> {themeAssets?.backgroundMusic ? 'DreamDrip (Ambient lullaby music)' : 'Not available'}</div>
+                        <div><strong>Duration:</strong> {themeAssets?.backgroundMusic?.duration || dreamDripDuration || 'Unknown'} seconds</div>
                         <div><strong>Volume:</strong> 80% (will be mixed with personalized audio)</div>
+                        {themeAssets?.backgroundMusic && (
+                          <div><strong>Status:</strong> <span className="text-green-600">✅ Ready</span></div>
+                        )}
+                        {!themeAssets?.backgroundMusic && (
+                          <div><strong>Status:</strong> <span className="text-red-600">❌ Asset not found</span></div>
+                        )}
                       </div>
                     </div>
                   </div>
