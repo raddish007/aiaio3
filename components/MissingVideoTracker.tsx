@@ -50,8 +50,20 @@ export const MissingVideoTracker: React.FC<MissingVideoTrackerProps> = ({
 
     try {
       // Use the new video assignments API
-      const response = await fetch(`/api/admin/video-assignments?templateType=${videoType}`);
+      console.log(`🔄 Fetching assignments for ${templateName} (${videoType})...`);
+      const apiUrl = `/api/admin/video-assignments?templateType=${videoType}`;
+      console.log(`📡 API URL: ${apiUrl}`);
+      
+      const response = await fetch(apiUrl);
+      
+      console.log(`📊 Response status: ${response.status} ${response.statusText}`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
       const data = await response.json();
+      console.log(`📋 API Response:`, data);
 
       if (!data.success) {
         throw new Error(data.error || 'Failed to fetch assignment data');
@@ -82,7 +94,47 @@ export const MissingVideoTracker: React.FC<MissingVideoTrackerProps> = ({
 
     } catch (error) {
       console.error('Error checking video assignments:', error);
-      setError(error instanceof Error ? error.message : 'Unknown error');
+      
+      // Fallback: Get basic children data directly from Supabase
+      try {
+        console.log('📋 Attempting fallback: Loading children directly from database...');
+        const { data: children, error: childrenError } = await supabase
+          .from('children')
+          .select('id, name, age, primary_interest, parent_id')
+          .order('name');
+        
+        if (childrenError) {
+          throw childrenError;
+        }
+        
+        if (children && children.length > 0) {
+          // Show all children as potentially needing this video type
+          const fallbackData: MissingVideoInfo[] = children.map((child: any) => ({
+            child: {
+              id: child.id,
+              name: child.name,
+              age: child.age,
+              primary_interest: child.primary_interest,
+              parent_id: child.parent_id,
+              parent_email: undefined
+            },
+            missingTemplates: [{
+              id: videoType,
+              name: templateName,
+              description: `Potentially needs ${templateName} (assignment data unavailable)`
+            }],
+            lastVideoDate: undefined
+          }));
+          
+          setChildrenMissingVideos(fallbackData);
+          setError(`Assignment tracking unavailable, showing all children. Original error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        } else {
+          setError('No children found in database');
+        }
+      } catch (fallbackError) {
+        console.error('Fallback also failed:', fallbackError);
+        setError(`Failed to load children data: ${fallbackError instanceof Error ? fallbackError.message : 'Unknown error'}`);
+      }
     } finally {
       setLoading(false);
     }

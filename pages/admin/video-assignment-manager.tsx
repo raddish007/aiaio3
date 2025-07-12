@@ -386,7 +386,7 @@ export default function VideoAssignmentManager() {
                                 // Navigate to the appropriate video creation page
                                 const templateMap: Record<string, string> = {
                                   'lullaby': '/admin/lullaby-video-request',
-                                  'letter-hunt': '/letter-hunt-request',
+                                  'letter-hunt': '/admin/letter-hunt-request',
                                   'name-video': '/admin/name-video-request'
                                 };
                                 const url = templateMap[assignment.template_type] || '/admin/lullaby-video-request';

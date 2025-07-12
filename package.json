@@ -9,9 +9,9 @@
     "start": "next start",
     "lint": "next lint",
     "remotion": "remotion",
-    "remotion:preview": "remotion preview",
-    "remotion:render": "remotion render",
-    "remotion:lambda": "remotion lambda functions deploy",
+    "remotion:preview": "cd remotion && remotion preview src/index.ts",
+    "remotion:render": "cd remotion && remotion render",
+    "remotion:lambda": "cd remotion && remotion lambda functions deploy",
     "db:generate": "supabase gen types typescript --local > types/database.ts",
     "db:push": "supabase db push",
     "db:reset": "supabase db reset"

@@ -73,27 +73,46 @@ export function getThemeRelevanceScore(asset: any, assetPurpose: { purpose: stri
   return score;
 }
 
-// Audio duration extraction functions
-export async function extractAudioDuration(audioBuffer: Buffer): Promise<number | undefined> {
-  try {
-    const getAudioDuration = require('get-audio-duration');
-    const duration = await getAudioDuration(audioBuffer);
-    return duration;
-  } catch (error) {
-    console.error('Error extracting audio duration from buffer:', error);
+// Audio duration extraction functions (server-side only)
+// Temporarily disabled due to webpack bundling issues with get-audio-duration
+export async function extractAudioDuration(filePath: string): Promise<number | undefined> {
+  if (typeof window !== 'undefined') {
+    console.error('extractAudioDuration should only be called on the server-side');
     return undefined;
   }
+  
+  console.warn('Audio duration extraction temporarily disabled - returning undefined');
+  return undefined;
+  
+  // TODO: Re-enable when webpack bundling issues are resolved
+  // try {
+  //   const { default: getAudioDuration } = await import('get-audio-duration');
+  //   const duration = await getAudioDuration(filePath);
+  //   return duration;
+  // } catch (error) {
+  //   console.error('Error extracting audio duration from file:', error);
+  //   return undefined;
+  // }
 }
 
 export async function extractAudioDurationFromUrl(url: string): Promise<number | undefined> {
-  try {
-    const getAudioDuration = require('get-audio-duration');
-    const duration = await getAudioDuration(url);
-    return duration;
-  } catch (error) {
-    console.error('Error extracting audio duration from URL:', error);
+  if (typeof window !== 'undefined') {
+    console.error('extractAudioDurationFromUrl should only be called on the server-side');
     return undefined;
   }
+  
+  console.warn('Audio duration extraction from URL temporarily disabled - returning undefined');
+  return undefined;
+  
+  // TODO: Re-enable when webpack bundling issues are resolved
+  // try {
+  //   const { default: getAudioDuration } = await import('get-audio-duration');
+  //   const duration = await getAudioDuration(url);
+  //   return duration;
+  // } catch (error) {
+  //   console.error('Error extracting audio duration from URL:', error);
+  //   return undefined;
+  // }
 }
 
 // Image download and upload utility function

@@ -112,6 +112,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           tags: [style, safeZone, 'schnell'].filter(Boolean),
           status: 'pending',
           file_url: supabaseUrl, // Use permanent Supabase URL
+          prompt: promptData.prompt_text, // Include the prompt text for review
           metadata: {
             ...promptData.metadata,
             generated_at: new Date().toISOString(),

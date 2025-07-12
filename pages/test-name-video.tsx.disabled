@@ -1,6 +1,6 @@
 import React from 'react';
 import { Player } from '@remotion/player';
-import { NameVideo } from '../remotion/src/compositions/NameVideo';
+// import { NameVideo } from '../remotion/src/compositions/NameVideo';
 
 export default function TestNameVideo() {
   return (

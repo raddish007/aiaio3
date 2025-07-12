@@ -75,11 +75,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const audioBuffer = await audioResponse.arrayBuffer();
     const audioData = Buffer.from(audioBuffer);
 
-    // Extract audio duration
+    // Extract audio duration using a temporary file
     let audioDuration: number | undefined;
     try {
-      audioDuration = await extractAudioDuration(audioData);
+      const fs = await import('fs');
+      const path = await import('path');
+      const os = await import('os');
+      
+      // Create a temporary file
+      const tempDir = os.tmpdir();
+      const tempFilePath = path.join(tempDir, `temp_audio_${Date.now()}.mp3`);
+      
+      // Write buffer to temp file
+      await fs.promises.writeFile(tempFilePath, audioData);
+      
+      // Extract duration from temp file
+      audioDuration = await extractAudioDuration(tempFilePath);
       console.log(`Audio duration extracted: ${audioDuration?.toFixed(2)} seconds`);
+      
+      // Clean up temp file
+      await fs.promises.unlink(tempFilePath);
     } catch (durationError) {
       console.warn('Failed to extract audio duration:', durationError);
       // Continue without duration - it's not critical for generation

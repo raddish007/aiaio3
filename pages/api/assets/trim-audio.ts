@@ -87,11 +87,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       ? originalScript.substring(0, 50) + '...' 
       : originalScript);
 
-    // Extract duration from trimmed audio
+    // Extract duration from trimmed audio using a temporary file
     let trimmedDuration: number | undefined;
     try {
-      trimmedDuration = await extractAudioDuration(audioBuffer);
+      const fs = await import('fs');
+      const path = await import('path');
+      const os = await import('os');
+      
+      // Create a temporary file
+      const tempDir = os.tmpdir();
+      const tempFilePath = path.join(tempDir, `temp_trimmed_audio_${Date.now()}.mp3`);
+      
+      // Write buffer to temp file
+      await fs.promises.writeFile(tempFilePath, audioBuffer);
+      
+      // Extract duration from temp file
+      trimmedDuration = await extractAudioDuration(tempFilePath);
       console.log(`Trimmed audio duration: ${trimmedDuration?.toFixed(2)} seconds`);
+      
+      // Clean up temp file
+      await fs.promises.unlink(tempFilePath);
     } catch (durationError) {
       console.warn('Failed to extract trimmed audio duration:', durationError);
       // Use calculated duration as fallback

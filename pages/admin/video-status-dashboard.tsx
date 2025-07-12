@@ -28,7 +28,7 @@ export default function VideoStatusDashboard() {
 
   const templateTypes = [
     { key: 'lullaby', name: 'Lullaby Videos', link: '/admin/lullaby-video-request' },
-    { key: 'letter-hunt', name: 'Letter Hunt Videos', link: '/letter-hunt-request' },
+    { key: 'letter-hunt', name: 'Letter Hunt Videos', link: '/admin/letter-hunt-request' },
     { key: 'name-video', name: 'Name Videos', link: '/test-name-video-simple' },
     { key: 'all', name: 'All Videos', link: null }
   ];
@@ -283,7 +283,7 @@ export default function VideoStatusDashboard() {
                 Create Lullaby Videos
               </Link>
               <Link
-                href="/letter-hunt-request"
+                href="/admin/letter-hunt-request"
                 className="bg-green-600 text-white px-6 py-3 rounded-md hover:bg-green-700 text-center"
               >
                 Create Letter Hunt Videos

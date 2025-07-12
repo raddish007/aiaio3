@@ -17,7 +17,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       assetType,
       artStyle = '2D Pixar Style',
       ageRange = '3-5',
-      aspectRatio = '16:9'
+      aspectRatio = '16:9',
+      customPrompt // New parameter for manual prompt override
     } = req.body;
 
     // Validate required fields
@@ -28,37 +29,44 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // Create specialized prompts based on asset type
-    let customPrompt = '';
+    let generatedPrompt = '';
     let customSafeZone = safeZone;
 
-    switch (assetType) {
-      case 'titleCard':
-        customPrompt = `Create a bright, colorful title card with the text "${childName}'s Letter Hunt!" in large playful letters, with friendly cartoon monsters around the edges, flat pastel background suitable for text overlay.`;
-        customSafeZone = 'center_safe';
-        break;
-      
-      case 'signImage':
-        customPrompt = `A bright, cartoon-style image of the letter ${targetLetter} on a green street sign with cute friendly monster characters around it. Flat pastel background, no additional text.`;
-        customSafeZone = 'slideshow';
-        break;
-      
-      case 'bookImage':
-        customPrompt = `A bright, cartoon-style image of the letter ${targetLetter} on a children's book cover with cute monster characters peeking out. Flat pastel background, no additional text.`;
-        customSafeZone = 'slideshow';
-        break;
-      
-      case 'groceryImage':
-        customPrompt = `A bright, cartoon-style image of the letter ${targetLetter} on a cereal box in a grocery store shelf, with friendly monster characters waving nearby. Flat pastel background, no additional text.`;
-        customSafeZone = 'slideshow';
-        break;
-      
-      case 'endingImage':
-        customPrompt = `A bright, cartoon-style image of the letter ${targetLetter} with friendly monster characters waving and smiling around it, flat pastel background, no additional text.`;
-        customSafeZone = 'slideshow';
-        break;
-      
-      default:
-        return res.status(400).json({ error: `Unknown asset type: ${assetType}` });
+    // If custom prompt is provided, use it directly
+    if (customPrompt) {
+      generatedPrompt = customPrompt;
+      console.log(`🎨 Using custom prompt for ${assetType}`);
+    } else {
+      // Generate prompt based on asset type
+      switch (assetType) {
+        case 'titleCard':
+          generatedPrompt = `Create a bright, colorful title card with the text "${childName}'s Letter Hunt!" in large playful letters, with friendly cartoon monsters around the edges, flat pastel background suitable for text overlay.`;
+          customSafeZone = 'center_safe';
+          break;
+        
+        case 'signImage':
+          generatedPrompt = `A bright, cartoon-style image of the letter ${targetLetter} on a green street sign with cute friendly monster characters around it. Flat pastel background, no additional text.`;
+          customSafeZone = 'slideshow';
+          break;
+        
+        case 'bookImage':
+          generatedPrompt = `A bright, cartoon-style image of the letter ${targetLetter} on a children's book cover with cute monster characters peeking out. Flat pastel background, no additional text.`;
+          customSafeZone = 'slideshow';
+          break;
+        
+        case 'groceryImage':
+          generatedPrompt = `A bright, cartoon-style image of the letter ${targetLetter} on a cereal box in a grocery store shelf, with friendly monster characters waving nearby. Flat pastel background, no additional text.`;
+          customSafeZone = 'slideshow';
+          break;
+        
+        case 'endingImage':
+          generatedPrompt = `A bright, cartoon-style image of the letter ${targetLetter} with friendly monster characters waving and smiling around it, flat pastel background, no additional text.`;
+          customSafeZone = 'slideshow';
+          break;
+        
+        default:
+          return res.status(400).json({ error: `Unknown asset type: ${assetType}` });
+      }
     }
 
     // For now, we'll use direct prompt generation rather than the full prompt engine
@@ -66,7 +74,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     console.log(`🎨 Generating ${assetType} for ${childName} - Letter ${targetLetter}`);
 
     const job = await FalAIService.generateImage({
-      prompt: customPrompt,
+      prompt: generatedPrompt,
       aspectRatio: aspectRatio as any
     });
 
@@ -85,7 +93,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         childName,
         targetLetter,
         assetType,
-        prompt: customPrompt,
+        prompt: generatedPrompt,
+        customPromptUsed: !!customPrompt,
         generatedAt: new Date().toISOString()
       }
     });

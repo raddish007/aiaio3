@@ -227,7 +227,7 @@ export default function AdminDashboard() {
             </button>
 
             <button
-              onClick={() => router.push('/letter-hunt-request')}
+              onClick={() => router.push('/admin/letter-hunt-request')}
               className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-200 border border-gray-200 hover:border-orange-300 group"
             >
               <div className="text-center">

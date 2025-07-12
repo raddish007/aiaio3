@@ -192,11 +192,11 @@ export default function Register() {
         <meta name="description" content="Create your AIAIO account and set up your child's profile" />
       </Head>
 
-      <div className="min-h-screen bg-gradient-primary">
+      <div className="min-h-screen bg-gradient-to-br from-brand-yellow/10 to-white">
         <div className="max-w-md mx-auto pt-12 px-4">
           {/* Header */}
           <div className="text-center mb-8">
-            <Link href="/" className="text-2xl font-bold text-primary-600">
+            <Link href="/" className="text-2xl font-bold text-brand-purple">
               AIAIO
             </Link>
             <h1 className="text-3xl font-bold text-gray-900 mt-4">
@@ -213,15 +213,15 @@ export default function Register() {
           {/* Progress indicator */}
           <div className="flex items-center justify-center mb-8">
             <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-              step === 'parent' ? 'bg-primary-600 text-white' : 'bg-green-500 text-white'
+              step === 'parent' ? 'bg-brand-orange text-white' : 'bg-green-500 text-white'
             }`}>
               ✓
             </div>
             <div className={`w-16 h-1 mx-2 ${
-              step === 'parent' ? 'bg-gray-300' : 'bg-primary-600'
+              step === 'parent' ? 'bg-gray-300' : 'bg-brand-orange'
             }`}></div>
             <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-              step === 'child' ? 'bg-primary-600 text-white' : 'bg-gray-300 text-gray-600'
+              step === 'child' ? 'bg-brand-orange text-white' : 'bg-gray-300 text-gray-600'
             }`}>
               2
             </div>
@@ -301,7 +301,7 @@ export default function Register() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-primary-600 text-white px-6 py-3 rounded-lg text-lg font-semibold hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:transform-none"
+                className="w-full bg-brand-orange text-white px-6 py-3 rounded-lg text-lg font-semibold hover:bg-brand-pink transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:transform-none"
               >
                 {loading ? 'Creating Account...' : 'Continue'}
               </button>
@@ -353,7 +353,7 @@ export default function Register() {
                       key={interest.value}
                       className={`cursor-pointer p-3 border rounded-lg text-center transition-colors ${
                         childData.primaryInterest === interest.value
-                          ? 'border-primary-600 bg-primary-50'
+                          ? 'border-brand-orange bg-brand-orange/10'
                           : 'border-gray-300 hover:border-gray-400'
                       }`}
                     >
@@ -387,7 +387,7 @@ export default function Register() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-primary-600 text-white px-6 py-3 rounded-lg text-lg font-semibold hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:transform-none"
+                className="w-full bg-brand-orange text-white px-6 py-3 rounded-lg text-lg font-semibold hover:bg-brand-pink transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:transform-none"
               >
                 {loading ? 'Setting Up Profile...' : 'Complete Setup'}
               </button>

@@ -60,9 +60,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         `)
         .in('status', ['completed', 'approved', 'published']);
 
-      // Filter by template type if specified
+      // Filter by template type if specified - include letter-hunt support
       if (templateType && templateType !== 'all') {
-        videoJobsQuery = videoJobsQuery.ilike('template_name', `%${templateType}%`);
+        if (templateType === 'letter-hunt') {
+          videoJobsQuery = videoJobsQuery.ilike('template_name', '%letter%hunt%');
+        } else {
+          videoJobsQuery = videoJobsQuery.ilike('template_name', `%${templateType}%`);
+        }
       }
 
       const { data, error: jobsError } = await videoJobsQuery;
@@ -92,9 +96,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       `)
       .in('approval_status', ['approved', 'pending_review']);
 
-    // Filter by template type if specified
+    // Filter by template type if specified - include letter-hunt support
     if (templateType && templateType !== 'all') {
-      approvedVideosQuery = approvedVideosQuery.eq('template_type', templateType);
+      if (templateType === 'letter-hunt') {
+        approvedVideosQuery = approvedVideosQuery.eq('template_type', 'letter-hunt');
+      } else {
+        approvedVideosQuery = approvedVideosQuery.eq('template_type', templateType);
+      }
     }
 
     const { data: approvedVideos, error: approvedError } = await approvedVideosQuery;
