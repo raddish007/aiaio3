@@ -332,7 +332,8 @@ export default function LetterHuntRequest() {
     });
 
     // Check for video assets that should exist but don't have theme matches
-    const requiredVideoAssets = ['introVideo', 'intro2Video', 'happyDanceVideo'];
+    // Only first 3 parts are included in current render: intro, search, (adventure removed for now)
+    const requiredVideoAssets = ['introVideo', 'intro2Video'];
     const videoErrors: Array<{
       type: string;
       error: string;
@@ -408,6 +409,7 @@ export default function LetterHuntRequest() {
       });
     }
 
+    // Create payload with only the 3-part assets that are actually used in render
     const newPayload: LetterHuntPayload = {
       childName: nameToUse.trim(),
       targetLetter: targetLetter.toUpperCase().trim(),
@@ -838,12 +840,23 @@ export default function LetterHuntRequest() {
       console.log('🎬 Submitting Letter Hunt video generation:', payload);
       
       // Clean asset objects to only include url and status (remove type, name, description, etc.)
+      // Only send assets for the first 3 parts of the video (title, intro, search)
+      const allowedAssetKeys = [
+        'titleCard', 'titleAudio',           // Part 1: Title (0-3s)
+        'introVideo', 'introAudio',          // Part 2: Letter + Theme (3-6s) 
+        'intro2Video', 'intro2Audio',        // Part 3: Search (6-9s)
+        'backgroundMusic'                    // Background music throughout
+      ];
+      
       const cleanedAssets: any = {};
       Object.entries(payload.assets).forEach(([key, asset]) => {
-        cleanedAssets[key] = {
-          url: asset.url || '',
-          status: asset.status
-        };
+        // Only include assets for the first 3 parts
+        if (allowedAssetKeys.includes(key)) {
+          cleanedAssets[key] = {
+            url: asset.url || '',
+            status: asset.status
+          };
+        }
       });
       
       console.log('🧹 Cleaned assets for API:', cleanedAssets);
@@ -898,8 +911,8 @@ Your video will be available for review in the admin dashboard once complete.`);
           }
         }
 
-        // Redirect to admin dashboard or video status page
-        router.push(`/admin/video-status-dashboard?highlight=${data.job_id}`);
+        // Stay on current page - no redirect
+        console.log('✅ Video generation started successfully - staying on current page');
         
       } else {
         throw new Error(data.error || 'Failed to start video generation');
@@ -1124,11 +1137,12 @@ Your video will be available for review in the admin dashboard once complete.`);
               marginBottom: 32 
             }}>
               <h3 style={{ margin: '0 0 8px 0', color: '#856404' }}>
-                🧪 Phase 2: Title Card + Title Audio
+                🧪 Phase 2: 3-Part Video Render (Title + Letter + Search)
               </h3>
               <p style={{ margin: 0, color: '#856404' }}>
-                Currently Title Card and Title Audio generation are required for video creation. 
-                Title Audio is now integrated into the Remotion template. Other assets are shown for interface testing but not required.
+                Currently rendering 3-part videos: Title Card + Title Audio are required. 
+                The render includes Part 1 (Title), Part 2 (Letter + Theme), and Part 3 (Search) only.
+                Happy Dance segment is not included in current renders.
               </p>
             </div>
 
@@ -1398,62 +1412,22 @@ Your video will be available for review in the admin dashboard once complete.`);
                 </div>
               </div>
 
-              {/* Part 4: Happy Dance (Coming Soon) */}
-              <div className="bg-white rounded-lg shadow-sm p-6">
+              {/* Part 4: Happy Dance (Not Included in Current Render) */}
+              <div className="bg-white rounded-lg shadow-sm p-6 opacity-60">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                  <span className="bg-yellow-100 text-yellow-800 text-sm font-medium px-2.5 py-0.5 rounded mr-3">Part 4</span>
-                  Happy Dance (Coming Soon)
+                  <span className="bg-gray-100 text-gray-600 text-sm font-medium px-2.5 py-0.5 rounded mr-3">Part 4</span>
+                  Happy Dance (Not Included in Current Render)
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Happy Dance Video */}
-                  <div className="border border-gray-200 rounded-lg p-4"
-                       style={{ background: payload.assets.happyDanceVideo.status === 'ready' ? '#f0f8f0' : 
-                                           payload.assets.happyDanceVideo.status === 'generating' ? '#fff8dc' : '#f9f9f9' }}>
-                    <h4 className="font-medium text-gray-900 mb-2 flex items-center">
-                      {payload.assets.happyDanceVideo.name}
-                      <span className={`ml-2 text-xs font-bold uppercase px-2 py-1 rounded ${
-                        payload.assets.happyDanceVideo.status === 'ready' ? 'bg-green-100 text-green-800' :
-                        payload.assets.happyDanceVideo.status === 'generating' ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-red-100 text-red-800'
-                      }`}>
-                        {payload.assets.happyDanceVideo.status}
-                      </span>
-                    </h4>
-                    <p className="text-sm text-gray-600 mb-3">{payload.assets.happyDanceVideo.description}</p>
-                    
-                    {payload.assets.happyDanceVideo.status === 'ready' && payload.assets.happyDanceVideo.url && (
-                      <div className="mb-3">
-                        <video controls className="w-full h-auto rounded border">
-                          <source src={payload.assets.happyDanceVideo.url} type="video/mp4" />
-                        </video>
-                      </div>
-                    )}
-                    
-                    <button
-                      onClick={() => generateAsset('happyDanceVideo')}
-                      disabled={payload.assets.happyDanceVideo.status === 'generating'}
-                      className={`px-4 py-2 rounded text-sm font-medium ${
-                        payload.assets.happyDanceVideo.status === 'ready' ? 'bg-green-600 text-white' :
-                        payload.assets.happyDanceVideo.status === 'generating' ? 'bg-yellow-500 text-white cursor-not-allowed' :
-                        'bg-blue-600 text-white hover:bg-blue-700'
-                      }`}
-                    >
-                      {payload.assets.happyDanceVideo.status === 'ready' ? 'Regenerate' :
-                       payload.assets.happyDanceVideo.status === 'generating' ? 'Generating...' : 
-                       'Generate Video'}
-                    </button>
-                  </div>
-                  
-                  {/* Happy Dance videos currently use existing audio */}
-                  <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
-                    <h4 className="font-medium text-gray-900 mb-2">Audio</h4>
-                    <p className="text-sm text-gray-600 mb-3">
-                      Happy Dance videos use the background music and existing audio tracks.
-                    </p>
-                    <div className="text-xs text-gray-500">
-                      ℹ️ No additional audio generation needed for this segment
-                    </div>
-                  </div>
+                <div className="text-sm text-gray-600 p-4 bg-gray-50 rounded border-2 border-dashed border-gray-300">
+                  <p className="mb-2">
+                    🚧 <strong>Development Note:</strong> Happy Dance segment is not included in the current 3-part video render.
+                  </p>
+                  <p className="mb-2">
+                    Current render includes: Title Card (0-3s) → Letter + Theme (3-6s) → Search (6-9s)
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    Happy Dance videos and audio assets are still created for future use but won't be sent to Remotion.
+                  </p>
                 </div>
               </div>
 

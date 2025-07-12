@@ -591,8 +591,8 @@ export const LetterHunt: React.FC<LetterHuntProps> = ({
         </AbsoluteFill>
       </Sequence>
 
-      {/* SEGMENT 5: On Books */}
-      <Sequence from={segments[4].start} durationInFrames={segments[4].duration}>
+      {/* SEGMENT 6: On Books */}
+      <Sequence from={segments[5].start} durationInFrames={segments[5].duration}>
         <AbsoluteFill style={{
           display: 'flex',
           alignItems: 'center',
@@ -634,8 +634,8 @@ export const LetterHunt: React.FC<LetterHuntProps> = ({
         </AbsoluteFill>
       </Sequence>
 
-      {/* SEGMENT 6: Grocery Store */}
-      <Sequence from={segments[5].start} durationInFrames={segments[5].duration}>
+      {/* SEGMENT 7: Grocery Store */}
+      <Sequence from={segments[6].start} durationInFrames={segments[6].duration}>
         <AbsoluteFill style={{
           display: 'flex',
           alignItems: 'center',
@@ -661,7 +661,7 @@ export const LetterHunt: React.FC<LetterHuntProps> = ({
               textAlign: 'center',
               textShadow: '4px 4px 8px rgba(0,0,0,0.8)',
               padding: '40px',
-              transform: `scale(${bounceIn(segments[5].start)})`
+              transform: `scale(${bounceIn(segments[6].start)})`
             }}>
               Even in the grocery store!
             </div>
@@ -677,17 +677,17 @@ export const LetterHunt: React.FC<LetterHuntProps> = ({
         </AbsoluteFill>
       </Sequence>
 
-      {/* SEGMENT 7: Happy Dance */}
-      <Sequence from={segments[6].start} durationInFrames={segments[6].duration}>
+      {/* SEGMENT 8: Happy Dance */}
+      <Sequence from={segments[7].start} durationInFrames={segments[7].duration}>
         <AbsoluteFill style={{ 
-          opacity: crossFade(segments[6].start, segments[6].start + segments[6].duration)
+          opacity: crossFade(segments[7].start, segments[7].start + segments[7].duration)
         }}>
           {assets.happyDanceVideo.status === 'ready' && assets.happyDanceVideo.url ? (
             <div style={{
               position: 'relative',
               width: '100%',
               height: '100%',
-              transform: `scale(${videoScale(segments[6].start, 10)})`,
+              transform: `scale(${videoScale(segments[7].start, 10)})`,
               filter: 'brightness(1.1) contrast(1.15) saturate(1.1)', // More vibrant for happy dance
             }}>
               <Video 
@@ -726,7 +726,7 @@ export const LetterHunt: React.FC<LetterHuntProps> = ({
                 textAlign: 'center',
                 textShadow: '4px 4px 8px rgba(0,0,0,0.8)',
                 padding: '40px',
-                transform: `scale(${bounceIn(segments[6].start)})`
+                transform: `scale(${bounceIn(segments[7].start)})`
               }}>
                 And when you find your letter, I want you to do a little happy dance!
               </div>
@@ -743,13 +743,13 @@ export const LetterHunt: React.FC<LetterHuntProps> = ({
         </AbsoluteFill>
       </Sequence>
 
-      {/* SEGMENT 8: Ending */}
-      <Sequence from={segments[7].start} durationInFrames={segments[7].duration}>
+      {/* SEGMENT 9: Ending */}
+      <Sequence from={segments[8].start} durationInFrames={segments[8].duration}>
         <AbsoluteFill style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          opacity: crossFade(segments[7].start, segments[7].start + segments[7].duration)
+          opacity: crossFade(segments[8].start, segments[8].start + segments[8].duration)
         }}>
           {assets.endingImage.status === 'ready' && assets.endingImage.url ? (
             <Img 
@@ -758,7 +758,7 @@ export const LetterHunt: React.FC<LetterHuntProps> = ({
                 width: '100%',
                 height: '100%',
                 objectFit: 'cover',
-                transform: `scale(${bounceIn(segments[7].start)})`,
+                transform: `scale(${bounceIn(segments[8].start)})`,
                 filter: 'brightness(1.05) contrast(1.05)'
               }}
             />
@@ -770,7 +770,7 @@ export const LetterHunt: React.FC<LetterHuntProps> = ({
               textAlign: 'center',
               textShadow: '4px 4px 8px rgba(0,0,0,0.8)',
               padding: '40px',
-              transform: `scale(${bounceIn(segments[7].start)})`
+              transform: `scale(${bounceIn(segments[8].start)})`
             }}>
               Have fun finding the letter {targetLetter}, {childName}!
             </div>

@@ -27,22 +27,43 @@ const uploadAssetToS3 = async (assetData: Buffer, fileName: string, contentType:
 };
 
 interface LetterHuntAssets {
+  // Part 1: Title (0-3s)
   titleCard: { url: string; status: 'missing' | 'generating' | 'ready' };
-  introVideo: { url: string; status: 'missing' | 'generating' | 'ready' };
-  intro2Video: { url: string; status: 'missing' | 'generating' | 'ready' };
-  signImage: { url: string; status: 'missing' | 'generating' | 'ready' };
-  bookImage: { url: string; status: 'missing' | 'generating' | 'ready' };
-  groceryImage: { url: string; status: 'missing' | 'generating' | 'ready' };
-  happyDanceVideo: { url: string; status: 'missing' | 'generating' | 'ready' };
-  endingImage: { url: string; status: 'missing' | 'generating' | 'ready' };
   titleAudio: { url: string; status: 'missing' | 'generating' | 'ready' };
+  
+  // Part 2: Letter + Theme (3-6s)
+  introVideo: { url: string; status: 'missing' | 'generating' | 'ready' };
   introAudio: { url: string; status: 'missing' | 'generating' | 'ready' };
+  
+  // Part 3: Search (6-9s)
+  intro2Video: { url: string; status: 'missing' | 'generating' | 'ready' };
   intro2Audio: { url: string; status: 'missing' | 'generating' | 'ready' };
+  
+  // Part 4: Intro 3 (9-12s)
+  intro3Video: { url: string; status: 'missing' | 'generating' | 'ready' };
+  intro3Audio: { url: string; status: 'missing' | 'generating' | 'ready' };
+  
+  // Part 5: Sign (12-15s)
+  signImage: { url: string; status: 'missing' | 'generating' | 'ready' };
   signAudio: { url: string; status: 'missing' | 'generating' | 'ready' };
+  
+  // Part 6: Book (15-18s)
+  bookImage: { url: string; status: 'missing' | 'generating' | 'ready' };
   bookAudio: { url: string; status: 'missing' | 'generating' | 'ready' };
+  
+  // Part 7: Grocery (18-21s)
+  groceryImage: { url: string; status: 'missing' | 'generating' | 'ready' };
   groceryAudio: { url: string; status: 'missing' | 'generating' | 'ready' };
+  
+  // Part 8: Happy Dance (21-24s)
+  happyDanceVideo: { url: string; status: 'missing' | 'generating' | 'ready' };
   happyDanceAudio: { url: string; status: 'missing' | 'generating' | 'ready' };
+  
+  // Part 9: Ending (24-27s)
+  endingImage: { url: string; status: 'missing' | 'generating' | 'ready' };
   endingAudio: { url: string; status: 'missing' | 'generating' | 'ready' };
+  
+  // Background music throughout
   backgroundMusic: { url: string; status: 'missing' | 'generating' | 'ready' };
 }
 
@@ -88,9 +109,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(500).json({ error: 'Database admin client not available' });
     }
 
-    // Calculate video duration: 8 segments * 3 seconds each = 24 seconds
-    const durationInSeconds = 24;
-    const totalSegments = 8;
+    // Calculate video duration: 9 segments with different durations
+    // titleCard(3s) + intro(5.5s) + intro2(3s) + intro3(3s) + sign(3s) + book(3s) + grocery(3s) + happyDance(3s) + ending(3s) = 29.5 seconds
+    const durationInSeconds = 29.5;
+    const totalSegments = 9;
 
     console.log(`🎬 Letter Hunt generation for "${childName}" (Letter ${targetLetter}):`, {
       childName,
@@ -101,24 +123,40 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       durationInSeconds
     });
 
-    // Validate assets structure
-    const requiredAssetKeys = [
-      'titleCard', 'introVideo', 'intro2Video', 'signImage', 'bookImage', 
-      'groceryImage', 'happyDanceVideo', 'endingImage', 'titleAudio', 
-      'introAudio', 'intro2Audio', 'signAudio', 'bookAudio', 'groceryAudio', 
-      'happyDanceAudio', 'endingAudio', 'backgroundMusic'
+    // Define all 19 assets that the Remotion template expects
+    const allAssetKeys = [
+      'titleCard', 'titleAudio',           // Part 1: Title (0-3s)
+      'introVideo', 'introAudio',          // Part 2: Letter + Theme (3-6s)
+      'intro2Video', 'intro2Audio',        // Part 3: Search (6-9s)
+      'intro3Video', 'intro3Audio',        // Part 4: Intro 3 (9-12s)
+      'signImage', 'signAudio',            // Part 5: Sign (12-15s)
+      'bookImage', 'bookAudio',            // Part 6: Book (15-18s)
+      'groceryImage', 'groceryAudio',      // Part 7: Grocery (18-21s)
+      'happyDanceVideo', 'happyDanceAudio', // Part 8: Happy Dance (21-24s)
+      'endingImage', 'endingAudio',        // Part 9: Ending (24-27s)
+      'backgroundMusic'                    // Background music throughout
+    ];
+
+    // Define which assets are currently being generated (first 3 parts + background music)
+    const currentAssetKeys = [
+      'titleCard', 'titleAudio',           // Part 1: Title (0-3s)
+      'introVideo', 'introAudio',          // Part 2: Letter + Theme (3-6s)
+      'intro2Video', 'intro2Audio',        // Part 3: Search (6-9s)  
+      'backgroundMusic'                    // Background music throughout
     ];
 
     const processedAssets: LetterHuntAssets = {} as LetterHuntAssets;
     let readyAssetCount = 0;
 
-    // Process and validate each asset
-    for (const key of requiredAssetKeys) {
+    // Process all 19 assets - provide fallbacks for missing ones
+    for (const key of allAssetKeys) {
       const asset = assets?.[key];
       if (asset && asset.url && asset.status === 'ready') {
         processedAssets[key as keyof LetterHuntAssets] = asset;
         readyAssetCount++;
       } else {
+        // For assets not currently being generated, always set as missing
+        // For current assets, set as missing if not provided
         processedAssets[key as keyof LetterHuntAssets] = { 
           url: '', 
           status: 'missing' as const 
@@ -127,10 +165,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     console.log(`📦 Asset validation:`, {
-      totalRequired: requiredAssetKeys.length,
+      totalRequired: allAssetKeys.length,
       readyAssets: readyAssetCount,
-      readyPercentage: Math.round((readyAssetCount / requiredAssetKeys.length) * 100),
-      missingAssets: requiredAssetKeys.filter(key => 
+      readyPercentage: Math.round((readyAssetCount / allAssetKeys.length) * 100),
+      missingAssets: allAssetKeys.filter((key: string) => 
         !assets?.[key]?.url || assets[key].status !== 'ready'
       )
     });
@@ -178,7 +216,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const result = await renderMediaOnLambda({
         region: (process.env.AWS_REGION as any) || 'us-east-1',
         functionName: process.env.AWS_LAMBDA_REMOTION_FUNCTION || 'remotion-render-4-0-322-mem2048mb-disk2048mb-120sec',
-        serveUrl: process.env.REMOTION_SITE_URL || 'https://remotionlambda-useast1-3pwoq46nsa.s3.us-east-1.amazonaws.com/sites/letter-hunt-updated/index.html',
+        serveUrl: process.env.REMOTION_SITE_URL || 'https://remotionlambda-useast1-3pwoq46nsa.s3.us-east-1.amazonaws.com/sites/letter-hunt-fixed/index.html',
         composition: 'LetterHunt',
         inputProps,
         codec: 'h264',
@@ -226,8 +264,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             target_letter: targetLetter,
             asset_completeness: {
               ready_count: readyAssetCount,
-              total_count: requiredAssetKeys.length,
-              completion_percentage: Math.round((readyAssetCount / requiredAssetKeys.length) * 100)
+              total_count: allAssetKeys.length,
+              completion_percentage: Math.round((readyAssetCount / allAssetKeys.length) * 100)
             }
           }
         })
@@ -241,12 +279,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
         // Create moderation queue record
         const { data: moderationQueueRecord, error: moderationQueueError } = await supabaseAdmin
-          .from('moderation_queue')
+          .from('video_moderation_queue')
           .insert({
-            approved_video_id: approvedVideoRecord.id,
-            priority: 'normal',
-            status: 'pending',
-            created_at: new Date().toISOString()
+            child_approved_video_id: approvedVideoRecord.id,
+            assigned_to: null,
+            priority: 1,
+            status: 'pending_review',
+            review_notes: null
           })
           .select()
           .single();
@@ -268,9 +307,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         duration_seconds: durationInSeconds,
         asset_summary: {
           ready_assets: readyAssetCount,
-          total_assets: requiredAssetKeys.length,
-          completion_percentage: Math.round((readyAssetCount / requiredAssetKeys.length) * 100),
-          missing_assets: requiredAssetKeys.filter(key => 
+          total_assets: allAssetKeys.length,
+          completion_percentage: Math.round((readyAssetCount / allAssetKeys.length) * 100),
+          missing_assets: allAssetKeys.filter((key: string) => 
             !assets?.[key]?.url || assets[key].status !== 'ready'
           )
         },
@@ -278,13 +317,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           total: totalSegments,
           segments: [
             { name: 'titleCard', duration: 3, order: 1 },
-            { name: 'intro', duration: 3, order: 2 },
+            { name: 'intro', duration: 5.5, order: 2 },
             { name: 'intro2', duration: 3, order: 3 },
-            { name: 'sign', duration: 3, order: 4 },
-            { name: 'book', duration: 3, order: 5 },
-            { name: 'grocery', duration: 3, order: 6 },
-            { name: 'happyDance', duration: 3, order: 7 },
-            { name: 'ending', duration: 3, order: 8 }
+            { name: 'intro3', duration: 3, order: 4 },
+            { name: 'sign', duration: 3, order: 5 },
+            { name: 'book', duration: 3, order: 6 },
+            { name: 'grocery', duration: 3, order: 7 },
+            { name: 'happyDance', duration: 3, order: 8 },
+            { name: 'ending', duration: 3, order: 9 }
           ]
         }
       });

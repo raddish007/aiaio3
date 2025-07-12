@@ -145,7 +145,7 @@ export const RemotionRoot: React.FC = () => {
       <Composition
         id="LetterHunt"
         component={LetterHunt}
-        durationInFrames={795} // 26.5 seconds at 30fps (7 segments * 3 seconds + 1 intro segment * 5.5 seconds)
+        durationInFrames={885} // 29.5 seconds at 30fps (9 segments with different durations)
         fps={30}
         width={1920}
         height={1080}
