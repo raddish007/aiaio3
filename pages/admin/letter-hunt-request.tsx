@@ -231,7 +231,7 @@ export default function LetterHuntRequest() {
         titleAudio: {
           type: 'audio',
           name: 'Title Audio',
-          description: `"${nameToUse}'s letter hunt!"`,
+          description: `"Letter Hunt for ${nameToUse}"`,
           status: 'missing'
         },
         introAudio: {
@@ -342,7 +342,7 @@ export default function LetterHuntRequest() {
         // Map each audio asset to its script
         switch (assetKey) {
           case 'titleAudio':
-            script = `Letter hunt for ${childName}!`;
+            script = `Letter Hunt for ${childName}`;
             break;
           case 'introAudio':
             script = `Today we're looking for the letter ${targetLetter}!`;
