@@ -178,7 +178,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const result = await renderMediaOnLambda({
         region: (process.env.AWS_REGION as any) || 'us-east-1',
         functionName: process.env.AWS_LAMBDA_REMOTION_FUNCTION || 'remotion-render-4-0-322-mem2048mb-disk2048mb-120sec',
-        serveUrl: process.env.REMOTION_SITE_URL || 'https://remotionlambda-useast1-3pwoq46nsa.s3.us-east-1.amazonaws.com/sites/aiaio3-comprehensive/index.html',
+        serveUrl: process.env.REMOTION_SITE_URL || 'https://remotionlambda-useast1-3pwoq46nsa.s3.us-east-1.amazonaws.com/sites/letter-hunt-updated/index.html',
         composition: 'LetterHunt',
         inputProps,
         codec: 'h264',

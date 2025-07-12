@@ -459,7 +459,12 @@ export default function LetterHuntRequest() {
     if (!payload) return false;
     // For Letter Hunt, we don't require child selection in test mode
     // The API handles invalid/missing child IDs gracefully by skipping moderation records
-    return payload.assets.titleCard.status === 'ready';
+    
+    // Phase 2: Require Title Card AND Title Audio for video generation
+    // This enables integration of Title Audio into the Remotion template
+    return payload.assets.titleCard.status === 'ready' && 
+           payload.assets.titleAudio.status === 'ready';
+    
     // TODO: Later enable all assets: return Object.values(payload.assets).every(asset => asset.status === 'ready');
   };
 
@@ -756,11 +761,11 @@ Your video will be available for review in the admin dashboard once complete.`);
               marginBottom: 32 
             }}>
               <h3 style={{ margin: '0 0 8px 0', color: '#856404' }}>
-                🧪 Test Mode: Title Card Only
+                🧪 Phase 2: Title Card + Title Audio
               </h3>
               <p style={{ margin: 0, color: '#856404' }}>
-                Currently only Title Card generation is required for video creation. 
-                Other assets are shown for interface testing but not required.
+                Currently Title Card and Title Audio generation are required for video creation. 
+                Title Audio is now integrated into the Remotion template. Other assets are shown for interface testing but not required.
               </p>
             </div>
 
@@ -1079,11 +1084,17 @@ Your video will be available for review in the admin dashboard once complete.`);
               
               {/* Asset Status Summary */}
               <div className="mb-3 p-2 bg-white border border-blue-300 rounded text-sm">
-                <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="grid grid-cols-3 gap-2 text-xs">
                   <div className="flex justify-between">
                     <span className="text-gray-600">Title Card:</span>
                     <span className={payload.assets.titleCard.status === 'ready' ? 'text-green-600' : 'text-yellow-600'}>
                       {payload.assets.titleCard.status === 'ready' ? '✅ Ready' : '⚠️ Not ready'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Title Audio:</span>
+                    <span className={payload.assets.titleAudio.status === 'ready' ? 'text-green-600' : 'text-yellow-600'}>
+                      {payload.assets.titleAudio.status === 'ready' ? '✅ Ready' : '⚠️ Not ready'}
                     </span>
                   </div>
                   <div className="flex justify-between">
@@ -1133,7 +1144,7 @@ Your video will be available for review in the admin dashboard once complete.`);
               >
                 {loading ? 'Submitting...' : 
                  canSubmitVideo() ? 'Generate Letter Hunt Video!' : 
-                 'Generate Title Card to Enable Video Generation (Test Mode)'}
+                 'Generate Title Card + Title Audio to Enable Video Generation'}
               </button>
             </div>
           </div>

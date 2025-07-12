@@ -149,7 +149,7 @@ export const LetterHunt: React.FC<LetterHuntProps> = ({
               }}
             />
           )}
-          
+
           {/* Fallback Title Text */}
           {(!assets.titleCard.url || assets.titleCard.status !== 'ready') && (
             <div style={{
@@ -164,13 +164,37 @@ export const LetterHunt: React.FC<LetterHuntProps> = ({
               {childName}'s Letter Hunt!
             </div>
           )}
-
-          {/* Title Audio */}
-          {assets.titleAudio.status === 'ready' && assets.titleAudio.url && (
-            <Audio src={assets.titleAudio.url} />
-          )}
         </AbsoluteFill>
       </Sequence>
+
+      {/* Title Audio - starts 1 second into title section, plays for up to 2 seconds */}
+      {assets.titleAudio?.status === 'ready' && assets.titleAudio?.url && (
+        <Sequence 
+          from={segments[0].start + fps} // Start 1 second into title section
+          durationInFrames={Math.min(segments[0].duration - fps, 2 * fps)} // Play for remaining title duration or 2 seconds max
+        >
+          <Audio 
+            src={assets.titleAudio.url} 
+            volume={(frame) => {
+              const fadeFrames = fps * 0.3; // 0.3 second fade
+              const sequenceDuration = Math.min(segments[0].duration - fps, 2 * fps);
+              
+              // Fade in at start
+              if (frame < fadeFrames) {
+                return 0.9 * (frame / fadeFrames);
+              }
+              
+              // Fade out at end
+              if (frame > sequenceDuration - fadeFrames) {
+                return 0.9 * ((sequenceDuration - frame) / fadeFrames);
+              }
+              
+              // Normal volume in between
+              return 0.9;
+            }}
+          />
+        </Sequence>
+      )}
 
       {/* SEGMENT 2: Intro Video */}
       <Sequence from={segments[1].start} durationInFrames={segments[1].duration}>
