@@ -119,8 +119,9 @@ export default function LetterHuntRequest() {
 
     console.log(`🔍 Checking for existing Letter Hunt assets for ${nameToUse} (Letter ${targetLetter})`);
 
-    // Check for existing Letter Hunt assets for this child and letter (approved OR pending status)
-    const { data: existingAssets, error } = await supabase
+    // Check for existing Letter Hunt assets - both specific and generic
+    // 1. Assets specific to this child and letter
+    const { data: specificAssets, error: specificError } = await supabase
       .from('assets')
       .select('*')
       .in('status', ['approved', 'pending'])
@@ -128,11 +129,53 @@ export default function LetterHuntRequest() {
       .eq('metadata->>child_name', nameToUse)
       .eq('metadata->>targetLetter', targetLetter);
 
+    // 2. Letter Hunt video assets that match the target letter (regardless of child name)
+    const { data: letterSpecificAssets, error: letterError } = await supabase
+      .from('assets')
+      .select('*')
+      .in('status', ['approved', 'pending'])
+      .eq('metadata->>template', 'letter-hunt')
+      .eq('type', 'video')
+      .eq('metadata->>targetLetter', targetLetter);
+
+    // 3. Generic Letter Hunt video assets (not tied to specific child/letter)
+    const { data: genericVideoAssets, error: genericError } = await supabase
+      .from('assets')
+      .select('*')
+      .in('status', ['approved', 'pending'])
+      .eq('metadata->>template', 'letter-hunt')
+      .eq('type', 'video')
+      .is('metadata->>child_name', null)
+      .is('metadata->>targetLetter', null);
+
+    // Combine all sets of assets, prioritizing specific > letter-specific > generic
+    const existingAssets = [
+      ...(specificAssets || []),
+      ...(letterSpecificAssets || []),
+      ...(genericVideoAssets || [])
+    ];
+    const error = specificError || letterError || genericError;
+
     if (error) {
       console.error('Error checking for existing assets:', error);
     }
 
     console.log(`📦 Found ${existingAssets?.length || 0} existing Letter Hunt assets:`, existingAssets);
+    
+    // Enhanced logging for video asset debugging
+    existingAssets?.forEach(asset => {
+      if (asset.type === 'video') {
+        console.log(`🎥 Video Asset Debug:`, {
+          id: asset.id,
+          targetLetter: asset.metadata?.targetLetter,
+          theme: asset.metadata?.theme,
+          section: asset.metadata?.section,
+          category: asset.metadata?.category,
+          child_name: asset.metadata?.child_name,
+          searchingFor: `Letter ${targetLetter}, Theme ${themeToUse}`
+        });
+      }
+    });
 
     // Create mapping of existing assets by imageType (for images), assetPurpose (for audio), or videoType (for videos)
     const existingByType = new Map();
@@ -175,13 +218,22 @@ export default function LetterHuntRequest() {
       }
       
       if (assetKey) {
-        existingByType.set(assetKey, {
-          url: asset.file_url,
-          status: 'ready',
-          assetId: asset.id,
-          generatedAt: asset.created_at
-        });
-        console.log(`✅ Found existing asset: ${assetKey} (${asset.type}) - ${asset.file_url}`);
+        // For video assets, also check if theme matches (prefer matching theme)
+        const existingAsset = existingByType.get(assetKey);
+        const shouldUseThisAsset = !existingAsset || 
+          (asset.type === 'video' && asset.metadata?.theme?.toLowerCase() === themeToUse.toLowerCase());
+        
+        if (shouldUseThisAsset) {
+          existingByType.set(assetKey, {
+            url: asset.file_url,
+            status: 'ready',
+            assetId: asset.id,
+            generatedAt: asset.created_at
+          });
+          console.log(`✅ Found existing asset: ${assetKey} (${asset.type}) - ${asset.file_url}${asset.metadata?.theme ? ` [Theme: ${asset.metadata.theme}]` : ''}`);
+        } else {
+          console.log(`⚠️ Skipping asset ${assetKey} - theme mismatch: ${asset.metadata?.theme} vs ${themeToUse}`);
+        }
       } else {
         console.log(`⚠️ Asset missing key field:`, {
           id: asset.id,

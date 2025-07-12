@@ -170,7 +170,11 @@ export const RemotionRoot: React.FC = () => {
             bookAudio: { url: '', status: 'missing' as const },
             groceryAudio: { url: '', status: 'missing' as const },
             happyDanceAudio: { url: '', status: 'missing' as const },
-            endingAudio: { url: '', status: 'missing' as const }
+            endingAudio: { url: '', status: 'missing' as const },
+            backgroundMusic: { 
+              url: 'https://etshvxrgbssginmzsczo.supabase.co/storage/v1/object/public/assets/assets/audio/1752340926893.MP3', 
+              status: 'ready' as const 
+            }
           }
         }}
         calculateMetadata={({ props }) => {
