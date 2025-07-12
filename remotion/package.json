@@ -1,0 +1,27 @@
+{
+  "name": "aiaio-remotion",
+  "version": "1.0.0",
+  "description": "Remotion templates for AIAIO platform",
+  "scripts": {
+    "start": "remotion preview",
+    "build": "remotion bundle",
+    "render": "remotion render",
+    "deploy": "remotion lambda functions deploy",
+    "preview": "remotion preview"
+  },
+  "repository": {},
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@remotion/cli": "^4.0.322",
+    "@remotion/lambda": "^4.0.322",
+    "@remotion/player": "^4.0.322",
+    "@remotion/renderer": "^4.0.322",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "remotion": "^4.0.322"
+  },
+  "devDependencies": {
+    "@types/react": "^18.0.26",
+    "typescript": "^4.9.4"
+  }
+}

@@ -1,15 +1,15 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '@/lib/supabase';
 import { User } from '@supabase/supabase-js';
 import { getThemeCategories, getSafeZonesForTemplate } from '@/lib/prompt-engine-client';
 import AdminHeader from '@/components/AdminHeader';
 
-interface PromptGeneratorForm {
+interface PromptForm {
   childName: string;
   theme: string;
   ageRange: string;
-  template: 'lullaby' | 'name-video' | 'name-show' | 'educational';
+  template: 'lullaby' | 'name-video' | 'name-show' | 'educational' | 'letter-hunt';
   personalization: 'general' | 'personalized';
   safeZones: string[];
   promptCount: number;
@@ -17,6 +17,8 @@ interface PromptGeneratorForm {
   artStyle: string;
   customArtStyle: string;
   additionalContext: string;
+  assetType?: string; // Keep for backward compatibility
+  imageType?: 'titleCard' | 'signImage' | 'bookImage' | 'groceryImage' | 'endingImage' | 'characterImage' | 'sceneImage';
 }
 
 interface GeneratedPrompts {
@@ -37,7 +39,7 @@ interface GeneratedPrompts {
 
 export default function PromptGeneratorPage() {
   const [user, setUser] = useState<User | null>(null);
-  const [form, setForm] = useState<PromptGeneratorForm>({
+  const [form, setForm] = useState<PromptForm>({
     childName: '',
     theme: '',
     ageRange: '2-4',
@@ -48,7 +50,9 @@ export default function PromptGeneratorPage() {
     aspectRatio: '16:9',
     artStyle: '2D Pixar Style',
     customArtStyle: '',
-    additionalContext: ''
+    additionalContext: '',
+    assetType: undefined,
+    imageType: undefined
   });
 
   const [generatedPrompts, setGeneratedPrompts] = useState<GeneratedPrompts | null>(null);
@@ -61,6 +65,54 @@ export default function PromptGeneratorPage() {
   useEffect(() => {
     checkUser();
   }, []);
+
+  // Handle URL parameters for pre-filling form (e.g., from Letter Hunt page)
+  useEffect(() => {
+    if (router.isReady) {
+      const { query } = router;
+      
+      if (query.templateType === 'letter-hunt') {
+        // For Letter Hunt, determine proper safe zone based on image type
+        const imageType = (query.assetType as string) || 'titleCard';
+        let safeZone = 'center_safe'; // Default safe zone
+        
+        // Title cards can use all_ok since they're designed for full composition
+        if (imageType === 'titleCard') {
+          safeZone = 'all_ok';
+        }
+        // Other image types might need different safe zones based on their requirements
+        else if (imageType === 'signImage' || imageType === 'bookImage' || imageType === 'groceryImage') {
+          safeZone = 'center_safe'; // Keep important elements centered for readability
+        }
+        else if (imageType === 'endingImage') {
+          safeZone = 'all_ok'; // Celebratory ending can use full composition
+        }
+        
+        setForm(prev => ({
+          ...prev,
+          template: 'letter-hunt',
+          childName: (query.childName as string) || '',
+          theme: (query.theme as string) || 'monsters',
+          ageRange: (query.ageRange as string) || '3-5',
+          safeZones: [safeZone],
+          aspectRatio: (query.aspectRatio as '16:9' | '9:16') || '16:9',
+          artStyle: (query.artStyle as string) || '2D Pixar Style',
+          personalization: 'personalized',
+          additionalContext: `Target letter: ${(query.targetLetter as string) || 'A'}`,
+          imageType: imageType as any, // Use the new imageType field
+          assetType: imageType // Keep for backward compatibility
+        }));
+        
+        // Store Letter Hunt specific parameters for return
+        if (query.returnUrl && query.assetKey) {
+          sessionStorage.setItem('letterHuntReturnUrl', query.returnUrl as string);
+          sessionStorage.setItem('letterHuntAssetKey', query.assetKey as string);
+          sessionStorage.setItem('letterHuntTargetLetter', (query.targetLetter as string) || '');
+          sessionStorage.setItem('letterHuntImageType', imageType);
+        }
+      }
+    }
+  }, [router.isReady, router.query]);
 
   const checkUser = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -90,9 +142,9 @@ export default function PromptGeneratorPage() {
     setError(null);
     setSuccess(null);
 
-    // Validate name for name-show template
-    if (form.template === 'name-show' && !form.childName.trim()) {
-      setError('Child\'s name is required for Name Show template');
+    // Validate name for name-show and letter-hunt templates
+    if ((form.template === 'name-show' || form.template === 'letter-hunt') && !form.childName.trim()) {
+      setError(`Child's name is required for ${form.template === 'name-show' ? 'Name Show' : 'Letter Hunt'} template`);
       setLoading(false);
       return;
     }
@@ -124,13 +176,14 @@ export default function PromptGeneratorPage() {
     }
   };
 
-  const handleTemplateChange = (template: 'lullaby' | 'name-video' | 'name-show' | 'educational') => {
+  const handleTemplateChange = (template: 'lullaby' | 'name-video' | 'name-show' | 'educational' | 'letter-hunt') => {
     setForm(prev => ({
       ...prev,
       template,
-      safeZones: template === 'lullaby' ? ['slideshow'] : ['center_safe'],
-      // Automatically set personalization to 'personalized' for name-show template
-      personalization: template === 'name-show' ? 'personalized' : prev.personalization
+      safeZones: template === 'lullaby' ? ['slideshow'] : 
+                 template === 'letter-hunt' ? ['all_ok'] : ['center_safe'],
+      // Automatically set personalization to 'personalized' for name-show and letter-hunt templates
+      personalization: (template === 'name-show' || template === 'letter-hunt') ? 'personalized' : prev.personalization
     }));
   };
 
@@ -151,6 +204,104 @@ export default function PromptGeneratorPage() {
         { value: 'not_applicable', label: 'Not Applicable' }
       ];
     }
+  };
+
+  // Generate image for Letter Hunt and return to Letter Hunt page
+  const generateImageForLetterHunt = async (prompt: string) => {
+    const returnUrl = sessionStorage.getItem('letterHuntReturnUrl');
+    const assetKey = sessionStorage.getItem('letterHuntAssetKey');
+    
+    if (!returnUrl || !assetKey) {
+      alert('Missing Letter Hunt return information. Please try again from the Letter Hunt page.');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      
+      // Call the image generation API
+      const response = await fetch('/api/assets/generate-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          templateType: 'letter-hunt',
+          safeZone: form.safeZones[0] || 'center_safe',
+          theme: form.theme,
+          childName: form.childName,
+          targetLetter: sessionStorage.getItem('letterHuntTargetLetter'),
+          imageType: sessionStorage.getItem('letterHuntImageType'),
+          assetType: sessionStorage.getItem('letterHuntImageType'), // Keep for backward compatibility
+          artStyle: form.artStyle,
+          ageRange: form.ageRange,
+          aspectRatio: form.aspectRatio,
+          customPrompt: prompt // Use the selected prompt
+        })
+      });
+
+      const data = await response.json();
+      
+      if (data.success && data.imageUrl) {
+        // For Letter Hunt, submit the image directly instead of redirecting
+        if (returnUrl && assetKey) {
+          try {
+            // Submit the generated image to update the Letter Hunt asset
+            const submitResponse = await fetch('/api/letter-hunt/update-asset', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                assetKey: assetKey,
+                imageUrl: data.imageUrl,
+                imageType: sessionStorage.getItem('letterHuntImageType'),
+                assetType: sessionStorage.getItem('letterHuntImageType'), // Keep for backward compatibility
+                childName: form.childName,
+                targetLetter: sessionStorage.getItem('letterHuntTargetLetter')
+              })
+            });
+
+            const submitData = await submitResponse.json();
+            
+            if (submitData.success) {
+              setSuccess(`✅ Image generated and submitted successfully! You can generate more images or return to Letter Hunt.`);
+            } else {
+              throw new Error(submitData.error || 'Failed to submit image to Letter Hunt');
+            }
+          } catch (submitError) {
+            console.error('Error submitting to Letter Hunt:', submitError);
+            setError(`Image generated successfully, but failed to submit to Letter Hunt: ${submitError instanceof Error ? submitError.message : 'Unknown error'}`);
+          }
+        } else {
+          // Regular success for non-Letter Hunt workflows
+          setSuccess(`Image generated successfully! URL: ${data.imageUrl}`);
+        }
+        
+      } else {
+        throw new Error(data.error || 'Failed to generate image');
+      }
+    } catch (error) {
+      console.error('Error generating image for Letter Hunt:', error);
+      alert(`Failed to generate image: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Navigate to image generator with context
+  const navigateToImageGenerator = (prompt: string, metadata: any, safeZone: string) => {
+    const params = new URLSearchParams({
+      prompt: prompt,
+      template: metadata.template,
+      theme: metadata.theme,
+      ageRange: metadata.ageRange,
+      aspectRatio: metadata.aspectRatio || '16:9',
+      artStyle: metadata.artStyle || '2D Pixar Style',
+      safeZone: safeZone,
+      childName: form.childName || '',
+      ...(metadata.imageType && { imageType: metadata.imageType }),
+      ...(form.additionalContext && { additionalContext: form.additionalContext }),
+      ...(sessionStorage.getItem('letterHuntTargetLetter') && { targetLetter: sessionStorage.getItem('letterHuntTargetLetter')! })
+    });
+
+    router.push(`/admin/ai-generator?${params.toString()}`);
   };
 
   if (!user) {
@@ -245,8 +396,52 @@ export default function PromptGeneratorPage() {
                     <div className="font-medium">Educational</div>
                     <div className="text-sm text-gray-600">Learning-focused content</div>
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => handleTemplateChange('letter-hunt')}
+                    className={`p-4 border rounded-lg text-left ${
+                      form.template === 'letter-hunt'
+                        ? 'border-blue-500 bg-blue-50'
+                        : 'border-gray-300 hover:border-gray-400'
+                    }`}
+                  >
+                    <div className="font-medium">Letter Hunt</div>
+                    <div className="text-sm text-gray-600">Interactive letter finding adventures</div>
+                  </button>
                 </div>
               </div>
+
+              {/* Image Type Selector for Letter Hunt */}
+              {form.template === 'letter-hunt' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Image Type *
+                  </label>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    {[
+                      { value: 'titleCard', label: 'Title Card', desc: 'Letter Hunt for [NAME]' },
+                      { value: 'signImage', label: 'Sign Image', desc: 'Letter on street signs' },
+                      { value: 'bookImage', label: 'Book Image', desc: 'Letter on book covers' },
+                      { value: 'groceryImage', label: 'Grocery Image', desc: 'Letter on products' },
+                      { value: 'endingImage', label: 'Ending Image', desc: 'Celebratory finale' }
+                    ].map(({ value, label, desc }) => (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => setForm(prev => ({ ...prev, imageType: value as any }))}
+                        className={`p-3 border rounded-lg text-left text-sm ${
+                          form.imageType === value
+                            ? 'border-blue-500 bg-blue-50 text-blue-700'
+                            : 'border-gray-300 hover:border-gray-400'
+                        }`}
+                      >
+                        <div className="font-medium">{label}</div>
+                        <div className="text-xs text-gray-600">{desc}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Theme */}
               <div>
@@ -384,9 +579,18 @@ export default function PromptGeneratorPage() {
               {/* Safe Zone Selection */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Safe Zones</label>
-                <div className="text-xs text-gray-600 mb-2">
-                  Compatible zones for {form.template}: {getSafeZonesForTemplate(form.template).join(', ')}
-                </div>
+                {form.template === 'letter-hunt' && form.imageType ? (
+                  <div className="text-xs text-gray-600 mb-2">
+                    <span className="font-medium">Recommended for {form.imageType}:</span>{' '}
+                    {form.imageType === 'titleCard' || form.imageType === 'endingImage' 
+                      ? 'all_ok (full composition)' 
+                      : 'center_safe (keep letter/content centered)'}
+                  </div>
+                ) : (
+                  <div className="text-xs text-gray-600 mb-2">
+                    Compatible zones for {form.template}: {getSafeZonesForTemplate(form.template).join(', ')}
+                  </div>
+                )}
                 <div className="flex flex-wrap gap-4">
                   {getSafeZonesForTemplate(form.template).map((zone: string) => (
                     <label key={zone} className="flex items-center space-x-2">
@@ -402,6 +606,13 @@ export default function PromptGeneratorPage() {
                         }}
                       />
                       <span className="text-sm capitalize">{zone.replace('_', ' ')}</span>
+                      {/* Show recommendations for Letter Hunt */}
+                      {form.template === 'letter-hunt' && form.imageType && (
+                        ((form.imageType === 'titleCard' || form.imageType === 'endingImage') && zone === 'all_ok') ||
+                        ((form.imageType === 'signImage' || form.imageType === 'bookImage' || form.imageType === 'groceryImage') && zone === 'center_safe')
+                      ) && (
+                        <span className="text-xs text-green-600 font-medium">✓ Recommended</span>
+                      )}
                     </label>
                   ))}
                 </div>
@@ -536,7 +747,25 @@ export default function PromptGeneratorPage() {
                         {prompts.images.map((prompt, index) => (
                           <div key={index} className="bg-gray-50 p-3 rounded text-sm">
                             <div className="font-medium text-gray-700 mb-1">Image {index + 1}:</div>
-                            <div className="text-gray-600">{prompt}</div>
+                            <div className="text-gray-600 mb-2">{prompt}</div>
+                            <div className="flex gap-2 mt-2">
+                              {/* Letter Hunt integration button */}
+                              {form.template === 'letter-hunt' && (
+                                <button
+                                  onClick={() => generateImageForLetterHunt(prompt)}
+                                  className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700"
+                                >
+                                  Generate Image & Submit to Letter Hunt
+                                </button>
+                              )}
+                              {/* General image generator button */}
+                              <button
+                                onClick={() => navigateToImageGenerator(prompt, prompts.metadata, safeZone)}
+                                className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
+                              >
+                                Open in Image Generator
+                              </button>
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -552,6 +781,11 @@ export default function PromptGeneratorPage() {
                         <div>
                           <span className="font-medium">Safe Zone:</span> {prompts.metadata.safeZone}
                         </div>
+                        {form.template === 'letter-hunt' && form.imageType && (
+                          <div>
+                            <span className="font-medium">Image Type:</span> {form.imageType}
+                          </div>
+                        )}
                         <div>
                           <span className="font-medium">Theme:</span> {prompts.metadata.theme}
                         </div>
@@ -591,4 +825,4 @@ export default function PromptGeneratorPage() {
       </div>
     </div>
   );
-} 
+}

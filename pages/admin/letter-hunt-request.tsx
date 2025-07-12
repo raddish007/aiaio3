@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import { supabase } from '@/lib/supabase';
-import MissingVideoTracker from '../components/MissingVideoTracker';
+import MissingVideoTracker from '../../components/MissingVideoTracker';
 
 interface Child {
   id: string;
@@ -88,11 +88,29 @@ export default function LetterHuntRequest() {
   const handleChildSelect = (child: Child) => {
     setSelectedChild(child);
     setChildName(child.name);
-    // Don't auto-set target letter - let user choose
+    // Auto-populate target letter as first letter of child's name
+    const firstLetter = child.name.charAt(0).toUpperCase();
+    setTargetLetter(firstLetter);
+    
+    console.log(`🎯 Auto-selected letter "${firstLetter}" for ${child.name}`);
+  };
+
+  const handleManualNameInput = (name: string) => {
+    setChildName(name);
+    // Auto-populate target letter as first letter of manually typed name
+    if (name.length > 0) {
+      const firstLetter = name.charAt(0).toUpperCase();
+      setTargetLetter(firstLetter);
+      console.log(`🎯 Auto-populated letter "${firstLetter}" for manually typed name "${name}"`);
+    } else {
+      setTargetLetter('');
+    }
   };
 
   const initializePayload = () => {
     const nameToUse = selectedChild?.name || childName;
+    const themeToUse = selectedChild?.primary_interest || 'adventure';
+    
     if (!nameToUse || !targetLetter) {
       alert('Please enter both child name and target letter');
       return;
@@ -106,50 +124,50 @@ export default function LetterHuntRequest() {
         titleCard: {
           type: 'image',
           name: 'Title Card',
-          description: `"${nameToUse}'s Letter Hunt!" title card with monster theme`,
+          description: `"${nameToUse}'s Letter Hunt!" title card with ${themeToUse} theme`,
           status: 'missing'
         },
         signImage: {
           type: 'image',
           name: 'Letter on Signs',
-          description: `Letter ${targetLetter} on colorful street sign with monster theme`,
+          description: `Letter ${targetLetter} on colorful street sign with ${themeToUse} theme`,
           status: 'missing'
         },
         bookImage: {
           type: 'image',
           name: 'Letter on Books',
-          description: `Letter ${targetLetter} on children's book cover with monster theme`,
+          description: `Letter ${targetLetter} on children's book cover with ${themeToUse} theme`,
           status: 'missing'
         },
         groceryImage: {
           type: 'image',
           name: 'Letter in Grocery Store',
-          description: `Letter ${targetLetter} on grocery store sign/cereal box with monster theme`,
+          description: `Letter ${targetLetter} on grocery store sign/cereal box with ${themeToUse} theme`,
           status: 'missing'
         },
         endingImage: {
           type: 'image',
           name: 'Ending Image',
-          description: `Letter ${targetLetter} with monster characters waving goodbye`,
+          description: `Letter ${targetLetter} with ${themeToUse} characters waving goodbye`,
           status: 'missing'
         },
         // Videos
         introVideo: {
           type: 'video',
           name: 'Intro Video',
-          description: 'Monster character pointing to giant letter',
+          description: `${themeToUse} character pointing to giant letter`,
           status: 'missing'
         },
         intro2Video: {
           type: 'video',
           name: 'Search Video',
-          description: 'Monster searching around playfully',
+          description: `${themeToUse} character searching around playfully`,
           status: 'missing'
         },
         happyDanceVideo: {
           type: 'video',
           name: 'Happy Dance Video',
-          description: 'Monster doing a joyful dance',
+          description: `${themeToUse} character doing a joyful dance`,
           status: 'missing'
         },
         // Audio assets
@@ -208,56 +226,46 @@ export default function LetterHuntRequest() {
   };
 
   const generateAsset = async (assetKey: keyof LetterHuntPayload['assets']) => {
-    if (!payload) return;
+    if (!payload) {
+      console.error('No payload available for asset generation');
+      return;
+    }
 
     const asset = payload.assets[assetKey];
-    
-    // Update status to generating
-    setPayload(prev => prev ? {
-      ...prev,
-      assets: {
-        ...prev.assets,
-        [assetKey]: { ...asset, status: 'generating' }
-      }
-    } : null);
+    console.log(`🎯 Generating asset: ${assetKey}`, { asset, payload });
 
     try {
       // For now, we'll start with generating the title card image
       if (asset.type === 'image' && assetKey === 'titleCard') {
-        const response = await fetch('/api/assets/generate-image', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            templateType: 'letter-hunt',
-            safeZone: 'center_safe',
-            theme: 'monsters',
-            childName: payload.childName,
-            targetLetter: payload.targetLetter,
-            assetType: 'titleCard',
-            artStyle: '2D Pixar Style',
-            ageRange: '3-5'
-          })
+        // Instead of calling API directly, redirect to manual prompt creation flow
+        const promptParams = new URLSearchParams({
+          templateType: 'letter-hunt',
+          theme: selectedChild?.primary_interest || 'general',
+          childName: payload.childName,
+          targetLetter: payload.targetLetter,
+          assetType: 'titleCard', // This will be mapped to imageType in the prompt generator
+          artStyle: '2D Pixar Style',
+          ageRange: '3-5',
+          aspectRatio: '16:9',
+          returnUrl: window.location.href, // Return to this page after prompt creation
+          assetKey: assetKey // So we know which asset to update when returning
         });
-
-        const data = await response.json();
         
-        if (data.success && data.imageUrl) {
-          setPayload(prev => prev ? {
-            ...prev,
-            assets: {
-              ...prev.assets,
-              [assetKey]: { 
-                ...asset, 
-                status: 'ready',
-                url: data.imageUrl,
-                generatedAt: new Date().toISOString()
-              }
-            }
-          } : null);
-        } else {
-          throw new Error(data.error || 'Failed to generate image');
-        }
+        console.log(`🎨 Redirecting to manual prompt creation for ${asset.name}...`);
+        console.log('📋 Prompt params:', promptParams.toString());
+        
+        await router.push(`/admin/prompt-generator?${promptParams.toString()}`);
+        return; // Don't update status since we're redirecting
       } else {
+        // Update status to generating for other asset types
+        setPayload(prev => prev ? {
+          ...prev,
+          assets: {
+            ...prev.assets,
+            [assetKey]: { ...asset, status: 'generating' }
+          }
+        } : null);
+        
         // Placeholder for other asset types
         alert(`Generation for ${asset.type} assets coming soon!`);
         setPayload(prev => prev ? {
@@ -270,6 +278,13 @@ export default function LetterHuntRequest() {
       }
     } catch (error) {
       console.error('Error generating asset:', error);
+      console.error('Error details:', {
+        assetKey,
+        asset,
+        payload,
+        selectedChild,
+        error: error instanceof Error ? error.message : error
+      });
       alert(`Failed to generate ${asset.name}: ${error instanceof Error ? error.message : 'Unknown error'}`);
       
       setPayload(prev => prev ? {
@@ -284,7 +299,9 @@ export default function LetterHuntRequest() {
 
   const canSubmitVideo = () => {
     if (!payload) return false;
-    return Object.values(payload.assets).every(asset => asset.status === 'ready');
+    // For now, only require Title Card to be ready for testing
+    return payload.assets.titleCard.status === 'ready';
+    // TODO: Later enable all assets: return Object.values(payload.assets).every(asset => asset.status === 'ready');
   };
 
   const submitForVideoGeneration = async () => {
@@ -292,38 +309,101 @@ export default function LetterHuntRequest() {
 
     setLoading(true);
     try {
-      // This will be implemented once we have the remotion template ready
-      alert('Video generation will be implemented in the next phase!');
+      console.log('🎬 Submitting Letter Hunt video generation:', payload);
       
-      // If this was called from an assignment, mark it as completed
-      if (router.query.assignment_id) {
-        try {
-          const assignmentResponse = await fetch('/api/admin/manage-assignments', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              assignment_id: router.query.assignment_id,
-              status: 'completed',
-              output_video_url: `https://example.com/letter-hunt-video-${payload.childName}`, // Placeholder URL
-              updated_by: 'current-user-id'
-            })
-          });
+      // Call our new Letter Hunt generation API
+      const response = await fetch('/api/videos/generate-letter-hunt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          childName: payload.childName,
+          targetLetter: payload.targetLetter,
+          childTheme: selectedChild?.primary_interest || 'adventure',
+          childAge: selectedChild?.age || 3,
+          childId: selectedChild?.id || 'placeholder-child-id',
+          submitted_by: 'current-user-id', // This should come from user session
+          assets: payload.assets
+        })
+      });
 
-          if (assignmentResponse.ok) {
-            alert('Letter hunt video submitted! Assignment marked as completed.');
+      const data = await response.json();
+      
+      if (data.success) {
+        alert(`✅ Letter Hunt video generation started successfully! 
+        
+🎬 Render ID: ${data.render_id}
+📹 Output URL: ${data.output_url}
+⏱️ Duration: ${data.duration_seconds} seconds
+📦 Assets Ready: ${data.asset_summary.ready_assets}/${data.asset_summary.total_assets} (${data.asset_summary.completion_percentage}%)
+
+Your video will be available for review in the admin dashboard once complete.`);
+        
+        // If this was called from an assignment, mark it as completed
+        if (router.query.assignment_id) {
+          try {
+            const assignmentResponse = await fetch('/api/admin/manage-assignments', {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                assignment_id: router.query.assignment_id,
+                status: 'completed',
+                output_video_url: data.output_url,
+                updated_by: 'current-user-id'
+              })
+            });
+
+            if (assignmentResponse.ok) {
+              console.log('✅ Assignment marked as completed');
+            }
+          } catch (assignmentError) {
+            console.error('Error updating assignment:', assignmentError);
+            // Don't fail the whole operation if assignment update fails
           }
-        } catch (assignmentError) {
-          console.error('Error updating assignment:', assignmentError);
-          // Don't fail the whole operation if assignment update fails
         }
+
+        // Redirect to admin dashboard or video status page
+        router.push(`/admin/video-status-dashboard?highlight=${data.job_id}`);
+        
+      } else {
+        throw new Error(data.error || 'Failed to start video generation');
       }
+      
     } catch (error) {
       console.error('Error submitting video:', error);
-      alert('Failed to submit video generation');
+      alert(`❌ Failed to submit video generation: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setLoading(false);
     }
   };
+
+  // Handle returning from prompt creation with generated asset
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const generatedImageUrl = urlParams.get('generatedImageUrl');
+    const assetKey = urlParams.get('assetKey');
+    
+    if (generatedImageUrl && assetKey && payload) {
+      console.log(`🎨 Received generated image for ${assetKey}:`, generatedImageUrl);
+      
+      // Update the asset status to ready with the generated image URL
+      setPayload(prev => prev ? {
+        ...prev,
+        assets: {
+          ...prev.assets,
+          [assetKey]: {
+            ...prev.assets[assetKey as keyof typeof prev.assets],
+            status: 'ready',
+            url: generatedImageUrl,
+            generatedAt: new Date().toISOString()
+          }
+        }
+      } : null);
+      
+      // Clean up URL parameters
+      const newUrl = window.location.pathname + (window.location.search.replace(/[?&](generatedImageUrl|assetKey)=[^&]*/g, '').replace(/^&/, '?') || '');
+      window.history.replaceState({}, '', newUrl);
+    }
+  }, [payload, router.query]);
 
   return (
     <>
@@ -372,13 +452,17 @@ export default function LetterHuntRequest() {
                 <div style={{ fontWeight: 'bold', color: '#2e7d32' }}>
                   ✅ Selected Child: {selectedChild.name}
                 </div>
-                <div style={{ fontSize: 14, color: '#666' }}>
+                <div style={{ fontSize: 14, color: '#666', marginBottom: 4 }}>
                   Age {selectedChild.age}, loves {selectedChild.primary_interest}
+                </div>
+                <div style={{ fontSize: 14, color: '#2e7d32', fontWeight: 'bold' }}>
+                  🎨 Theme: {selectedChild.primary_interest} (based on child's interests)
                 </div>
                 <button
                   onClick={() => {
                     setSelectedChild(null);
                     setChildName('');
+                    setTargetLetter('');
                   }}
                   style={{ 
                     background: 'transparent', 
@@ -403,7 +487,7 @@ export default function LetterHuntRequest() {
               <input
                 type="text"
                 value={childName}
-                onChange={(e) => setChildName(e.target.value)}
+                onChange={(e) => handleManualNameInput(e.target.value)}
                 placeholder="Enter child's name or select from tracker above"
                 disabled={!!selectedChild}
                 style={{ 
@@ -420,6 +504,16 @@ export default function LetterHuntRequest() {
             <div style={{ marginBottom: 16 }}>
               <label style={{ display: 'block', marginBottom: 8, fontWeight: 'bold' }}>
                 Target Letter:
+                {childName && (
+                  <span style={{ 
+                    fontSize: 12, 
+                    fontWeight: 'normal', 
+                    color: '#666',
+                    marginLeft: 8
+                  }}>
+                    (auto-populated from first letter of name)
+                  </span>
+                )}
               </label>
               <input
                 type="text"
@@ -429,6 +523,31 @@ export default function LetterHuntRequest() {
                 maxLength={1}
                 style={{ padding: 8, fontSize: 16, width: 60, borderRadius: 4, border: '1px solid #ddd' }}
               />
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: 'block', marginBottom: 8, fontWeight: 'bold' }}>
+                Video Theme:
+              </label>
+              <div style={{ 
+                padding: 8, 
+                fontSize: 16, 
+                backgroundColor: '#f0f8ff', 
+                border: '1px solid #0066cc', 
+                borderRadius: 4,
+                color: '#0066cc',
+                fontWeight: 'bold'
+              }}>
+                🎨 {selectedChild ? selectedChild.primary_interest : 'Auto-generated'} Theme
+                <span style={{ 
+                  fontSize: 12, 
+                  fontWeight: 'normal', 
+                  color: '#666',
+                  marginLeft: 8
+                }}>
+                  {selectedChild ? '(based on child\'s interests)' : '(based on child\'s interests when selected)'}
+                </span>
+              </div>
             </div>
             
             <button
@@ -448,9 +567,26 @@ export default function LetterHuntRequest() {
           </div>
         ) : (
           <div>
-            <div style={{ background: '#e8f5e8', padding: 16, borderRadius: 8, marginBottom: 32 }}>
+            <div style={{ background: '#e8f5e8', padding: 16, borderRadius: 8, marginBottom: 16 }}>
               <h2>Letter Hunt for {payload.childName} - Letter {payload.targetLetter}</h2>
               <p>Generate all required assets below, then submit for video creation.</p>
+            </div>
+
+            {/* Test Mode Notice */}
+            <div style={{ 
+              background: '#fff3cd', 
+              border: '1px solid #ffeaa7', 
+              padding: 16, 
+              borderRadius: 8, 
+              marginBottom: 32 
+            }}>
+              <h3 style={{ margin: '0 0 8px 0', color: '#856404' }}>
+                🧪 Test Mode: Title Card Only
+              </h3>
+              <p style={{ margin: 0, color: '#856404' }}>
+                Currently only Title Card generation is required for video creation. 
+                Other assets are shown for interface testing but not required.
+              </p>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: 20 }}>
@@ -510,8 +646,13 @@ export default function LetterHuntRequest() {
                   )}
 
                   <button
-                    onClick={() => generateAsset(key as keyof LetterHuntPayload['assets'])}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      generateAsset(key as keyof LetterHuntPayload['assets']);
+                    }}
                     disabled={asset.status === 'generating'}
+                    type="button"
                     style={{
                       background: asset.status === 'ready' ? '#28a745' :
                                  asset.status === 'generating' ? '#ffc107' : '#007bff',
@@ -546,7 +687,7 @@ export default function LetterHuntRequest() {
               >
                 {loading ? 'Submitting...' : 
                  canSubmitVideo() ? 'Generate Letter Hunt Video!' : 
-                 'Complete All Assets to Generate Video'}
+                 'Generate Title Card to Enable Video Generation (Test Mode)'}
               </button>
             </div>
           </div>

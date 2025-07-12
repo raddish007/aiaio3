@@ -32,6 +32,7 @@ export default function AIGenerator() {
   const [generationForm, setGenerationForm] = useState({
     style: '',
     safeZone: 'center_safe' as 'left_safe' | 'right_safe' | 'center_safe' | 'intro_safe' | 'outro_safe' | 'all_ok' | 'not_applicable' | 'frame' | 'slideshow',
+    imageType: '' as 'titleCard' | 'signImage' | 'bookImage' | 'groceryImage' | 'endingImage' | 'characterImage' | 'sceneImage' | '',
   });
   const [generating, setGenerating] = useState(false);
   const [generationResult, setGenerationResult] = useState<any>(null);
@@ -52,6 +53,55 @@ export default function AIGenerator() {
     checkAdminAccess();
     fetchPrompts();
   }, []);
+
+  // Handle URL parameters for pre-filling form (e.g., from Prompt Generator)
+  useEffect(() => {
+    if (router.isReady && router.query) {
+      const { query } = router;
+      
+      // If we have URL parameters, set up the form
+      if (query.prompt && query.template) {
+        // Update the custom prompt
+        setCustomPrompt(query.prompt as string);
+        
+        // Update generation form with context
+        setGenerationForm(prev => ({
+          ...prev,
+          safeZone: (query.safeZone as any) || 'center_safe',
+          style: (query.artStyle as string) || '',
+          imageType: (query.imageType as any) || '',
+        }));
+
+        // Create a synthetic prompt object if one doesn't exist
+        if (prompts.length === 0) {
+          // We'll create a temporary prompt object for display
+          setSelectedPrompt({
+            id: 'url-prompt',
+            asset_type: 'image',
+            theme: (query.theme as string) || '',
+            style: (query.artStyle as string) || '',
+            safe_zone: (query.safeZone as string) || 'center_safe',
+            prompt_text: query.prompt as string,
+            created_at: new Date().toISOString(),
+            status: 'pending',
+            metadata: {
+              template: query.template,
+              theme: query.theme,
+              ageRange: query.ageRange,
+              aspectRatio: query.aspectRatio,
+              artStyle: query.artStyle,
+              imageType: query.imageType,
+              childName: query.childName,
+              additionalContext: query.additionalContext,
+              generatedAt: new Date().toISOString()
+            }
+          });
+          
+          setEditedPromptText(query.prompt as string);
+        }
+      }
+    }
+  }, [router.isReady, router.query, prompts.length]);
 
   const checkAdminAccess = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -121,6 +171,15 @@ export default function AIGenerator() {
           duration: 30,
           style: generationForm.style,
           safeZone: generationForm.safeZone,
+          imageType: generationForm.imageType, // Include imageType for Letter Hunt assets
+          // Pass through additional context from URL parameters
+          ...(selectedPrompt.metadata && {
+            template: selectedPrompt.metadata.template,
+            theme: selectedPrompt.metadata.theme,
+            ageRange: selectedPrompt.metadata.ageRange,
+            childName: selectedPrompt.metadata.childName,
+            additionalContext: selectedPrompt.metadata.additionalContext
+          })
         }),
       });
 
@@ -394,6 +453,33 @@ export default function AIGenerator() {
       />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {/* Context Information from Prompt Generator */}
+        {router.query.prompt && (
+          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-start">
+              <div className="flex-shrink-0">
+                <div className="text-blue-400 text-xl">🔗</div>
+              </div>
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-blue-800">Context from Prompt Generator</h3>
+                <div className="mt-2 text-sm text-blue-700">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                    {router.query.template && <div><strong>Template:</strong> {router.query.template}</div>}
+                    {router.query.theme && <div><strong>Theme:</strong> {router.query.theme}</div>}
+                    {router.query.imageType && <div><strong>Image Type:</strong> {router.query.imageType}</div>}
+                    {router.query.safeZone && <div><strong>Safe Zone:</strong> {router.query.safeZone}</div>}
+                    {router.query.childName && <div><strong>Child Name:</strong> {router.query.childName}</div>}
+                    {router.query.ageRange && <div><strong>Age Range:</strong> {router.query.ageRange}</div>}
+                  </div>
+                  <div className="mt-2 text-xs text-blue-600">
+                    ✨ Form fields have been auto-populated with this context
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Quick Generation Section */}
         <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl p-6 mb-6 border border-purple-200">
           {/* Generation Status */}
@@ -710,6 +796,16 @@ export default function AIGenerator() {
                   {/* Debug Info */}
                   <div className="p-2 bg-blue-50 border border-blue-200 rounded text-xs text-blue-700">
                     Debug: Asset Type = image | Selected Prompt = {selectedPrompt.theme}
+                    {selectedPrompt.metadata?.template && ` | Template = ${selectedPrompt.metadata.template}`}
+                    {selectedPrompt.metadata?.imageType && ` | Image Type = ${selectedPrompt.metadata.imageType}`}
+                    {router.query.prompt && (
+                      <div className="mt-1">
+                        🔗 Received from Prompt Generator with context: 
+                        {router.query.template && ` Template=${router.query.template}`}
+                        {router.query.imageType && ` ImageType=${router.query.imageType}`}
+                        {router.query.safeZone && ` SafeZone=${router.query.safeZone}`}
+                      </div>
+                    )}
                   </div>
                   
                   {/* Selected Prompt Info */}
@@ -720,18 +816,32 @@ export default function AIGenerator() {
                     {/* Editable Prompt Text */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Prompt Text (Editable)
-                        {editedPromptText !== selectedPrompt.prompt_text && (
-                          <span className="ml-2 text-xs text-orange-600 font-normal">
-                            • Modified (unsaved)
-                          </span>
-                        )}
+                        <div className="flex items-center">
+                          Prompt Text (Editable)
+                          {router.query.prompt && (
+                            <div className="ml-2 flex items-center">
+                              <div className="w-2 h-2 bg-blue-500 rounded-full mr-1"></div>
+                              <span className="text-xs text-blue-700 font-medium bg-blue-100 px-2 py-1 rounded">
+                                auto-filled
+                              </span>
+                            </div>
+                          )}
+                          {editedPromptText !== selectedPrompt.prompt_text && !router.query.prompt && (
+                            <span className="ml-2 text-xs text-orange-600 font-normal">
+                              • Modified (unsaved)
+                            </span>
+                          )}
+                        </div>
                       </label>
                       <textarea
                         value={editedPromptText}
                         onChange={(e) => setEditedPromptText(e.target.value)}
                         rows={4}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                        className={`w-full px-3 py-2 border-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm ${
+                          router.query.prompt 
+                            ? 'border-blue-400 bg-blue-50 text-blue-900 font-medium' 
+                            : 'border-gray-300'
+                        }`}
                         placeholder="Edit the prompt text before generating..."
                       />
                       <div className="flex justify-between items-center mt-2">
@@ -763,6 +873,65 @@ export default function AIGenerator() {
 
                   {/* Generation Form */}
                   <div className="space-y-4">
+                    {/* Inherited Context Display - More Prominent */}
+                    {(selectedPrompt?.metadata || router.query.template) && (
+                      <div className="p-4 bg-blue-50 border-2 border-blue-200 rounded-lg">
+                        <div className="flex items-center mb-3">
+                          <div className="w-3 h-3 bg-blue-500 rounded-full mr-2"></div>
+                          <h4 className="text-sm font-semibold text-blue-900">
+                            Inherited from Prompt Generator
+                          </h4>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3 text-sm text-blue-800">
+                          {(selectedPrompt?.metadata?.template || router.query.template) && (
+                            <div className="bg-white p-2 rounded border border-blue-200">
+                              <strong className="text-blue-900">Template:</strong> {selectedPrompt?.metadata?.template || router.query.template}
+                            </div>
+                          )}
+                          {(selectedPrompt?.metadata?.theme || router.query.theme) && (
+                            <div className="bg-white p-2 rounded border border-blue-200">
+                              <strong className="text-blue-900">Theme:</strong> {selectedPrompt?.metadata?.theme || router.query.theme}
+                            </div>
+                          )}
+                          {(selectedPrompt?.metadata?.imageType || router.query.imageType) && (
+                            <div className="bg-white p-2 rounded border border-blue-200">
+                              <strong className="text-blue-900">Image Type:</strong> {selectedPrompt?.metadata?.imageType || router.query.imageType}
+                            </div>
+                          )}
+                          {(selectedPrompt?.metadata?.ageRange || router.query.ageRange) && (
+                            <div className="bg-white p-2 rounded border border-blue-200">
+                              <strong className="text-blue-900">Age Range:</strong> {selectedPrompt?.metadata?.ageRange || router.query.ageRange}
+                            </div>
+                          )}
+                          {(selectedPrompt?.metadata?.childName || router.query.childName) && (
+                            <div className="bg-white p-2 rounded border border-blue-200">
+                              <strong className="text-blue-900">Child Name:</strong> {selectedPrompt?.metadata?.childName || router.query.childName}
+                            </div>
+                          )}
+                          {router.query.targetLetter && (
+                            <div className="bg-white p-2 rounded border border-blue-200">
+                              <strong className="text-blue-900">Target Letter:</strong> {router.query.targetLetter}
+                            </div>
+                          )}
+                          {router.query.safeZone && (
+                            <div className="bg-white p-2 rounded border border-blue-200">
+                              <strong className="text-blue-900">Safe Zone:</strong> {router.query.safeZone}
+                            </div>
+                          )}
+                          {router.query.artStyle && (
+                            <div className="bg-white p-2 rounded border border-blue-200">
+                              <strong className="text-blue-900">Art Style:</strong> {router.query.artStyle}
+                            </div>
+                          )}
+                          {(selectedPrompt?.metadata?.additionalContext || router.query.additionalContext) && (
+                            <div className="col-span-2 bg-white p-2 rounded border border-blue-200">
+                              <strong className="text-blue-900">Context:</strong> {selectedPrompt?.metadata?.additionalContext || router.query.additionalContext}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Aspect Ratio</label>
                       <div className="px-3 py-2 bg-gray-100 border border-gray-300 rounded-md text-sm text-gray-600">
@@ -771,14 +940,30 @@ export default function AIGenerator() {
                     </div>
                     
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Safe Zone</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <div className="flex items-center">
+                          Safe Zone
+                          {router.query.safeZone && (
+                            <div className="ml-2 flex items-center">
+                              <div className="w-2 h-2 bg-blue-500 rounded-full mr-1"></div>
+                              <span className="text-xs text-blue-700 font-medium bg-blue-100 px-2 py-1 rounded">
+                                auto-filled
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </label>
                       <select
                         value={generationForm.safeZone}
                         onChange={(e) => setGenerationForm(prev => ({ 
                           ...prev, 
                           safeZone: e.target.value as any 
                         }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className={`w-full px-3 py-2 border-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                          router.query.safeZone 
+                            ? 'border-blue-400 bg-blue-50 text-blue-900 font-medium' 
+                            : 'border-gray-300'
+                        }`}
                       >
                         <option value="center_safe">Center Safe</option>
                         <option value="left_safe">Left Safe</option>
@@ -792,8 +977,60 @@ export default function AIGenerator() {
                       </select>
                     </div>
 
+                    {/* Image Type for Letter Hunt templates */}
+                    {(selectedPrompt?.metadata?.template === 'letter-hunt' || router.query.template === 'letter-hunt') && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          <div className="flex items-center">
+                            Image Type
+                            {router.query.imageType && (
+                              <div className="ml-2 flex items-center">
+                                <div className="w-2 h-2 bg-blue-500 rounded-full mr-1"></div>
+                                <span className="text-xs text-blue-700 font-medium bg-blue-100 px-2 py-1 rounded">
+                                  auto-filled
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        </label>
+                        <select
+                          value={generationForm.imageType}
+                          onChange={(e) => setGenerationForm(prev => ({ 
+                            ...prev, 
+                            imageType: e.target.value as any 
+                          }))}
+                          className={`w-full px-3 py-2 border-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                            router.query.imageType 
+                              ? 'border-blue-400 bg-blue-50 text-blue-900 font-medium' 
+                              : 'border-gray-300'
+                          }`}
+                        >
+                          <option value="">Select Image Type</option>
+                          <option value="titleCard">Title Card - "Letter Hunt for [NAME]"</option>
+                          <option value="signImage">Sign Image - Letter on street signs</option>
+                          <option value="bookImage">Book Image - Letter on book covers</option>
+                          <option value="groceryImage">Grocery Image - Letter on products</option>
+                          <option value="endingImage">Ending Image - Celebratory finale</option>
+                          <option value="characterImage">Character Image - Themed character</option>
+                          <option value="sceneImage">Scene Image - Environmental scene</option>
+                        </select>
+                      </div>
+                    )}
+
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Style (optional)</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <div className="flex items-center">
+                          Style (optional)
+                          {router.query.artStyle && (
+                            <div className="ml-2 flex items-center">
+                              <div className="w-2 h-2 bg-blue-500 rounded-full mr-1"></div>
+                              <span className="text-xs text-blue-700 font-medium bg-blue-100 px-2 py-1 rounded">
+                                auto-filled
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </label>
                       <input
                         type="text"
                         placeholder="e.g., pixar, watercolor, realistic..."
@@ -802,7 +1039,11 @@ export default function AIGenerator() {
                           ...prev, 
                           style: e.target.value 
                         }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className={`w-full px-3 py-2 border-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                          router.query.artStyle 
+                            ? 'border-blue-400 bg-blue-50 text-blue-900 font-medium' 
+                            : 'border-gray-300'
+                        }`}
                       />
                     </div>
 

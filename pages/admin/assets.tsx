@@ -41,6 +41,16 @@ interface Asset {
       reviewed_by?: string;
     };
     letter?: string; // Added letter to metadata interface
+    // Enhanced metadata for prompt generation context
+    imageType?: 'titleCard' | 'signImage' | 'bookImage' | 'groceryImage' | 'endingImage' | 'characterImage' | 'sceneImage';
+    artStyle?: string;
+    aspectRatio?: '16:9' | '9:16';
+    ageRange?: string;
+    safeZone?: 'left_safe' | 'right_safe' | 'center_safe' | 'intro_safe' | 'outro_safe' | 'all_ok' | 'not_applicable' | 'frame' | 'slideshow';
+    targetLetter?: string;
+    additionalContext?: string;
+    generatedAt?: string;
+    variations?: string[];
   };
 }
 
@@ -85,7 +95,15 @@ export default function AssetManagement() {
     template: '' as 'lullaby' | 'name-video' | 'letter-hunt' | 'general' | '',
     volume: 1.0,
     audio_class: '' as string | undefined,
-    letter: ''
+    letter: '',
+    // Enhanced fields for prompt generation context
+    imageType: '' as 'titleCard' | 'signImage' | 'bookImage' | 'groceryImage' | 'endingImage' | 'characterImage' | 'sceneImage' | '',
+    artStyle: '',
+    aspectRatio: '16:9' as '16:9' | '9:16',
+    ageRange: '',
+    safeZone: 'center_safe' as 'left_safe' | 'right_safe' | 'center_safe' | 'intro_safe' | 'outro_safe' | 'all_ok' | 'not_applicable' | 'frame' | 'slideshow',
+    targetLetter: '',
+    additionalContext: ''
   });
   const [bulkUploadForm, setBulkUploadForm] = useState({
     description: '',
@@ -427,6 +445,14 @@ export default function AssetManagement() {
           volume: (selectedAsset && isAudioOrVideo(selectedAsset.type)) ? editForm.volume : undefined,
           audio_class: (selectedAsset && selectedAsset.type === 'audio') ? editForm.audio_class : undefined,
           letter: (selectedAsset && selectedAsset.type === 'audio' && editForm.audio_class === 'letter_audio') ? editForm.letter : undefined,
+          // Enhanced metadata fields
+          imageType: (selectedAsset && selectedAsset.type === 'image') ? editForm.imageType : undefined,
+          artStyle: (selectedAsset && selectedAsset.type === 'image') ? editForm.artStyle : undefined,
+          aspectRatio: (selectedAsset && selectedAsset.type === 'image') ? editForm.aspectRatio : undefined,
+          ageRange: editForm.ageRange || undefined,
+          safeZone: (selectedAsset && selectedAsset.type === 'image') ? editForm.safeZone : undefined,
+          targetLetter: editForm.targetLetter || undefined,
+          additionalContext: editForm.additionalContext || undefined,
           review: {
             safe_zone: reviewForm.safe_zone,
             approval_notes: reviewForm.approval_notes,
@@ -451,6 +477,14 @@ export default function AssetManagement() {
             volume: (selectedAsset && isAudioOrVideo(selectedAsset.type)) ? editForm.volume : undefined,
             audio_class: (selectedAsset && selectedAsset.type === 'audio') ? editForm.audio_class : undefined,
             letter: (selectedAsset && selectedAsset.type === 'audio' && editForm.audio_class === 'letter_audio') ? editForm.letter : undefined,
+            // Enhanced metadata fields
+            imageType: (selectedAsset && selectedAsset.type === 'image') ? editForm.imageType : undefined,
+            artStyle: (selectedAsset && selectedAsset.type === 'image') ? editForm.artStyle : undefined,
+            aspectRatio: (selectedAsset && selectedAsset.type === 'image') ? editForm.aspectRatio : undefined,
+            ageRange: editForm.ageRange || undefined,
+            safeZone: (selectedAsset && selectedAsset.type === 'image') ? editForm.safeZone : undefined,
+            targetLetter: editForm.targetLetter || undefined,
+            additionalContext: editForm.additionalContext || undefined,
             review: {
               safe_zone: reviewForm.safe_zone,
               approval_notes: reviewForm.approval_notes,
@@ -503,6 +537,15 @@ export default function AssetManagement() {
             template: editForm.template,
             volume: (selectedAsset && isAudioOrVideo(selectedAsset.type)) ? editForm.volume : undefined,
             audio_class: (selectedAsset && selectedAsset.type === 'audio') ? editForm.audio_class : undefined,
+            letter: (selectedAsset && selectedAsset.type === 'audio' && editForm.audio_class === 'letter_audio') ? editForm.letter : undefined,
+            // Enhanced metadata fields
+            imageType: (selectedAsset && selectedAsset.type === 'image') ? editForm.imageType : undefined,
+            artStyle: (selectedAsset && selectedAsset.type === 'image') ? editForm.artStyle : undefined,
+            aspectRatio: (selectedAsset && selectedAsset.type === 'image') ? editForm.aspectRatio : undefined,
+            ageRange: editForm.ageRange || undefined,
+            safeZone: (selectedAsset && selectedAsset.type === 'image') ? editForm.safeZone : undefined,
+            targetLetter: editForm.targetLetter || undefined,
+            additionalContext: editForm.additionalContext || undefined,
             review: {
               safe_zone: reviewForm.safe_zone,
               rejection_reason: reviewForm.rejection_reason,
@@ -590,7 +633,15 @@ export default function AssetManagement() {
       template: asset.metadata?.template || '',
       volume: asset.metadata?.volume ?? 1.0,
       audio_class: asset.metadata?.audio_class || '',
-      letter: asset.metadata?.letter || ''
+      letter: asset.metadata?.letter || '',
+      // Enhanced metadata fields
+      imageType: asset.metadata?.imageType || '',
+      artStyle: asset.metadata?.artStyle || '',
+      aspectRatio: asset.metadata?.aspectRatio || '16:9',
+      ageRange: asset.metadata?.ageRange || '',
+      safeZone: asset.metadata?.safeZone || 'center_safe',
+      targetLetter: asset.metadata?.targetLetter || '',
+      additionalContext: asset.metadata?.additionalContext || ''
     });
     setReviewForm({
       safe_zone: asset.metadata?.review?.safe_zone || [],
@@ -656,7 +707,26 @@ export default function AssetManagement() {
       setShowModal(false);
       setSelectedAsset(null);
       setReviewForm({ safe_zone: [], approval_notes: '', rejection_reason: '' });
-      setEditForm({ theme: '', description: '', tags: '', prompt: '', personalization: 'general', child_name: '', template: '', volume: 1.0, audio_class: '', letter: '' });
+      setEditForm({ 
+        theme: '', 
+        description: '', 
+        tags: '', 
+        prompt: '', 
+        personalization: 'general', 
+        child_name: '', 
+        template: '', 
+        volume: 1.0, 
+        audio_class: '', 
+        letter: '',
+        // Enhanced fields with defaults
+        imageType: '',
+        artStyle: '',
+        aspectRatio: '16:9',
+        ageRange: '',
+        safeZone: 'center_safe',
+        targetLetter: '',
+        additionalContext: ''
+      });
     }
   };
 
@@ -840,11 +910,11 @@ export default function AssetManagement() {
         description: '',
         tags: '',
         prompt: '',
-        personalization: 'general',
+        personalization: 'general' as 'general' | 'personalized',
         child_name: '',
-        template: '',
+        template: '' as 'lullaby' | 'name-video' | 'letter-hunt' | 'general' | '',
         volume: 1.0,
-        audio_class: ''
+        audio_class: '' as string | undefined
       });
       setSelectedFiles([]);
       setShowBulkUploadModal(false);
@@ -2010,6 +2080,270 @@ export default function AssetManagement() {
                 )}
               </div>
 
+              {/* Enhanced Context Display for Images */}
+              {(selectedAsset.type === 'image' || router.query.template) && (
+                <div className="border-t pt-4 mt-6">
+                  {/* Inherited Context Display - More Prominent */}
+                  {router.query.template && (
+                    <div className="p-4 bg-blue-50 border-2 border-blue-200 rounded-lg mb-4">
+                      <div className="flex items-center mb-3">
+                        <div className="w-3 h-3 bg-blue-500 rounded-full mr-2"></div>
+                        <h4 className="text-sm font-semibold text-blue-900">
+                          Inherited from Prompt Generator
+                        </h4>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3 text-sm text-blue-800">
+                        {router.query.template && (
+                          <div className="bg-white p-2 rounded border border-blue-200">
+                            <strong className="text-blue-900">Template:</strong> {router.query.template}
+                          </div>
+                        )}
+                        {router.query.theme && (
+                          <div className="bg-white p-2 rounded border border-blue-200">
+                            <strong className="text-blue-900">Theme:</strong> {router.query.theme}
+                          </div>
+                        )}
+                        {router.query.imageType && (
+                          <div className="bg-white p-2 rounded border border-blue-200">
+                            <strong className="text-blue-900">Image Type:</strong> {router.query.imageType}
+                          </div>
+                        )}
+                        {router.query.ageRange && (
+                          <div className="bg-white p-2 rounded border border-blue-200">
+                            <strong className="text-blue-900">Age Range:</strong> {router.query.ageRange}
+                          </div>
+                        )}
+                        {router.query.childName && (
+                          <div className="bg-white p-2 rounded border border-blue-200">
+                            <strong className="text-blue-900">Child Name:</strong> {router.query.childName}
+                          </div>
+                        )}
+                        {router.query.targetLetter && (
+                          <div className="bg-white p-2 rounded border border-blue-200">
+                            <strong className="text-blue-900">Target Letter:</strong> {router.query.targetLetter}
+                          </div>
+                        )}
+                        {router.query.safeZone && (
+                          <div className="bg-white p-2 rounded border border-blue-200">
+                            <strong className="text-blue-900">Safe Zone:</strong> {router.query.safeZone}
+                          </div>
+                        )}
+                        {router.query.artStyle && (
+                          <div className="bg-white p-2 rounded border border-blue-200">
+                            <strong className="text-blue-900">Art Style:</strong> {router.query.artStyle}
+                          </div>
+                        )}
+                        {router.query.additionalContext && (
+                          <div className="col-span-2 bg-white p-2 rounded border border-blue-200">
+                            <strong className="text-blue-900">Context:</strong> {router.query.additionalContext}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  <h4 className="font-medium text-gray-900 mb-3">Image Generation Context</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    {/* Image Type */}
+                    {(selectedAsset.metadata?.template === 'letter-hunt' || router.query.template === 'letter-hunt') && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          <div className="flex items-center">
+                            Image Type
+                            {router.query.imageType && (
+                              <div className="ml-2 flex items-center">
+                                <div className="w-2 h-2 bg-blue-500 rounded-full mr-1"></div>
+                                <span className="text-xs text-blue-700 font-medium bg-blue-100 px-2 py-1 rounded">
+                                  auto-filled
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        </label>
+                        <select
+                          value={editForm.imageType}
+                          onChange={(e) => setEditForm(prev => ({ ...prev, imageType: e.target.value as any }))}
+                          className={`w-full px-3 py-2 border-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                            router.query.imageType 
+                              ? 'border-blue-400 bg-blue-50 text-blue-900 font-medium' 
+                              : 'border-gray-300'
+                          }`}
+                        >
+                          <option value="">Select Image Type</option>
+                          <option value="titleCard">Title Card - "Letter Hunt for [NAME]"</option>
+                          <option value="signImage">Sign Image - Letter on street signs</option>
+                          <option value="bookImage">Book Image - Letter on book covers</option>
+                          <option value="groceryImage">Grocery Image - Letter on products</option>
+                          <option value="endingImage">Ending Image - Celebratory finale</option>
+                          <option value="characterImage">Character Image - Themed character</option>
+                          <option value="sceneImage">Scene Image - Environmental scene</option>
+                        </select>
+                      </div>
+                    )}
+
+                    {/* Art Style */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <div className="flex items-center">
+                          Art Style
+                          {router.query.artStyle && (
+                            <div className="ml-2 flex items-center">
+                              <div className="w-2 h-2 bg-blue-500 rounded-full mr-1"></div>
+                              <span className="text-xs text-blue-700 font-medium bg-blue-100 px-2 py-1 rounded">
+                                auto-filled
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </label>
+                      <input
+                        type="text"
+                        value={editForm.artStyle}
+                        onChange={(e) => setEditForm(prev => ({ ...prev, artStyle: e.target.value }))}
+                        className={`w-full px-3 py-2 border-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                          router.query.artStyle 
+                            ? 'border-blue-400 bg-blue-50 text-blue-900 font-medium' 
+                            : 'border-gray-300'
+                        }`}
+                        placeholder="e.g., 2D Pixar Style, watercolor, realistic..."
+                      />
+                    </div>
+
+                    {/* Age Range */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <div className="flex items-center">
+                          Age Range
+                          {router.query.ageRange && (
+                            <div className="ml-2 flex items-center">
+                              <div className="w-2 h-2 bg-blue-500 rounded-full mr-1"></div>
+                              <span className="text-xs text-blue-700 font-medium bg-blue-100 px-2 py-1 rounded">
+                                auto-filled
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </label>
+                      <input
+                        type="text"
+                        value={editForm.ageRange}
+                        onChange={(e) => setEditForm(prev => ({ ...prev, ageRange: e.target.value }))}
+                        className={`w-full px-3 py-2 border-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                          router.query.ageRange 
+                            ? 'border-blue-400 bg-blue-50 text-blue-900 font-medium' 
+                            : 'border-gray-300'
+                        }`}
+                        placeholder="e.g., 3-5, 2-4, 4-6..."
+                      />
+                    </div>
+
+                    {/* Safe Zone (single selection) */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <div className="flex items-center">
+                          Safe Zone (Primary)
+                          {router.query.safeZone && (
+                            <div className="ml-2 flex items-center">
+                              <div className="w-2 h-2 bg-blue-500 rounded-full mr-1"></div>
+                              <span className="text-xs text-blue-700 font-medium bg-blue-100 px-2 py-1 rounded">
+                                auto-filled
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </label>
+                      <select
+                        value={editForm.safeZone}
+                        onChange={(e) => setEditForm(prev => ({ ...prev, safeZone: e.target.value as any }))}
+                        className={`w-full px-3 py-2 border-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                          router.query.safeZone 
+                            ? 'border-blue-400 bg-blue-50 text-blue-900 font-medium' 
+                            : 'border-gray-300'
+                        }`}
+                      >
+                        <option value="center_safe">Center Safe</option>
+                        <option value="left_safe">Left Safe</option>
+                        <option value="right_safe">Right Safe</option>
+                        <option value="intro_safe">Intro Safe</option>
+                        <option value="outro_safe">Outro Safe</option>
+                        <option value="all_ok">All OK</option>
+                        <option value="not_applicable">Not Applicable</option>
+                        <option value="frame">Frame</option>
+                        <option value="slideshow">Slideshow</option>
+                      </select>
+                    </div>
+
+                    {/* Target Letter for Letter Hunt */}
+                    {(selectedAsset.metadata?.template === 'letter-hunt' || router.query.template === 'letter-hunt') && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          <div className="flex items-center">
+                            Target Letter
+                            {router.query.targetLetter && (
+                              <div className="ml-2 flex items-center">
+                                <div className="w-2 h-2 bg-blue-500 rounded-full mr-1"></div>
+                                <span className="text-xs text-blue-700 font-medium bg-blue-100 px-2 py-1 rounded">
+                                  auto-filled
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        </label>
+                        <input
+                          type="text"
+                          maxLength={1}
+                          value={editForm.targetLetter}
+                          onChange={(e) => setEditForm(prev => ({ ...prev, targetLetter: e.target.value.toUpperCase() }))}
+                          className={`w-full px-3 py-2 border-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                            router.query.targetLetter 
+                              ? 'border-blue-400 bg-blue-50 text-blue-900 font-medium' 
+                              : 'border-gray-300'
+                          }`}
+                          placeholder="A-Z"
+                        />
+                      </div>
+                    )}
+
+                    {/* Aspect Ratio */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Aspect Ratio</label>
+                      <select
+                        value={editForm.aspectRatio}
+                        onChange={(e) => setEditForm(prev => ({ ...prev, aspectRatio: e.target.value as any }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="16:9">16:9 (Landscape)</option>
+                        <option value="9:16">9:16 (Portrait)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Additional Context */}
+                  {router.query.additionalContext && (
+                    <div className="mt-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <div className="flex items-center">
+                          Additional Context
+                          <div className="ml-2 flex items-center">
+                            <div className="w-2 h-2 bg-blue-500 rounded-full mr-1"></div>
+                            <span className="text-xs text-blue-700 font-medium bg-blue-100 px-2 py-1 rounded">
+                              auto-filled
+                            </span>
+                          </div>
+                        </div>
+                      </label>
+                      <textarea
+                        value={editForm.additionalContext}
+                        onChange={(e) => setEditForm(prev => ({ ...prev, additionalContext: e.target.value }))}
+                        className="w-full px-3 py-2 border-2 border-blue-400 bg-blue-50 text-blue-900 font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        rows={2}
+                        placeholder="Additional context from prompt generator"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Safe Zone Review */}
               <div className="border-t pt-4 mt-6">
                 <h4 className="font-medium text-gray-900 mb-3">Safe Zone Review (Select all that apply)</h4>
@@ -2213,7 +2547,26 @@ export default function AssetManagement() {
                   onClick={() => {
                     setShowModal(false);
                     setReviewForm({ safe_zone: [], approval_notes: '', rejection_reason: '' });
-                    setEditForm({ theme: '', description: '', tags: '', prompt: '', personalization: 'general', child_name: '', template: '', volume: 1.0, audio_class: '', letter: '' });
+                    setEditForm({ 
+                      theme: '', 
+                      description: '', 
+                      tags: '', 
+                      prompt: '', 
+                      personalization: 'general', 
+                      child_name: '', 
+                      template: '', 
+                      volume: 1.0, 
+                      audio_class: '', 
+                      letter: '',
+                      // Enhanced fields with defaults
+                      imageType: '',
+                      artStyle: '',
+                      aspectRatio: '16:9',
+                      ageRange: '',
+                      safeZone: 'center_safe',
+                      targetLetter: '',
+                      additionalContext: ''
+                    });
                   }}
                   className="flex-1 bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700"
                 >
@@ -2420,4 +2773,4 @@ export default function AssetManagement() {
       )}
     </>
   );
-} 
+}

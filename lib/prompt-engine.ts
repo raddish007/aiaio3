@@ -137,6 +137,21 @@ export class PromptEngine {
         '5-7': ['friendly bear', 'cute rabbit', 'wise owl', 'playful squirrel', 'gentle deer', 'colorful butterfly', 'red fox', 'hedgehog', 'raccoon']
       },
       educationalValue: 9
+    },
+    monsters: {
+      category: 'fantasy',
+      variants: [
+        'friendly purple monster', 'happy green monster', 'smiling blue monster', 'cute orange monster',
+        'cheerful pink monster', 'gentle yellow monster', 'kind red monster', 'playful teal monster',
+        'warm brown monster', 'soft lavender monster'
+      ],
+      ageAppropriate: {
+        '2-4': ['friendly purple monster', 'happy green monster', 'smiling blue monster', 'cute orange monster'],
+        '3-5': ['friendly purple monster', 'happy green monster', 'smiling blue monster', 'cute orange monster', 'cheerful pink monster', 'gentle yellow monster'],
+        '4-6': ['friendly purple monster', 'happy green monster', 'smiling blue monster', 'cute orange monster', 'cheerful pink monster', 'gentle yellow monster', 'kind red monster'],
+        '5-7': ['friendly purple monster', 'happy green monster', 'smiling blue monster', 'cute orange monster', 'cheerful pink monster', 'gentle yellow monster', 'kind red monster', 'playful teal monster']
+      },
+      educationalValue: 8
     }
   };
 
@@ -160,7 +175,7 @@ export class PromptEngine {
       description: 'Decorative frame with completely empty center for name insertion',
       compositionInstructions: 'Create ONLY a decorative border or frame design around the outer edges of the image. The frame should be thematic (e.g., paw prints for dogs, leaves for forest themes, stars for space themes) and ornamental. The entire center area must remain completely empty and clear for text placement. Focus exclusively on the border design - NO characters, animals, or objects should be placed anywhere in the image.',
       negativeInstructions: 'Absolutely NO characters, animals, people, or main subject elements anywhere in the image. NO visual elements, objects, or decorative details in the center area. The image should consist ONLY of a decorative border/frame around the edges. The center must be completely empty with solid background color.',
-      templateCompatibility: ['name-video', 'educational', 'lullaby']
+      templateCompatibility: ['name-video', 'educational', 'lullaby', 'letter-hunt']
     },
     intro_safe: {
       id: 'intro_safe',
@@ -181,14 +196,14 @@ export class PromptEngine {
       description: 'Full frame content for slideshow presentation',
       compositionInstructions: 'Complete, engaging composition that fills the frame beautifully. Designed to be viewed as standalone imagery in a slideshow format, with balanced visual weight and clear focal points.',
       negativeInstructions: 'Avoid empty spaces or incomplete compositions. No embedded text or elements that assume overlay content.',
-      templateCompatibility: ['lullaby', 'educational', 'name-show']
+      templateCompatibility: ['lullaby', 'educational', 'name-show', 'letter-hunt']
     },
     all_ok: {
       id: 'all_ok',
       description: 'General composition without specific restrictions',
       compositionInstructions: 'Balanced, engaging composition with creative freedom. Character or subject positioned naturally within the frame to create visual interest and appeal.',
       negativeInstructions: 'Avoid overly busy or chaotic compositions. Maintain age-appropriate, clear, and appealing visual presentation.',
-      templateCompatibility: ['name-video', 'lullaby', 'educational', 'custom', 'name-show']
+      templateCompatibility: ['name-video', 'lullaby', 'educational', 'custom', 'name-show', 'letter-hunt']
     }
   };
 
@@ -273,6 +288,28 @@ export class PromptEngine {
         '2D Pixar Style': 'Rendered in bright, engaging 2D Pixar style that promotes curiosity and learning',
         'Storybook Illustration': 'Created in classic storybook illustration style with educational appeal',
         'Digital Cartoon': 'Illustrated in modern digital cartoon style with clear, educational presentation'
+      }
+    },
+    'letter-hunt': {
+      id: 'letter-hunt',
+      name: 'Letter Hunt',
+      baseInstructions: `You are creating prompts for letter hunt educational content featuring a target letter prominently displayed for preschool children (ages 2-5). The letter should be the main focus and star of the image, similar to how "THE [NAME] SHOW" text is featured in name show content. Include themed decorative elements and learning objects around the letter but never blocking it.`,
+      supportedSafeZones: ['all_ok', 'slideshow'],
+      contentRules: [
+        'Large, bold, uppercase letter prominently displayed as the central focal point of the image',
+        'Letter must be highly readable for young children - use thick, rounded, child-friendly fonts',
+        'Bright, vibrant colors with strong contrast between letter and background',
+        'Letter should fill a significant portion of the image space, similar to title text prominence',
+        'Include 2-3 themed objects that start with the target letter positioned around the edges',
+        'Educational atmosphere - encouraging learning, discovery, and letter recognition',
+        'Background should complement but not compete with the letter readability',
+        'Decorative elements should enhance the letter\'s prominence, not distract from it',
+        'The letter is the STAR of the image, not a border or frame element'
+      ],
+      artStyleModifiers: {
+        '2D Pixar Style': 'Rendered in vibrant 2D Pixar animation style with a bold, chunky letter as the centerpiece and colorful themed learning objects around it',
+        'Cartoon Style': 'Created in bright cartoon style with a thick outlined letter as the main character and fun educational decorative elements supporting it',
+        'Educational Style': 'Illustrated in child-friendly educational style with a clear, dimensional letter taking center stage and themed learning objects as supporting cast'
       }
     }
   };
@@ -460,7 +497,6 @@ IMPORTANT: Make each prompt significantly different by varying:
 
 TARGET DETAILS:
 • Age Range: ${context.ageRange} years old
-• Aspect Ratio: ${context.aspectRatio}
 • Template: ${template.name}
 • Composition Style: ${safeZoneRule.description}
 ${context.childName ? `• Child Name Context: ${context.childName}` : ''}

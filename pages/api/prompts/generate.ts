@@ -20,7 +20,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       artStyle = '2D Pixar Style',
       customArtStyle = '',
       additionalContext,
-      projectId
+      projectId,
+      assetType,
+      imageType // New structured field
     } = req.body;
 
     // Validate required fields
@@ -31,9 +33,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // Validate template
-    if (!['lullaby', 'name-video', 'educational', 'name-show'].includes(template)) {
+    if (!['lullaby', 'name-video', 'educational', 'name-show', 'letter-hunt'].includes(template)) {
       return res.status(400).json({ 
-        error: 'Invalid template. Must be "lullaby", "name-video", "educational", or "name-show"' 
+        error: 'Invalid template. Must be "lullaby", "name-video", "educational", "name-show", or "letter-hunt"' 
       });
     }
 
@@ -64,7 +66,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           aspectRatio: selectedAspectRatio,
           artStyle: artStyle === 'Other' ? customArtStyle : artStyle,
           promptCount: count,
-          additionalContext
+          additionalContext,
+          assetType, // Keep for backward compatibility
+          imageType: imageType || assetType // Use imageType if available, fallback to assetType
         };
       // Generate prompts for this safe zone and aspect ratio
       const prompts = await PromptGenerator.generatePrompts(context);
@@ -122,7 +126,18 @@ async function savePromptsToDatabase(projectId: string, allPrompts: any) {
           style: promptData.metadata.artStyle || '2D Pixar Style',
           safe_zone: safeZone,
           prompt_text: prompt,
-          status: 'pending'
+          status: 'pending',
+          project_id: projectId,
+          metadata: {
+            template: promptData.metadata.template,
+            imageType: promptData.metadata.imageType || 'characterImage', // Store the new imageType
+            safeZone: safeZone,
+            theme: promptData.metadata.theme,
+            ageRange: promptData.metadata.ageRange,
+            aspectRatio: promptData.metadata.aspectRatio,
+            artStyle: promptData.metadata.artStyle,
+            generatedAt: promptData.metadata.generatedAt
+          }
         });
       }
     }
