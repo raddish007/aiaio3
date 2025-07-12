@@ -58,12 +58,13 @@ export class PromptGenerator {
     const safeZone = this.mapLegacySafeZone(context.safeZone, context.template);
     
     // Convert to new engine context
+    const aspectRatio = context.aspectRatio === '9:16' ? '9:16' : '16:9'; // Default to landscape
     const engineContext: PromptEngineContext = {
       theme: context.theme,
       templateType: context.template,
       ageRange: context.ageRange,
       safeZone: safeZone,
-      aspectRatio: context.aspectRatio || '16:9',
+      aspectRatio: aspectRatio,
       artStyle: context.artStyle || '2D Pixar Style',
       promptCount: context.promptCount || 3,
       childName: context.childName,
@@ -81,7 +82,7 @@ export class PromptGenerator {
           safeZone: safeZone,
           theme: context.theme,
           ageRange: context.ageRange,
-          aspectRatio: context.aspectRatio || '16:9',
+          aspectRatio: aspectRatio,
           artStyle: context.artStyle || '2D Pixar Style',
           imageType: context.imageType || context.assetType, // Include the new imageType metadata
           variations: result.metadata.variations,
@@ -171,6 +172,7 @@ export class PromptGenerator {
       }
 
       const parsed = JSON.parse(content);
+      const aspectRatio = context.aspectRatio === '9:16' ? '9:16' : '16:9'; // Default to landscape
       return {
         ...parsed,
         metadata: {
@@ -178,7 +180,7 @@ export class PromptGenerator {
           safeZone,
           theme: context.theme,
           ageRange: context.ageRange,
-          aspectRatio: context.aspectRatio || '16:9',
+          aspectRatio: aspectRatio,
           artStyle: context.artStyle || '2D Pixar Style',
           imageType: context.imageType || context.assetType, // Include the new imageType metadata
           generatedAt: new Date().toISOString()

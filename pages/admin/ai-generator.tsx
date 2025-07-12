@@ -158,29 +158,38 @@ export default function AIGenerator() {
     setConfigError(null);
 
     try {
+      // Determine aspect ratio from metadata or default to landscape
+      const aspectRatio = selectedPrompt.metadata?.aspectRatio === '9:16' ? '9:16' : '16:9';
+      
+      // For synthetic prompts (from URL parameters), we need to handle them differently
+      const isSyntheticPrompt = selectedPrompt.id === 'url-prompt';
+      
+      const requestBody = {
+        assetType: 'image', // Always image for this page
+        prompt: editedPromptText || selectedPrompt.prompt_text, // Use edited text if available
+        aspectRatio: aspectRatio, // Use dynamic aspect ratio
+        duration: 30,
+        style: generationForm.style,
+        safeZone: generationForm.safeZone,
+        imageType: generationForm.imageType, // Include imageType for Letter Hunt assets
+        // Pass through additional context from URL parameters
+        ...(selectedPrompt.metadata && {
+          template: selectedPrompt.metadata.template,
+          theme: selectedPrompt.metadata.theme,
+          ageRange: selectedPrompt.metadata.ageRange,
+          childName: selectedPrompt.metadata.childName,
+          additionalContext: selectedPrompt.metadata.additionalContext
+        }),
+        // Only include promptId for real database prompts
+        ...(isSyntheticPrompt ? {} : { promptId: selectedPrompt.id })
+      };
+
       const response = await fetch('/api/assets/generate-fal', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          promptId: selectedPrompt.id,
-          assetType: 'image', // Always image for this page
-          prompt: editedPromptText || selectedPrompt.prompt_text, // Use edited text if available
-          aspectRatio: '16:9', // Hardcoded to 16:9
-          duration: 30,
-          style: generationForm.style,
-          safeZone: generationForm.safeZone,
-          imageType: generationForm.imageType, // Include imageType for Letter Hunt assets
-          // Pass through additional context from URL parameters
-          ...(selectedPrompt.metadata && {
-            template: selectedPrompt.metadata.template,
-            theme: selectedPrompt.metadata.theme,
-            ageRange: selectedPrompt.metadata.ageRange,
-            childName: selectedPrompt.metadata.childName,
-            additionalContext: selectedPrompt.metadata.additionalContext
-          })
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       const result = await response.json();

@@ -25,8 +25,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     const { promptId, assetType, prompt, aspectRatio, duration, style, safeZone } = req.body;
 
-    if (!promptId || !assetType || !prompt) {
-      return res.status(400).json({ error: 'Missing required fields: promptId, assetType, prompt' });
+    if (!assetType || !prompt) {
+      return res.status(400).json({ error: 'Missing required fields: assetType, prompt' });
     }
 
     // Check if FAL_AI_API_KEY, FAL_KEY, or FAL_API_KEY is configured
@@ -48,15 +48,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(500).json({ error: 'Database admin client not available' });
     }
 
-    // Get the prompt from database
-    const { data: promptData, error: promptError } = await supabaseAdmin
-      .from('prompts')
-      .select('*')
-      .eq('id', promptId)
-      .single();
+    let promptData = null;
+    
+    // Only fetch prompt from database if promptId is provided
+    if (promptId) {
+      const { data, error: promptError } = await supabaseAdmin
+        .from('prompts')
+        .select('*')
+        .eq('id', promptId)
+        .single();
 
-    if (promptError || !promptData) {
-      return res.status(404).json({ error: 'Prompt not found' });
+      if (promptError || !data) {
+        return res.status(404).json({ error: 'Prompt not found' });
+      }
+      
+      promptData = data;
     }
 
     // Note: We now allow reusing prompts intentionally, so we don't check if it's already used
@@ -68,7 +74,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (assetType === 'image') {
       const imageRequest: ImageGenerationRequest = {
         prompt: prompt,
-        aspectRatio: '16:9', // Hardcoded to 16:9 for proper context
+        aspectRatio: aspectRatio || '16:9', // Use provided aspect ratio or default to landscape
         style: style,
         safeZone: safeZone,
         model: 'imagen4', // Default to Imagen4
@@ -108,12 +114,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
         assetData = {
           type: 'image',
-          theme: promptData.theme,
+          theme: promptData?.theme || req.body.theme || 'general',
           tags: [style, safeZone].filter(Boolean),
           status: 'pending',
           file_url: supabaseUrl, // Use permanent Supabase URL
+          prompt: prompt, // Use the provided prompt text
           metadata: {
-            ...promptData.metadata,
+            ...(promptData?.metadata || {}),
+            ...req.body, // Include any additional context from the request
             generated_at: new Date().toISOString(),
             generation_method: 'fal.ai_imagen4',
             job_id: generationJob.jobId,
@@ -165,12 +173,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
         assetData = {
           type: 'audio',
-          theme: promptData.theme,
+          theme: promptData?.theme || req.body.theme || 'general',
           tags: [style].filter(Boolean),
           status: 'pending',
           file_url: supabaseUrl, // Use permanent Supabase URL
+          prompt: prompt, // Use the provided prompt text
           metadata: {
-            ...promptData.metadata,
+            ...(promptData?.metadata || {}),
+            ...req.body, // Include any additional context from the request
             generated_at: new Date().toISOString(),
             generation_method: 'fal.ai_flux',
             job_id: generationJob.jobId,
@@ -230,18 +240,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .update({ output_asset_id: assetRecord.id })
       .eq('id', jobRecord.id);
 
-    // Mark prompt as completed when asset is successfully created
-    await supabaseAdmin
-      .from('prompts')
-      .update({ 
-        status: 'completed',
-        metadata: {
-          ...promptData.metadata,
-          completed_at: new Date().toISOString(),
-          used_for_asset_id: assetRecord.id
-        }
-      })
-      .eq('id', promptId);
+    // Mark prompt as completed when asset is successfully created (only if we have a real promptId)
+    if (promptId && promptData) {
+      await supabaseAdmin
+        .from('prompts')
+        .update({ 
+          status: 'completed',
+          metadata: {
+            ...(promptData.metadata || {}),
+            completed_at: new Date().toISOString(),
+            used_for_asset_id: assetRecord.id
+          }
+        })
+        .eq('id', promptId);
+    }
 
     return res.status(200).json({
       success: true,
