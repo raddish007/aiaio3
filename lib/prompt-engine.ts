@@ -158,8 +158,8 @@ export class PromptEngine {
     center_safe: {
       id: 'center_safe',
       description: 'Decorative frame with completely empty center for name insertion',
-      compositionInstructions: 'Create ONLY a decorative border or frame design around the outer edges of the image. The frame should be thematic (e.g., paw prints for dogs, leaves for forest themes, stars for space themes) and ornamental. The entire center area (approximately 60% of the image) must remain completely empty and clear. Focus exclusively on the border design - NO characters, animals, or objects should be placed anywhere in the image.',
-      negativeInstructions: 'Absolutely NO characters, animals, people, or main subject elements anywhere in the image. NO visual elements, objects, or decorative details in the center area. The image should consist ONLY of a decorative border/frame around the edges. The center must be completely empty solid background color.',
+      compositionInstructions: 'Create ONLY a decorative border or frame design around the outer edges of the image. The frame should be thematic (e.g., paw prints for dogs, leaves for forest themes, stars for space themes) and ornamental. The entire center area must remain completely empty and clear for text placement. Focus exclusively on the border design - NO characters, animals, or objects should be placed anywhere in the image.',
+      negativeInstructions: 'Absolutely NO characters, animals, people, or main subject elements anywhere in the image. NO visual elements, objects, or decorative details in the center area. The image should consist ONLY of a decorative border/frame around the edges. The center must be completely empty with solid background color.',
       templateCompatibility: ['name-video', 'educational', 'lullaby']
     },
     intro_safe: {
@@ -397,11 +397,11 @@ export class PromptEngine {
 
 COMPOSITION REQUIREMENTS:
 ${safeZoneRule.compositionInstructions}    ${context.safeZone === 'center_safe' ? `
-CRITICAL FOR CENTER_SAFE: You are creating ONLY a decorative border/frame design. NO characters or animals should appear anywhere in the image. Focus exclusively on creating thematic border elements (e.g., paw prints for dogs, stars for space, leaves for nature themes) around the edges only.
+IMPORTANT: You are creating ONLY a decorative border/frame design. NO characters or animals should appear anywhere in the image. Focus exclusively on creating thematic border elements (e.g., paw prints for dogs, stars for space, leaves for nature themes) around the edges only.
 ` : context.safeZone === 'intro_safe' ? `
-CRITICAL FOR INTRO_SAFE: You are creating ONLY a decorative border/frame design with space for title text. NO characters or animals should appear anywhere in the image. Focus exclusively on creating thematic border elements around the edges with clear upper-center area for title placement.
+IMPORTANT: You are creating ONLY a decorative border/frame design with space for title text. NO characters or animals should appear anywhere in the image. Focus exclusively on creating thematic border elements around the edges with clear upper-center area for title placement.
 ` : context.safeZone === 'outro_safe' ? `
-CRITICAL FOR OUTRO_SAFE: You are creating ONLY a decorative border/frame design with space for farewell text. NO characters or animals should appear anywhere in the image. Focus exclusively on creating thematic border elements around the edges with clear center area for closing text.
+IMPORTANT: You are creating ONLY a decorative border/frame design with space for farewell text. NO characters or animals should appear anywhere in the image. Focus exclusively on creating thematic border elements around the edges with clear center area for closing text.
 ` : ''}
 
 CONTENT RULES:
@@ -462,7 +462,7 @@ TARGET DETAILS:
 • Age Range: ${context.ageRange} years old
 • Aspect Ratio: ${context.aspectRatio}
 • Template: ${template.name}
-• Safe Zone: ${safeZoneRule.description}
+• Composition Style: ${safeZoneRule.description}
 ${context.childName ? `• Child Name Context: ${context.childName}` : ''}
 ${context.additionalContext ? `• Additional Context: ${context.additionalContext}` : ''}
 
