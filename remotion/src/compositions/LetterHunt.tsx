@@ -155,7 +155,7 @@ export const LetterHunt: React.FC<LetterHuntProps> = ({
 
   // Define segment durations 
   const standardDuration = 90; // 3 seconds * 30fps
-  const introDuration = 120; // 4 seconds * 30fps (extended for intro audio)
+  const introDuration = 165; // 5.5 seconds * 30fps (extended for intro audio)
   
   const segments = [
     { name: 'titleCard', start: 0, duration: standardDuration },
@@ -382,13 +382,13 @@ export const LetterHunt: React.FC<LetterHuntProps> = ({
           {assets.introAudio.status === 'ready' && assets.introAudio.url && (
             <Sequence 
               from={fps} // Start 1 second into the intro segment
-              durationInFrames={Math.min(introDuration - fps, 3 * fps)} // Play for remaining duration or 3 seconds max
+              durationInFrames={Math.min(introDuration - fps, 4 * fps)} // Play for remaining duration or 4 seconds max
             >
               <Audio 
                 src={assets.introAudio.url} 
                 volume={(frame) => {
                   const fadeFrames = fps * 0.2; // 0.2 second fade
-                  const sequenceDuration = Math.min(introDuration - fps, 3 * fps);
+                  const sequenceDuration = Math.min(introDuration - fps, 4 * fps);
                   
                   // Fade in at start
                   if (frame < fadeFrames) {

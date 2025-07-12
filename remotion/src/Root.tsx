@@ -145,7 +145,7 @@ export const RemotionRoot: React.FC = () => {
       <Composition
         id="LetterHunt"
         component={LetterHunt}
-        durationInFrames={750} // 25 seconds at 30fps (7 segments * 3 seconds + 1 intro segment * 4 seconds)
+        durationInFrames={795} // 26.5 seconds at 30fps (7 segments * 3 seconds + 1 intro segment * 5.5 seconds)
         fps={30}
         width={1920}
         height={1080}
@@ -178,17 +178,17 @@ export const RemotionRoot: React.FC = () => {
           }
         }}
         calculateMetadata={({ props }) => {
-          // 7 segments * 3 seconds + 1 intro segment * 4 seconds = 25 seconds total
+          // 7 segments * 3 seconds + 1 intro segment * 5.5 seconds = 26.5 seconds total
           const standardSegmentDuration = 3;
-          const extendedIntroSegmentDuration = 4;
+          const extendedIntroSegmentDuration = 5.5;
           const standardSegments = 7;
-          const totalDurationFrames = (standardSegments * standardSegmentDuration + extendedIntroSegmentDuration) * 30; // 750 frames
+          const totalDurationFrames = (standardSegments * standardSegmentDuration + extendedIntroSegmentDuration) * 30; // 795 frames
           
           console.log(`🎬 Letter Hunt duration calculation for "${props.childName}" (Letter ${props.targetLetter}):`, {
             standardSegments,
             standardSegmentDurationSeconds: standardSegmentDuration,
             extendedIntroSegmentDurationSeconds: extendedIntroSegmentDuration,
-            totalDurationSeconds: 25,
+            totalDurationSeconds: 26.5,
             totalDurationFrames,
             fps: 30
           });
