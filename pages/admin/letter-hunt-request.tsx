@@ -138,7 +138,17 @@ export default function LetterHuntRequest() {
       .eq('type', 'video')
       .eq('metadata->>targetLetter', targetLetter);
 
-    // 3. Generic Letter Hunt video assets (not tied to specific child/letter)
+    // 3. Letter-specific audio assets (not personalized, reusable across children)
+    const { data: letterSpecificAudioAssets, error: letterAudioError } = await supabase
+      .from('assets')
+      .select('*')
+      .in('status', ['approved', 'pending'])
+      .eq('metadata->>template', 'letter-hunt')
+      .eq('type', 'audio')
+      .eq('metadata->>targetLetter', targetLetter)
+      .is('metadata->>child_name', null);
+
+    // 4. Generic Letter Hunt video assets (not tied to specific child/letter)
     const { data: genericVideoAssets, error: genericError } = await supabase
       .from('assets')
       .select('*')
@@ -152,9 +162,10 @@ export default function LetterHuntRequest() {
     const existingAssets = [
       ...(specificAssets || []),
       ...(letterSpecificAssets || []),
+      ...(letterSpecificAudioAssets || []),
       ...(genericVideoAssets || [])
     ];
-    const error = specificError || letterError || genericError;
+    const error = specificError || letterError || letterAudioError || genericError;
 
     if (error) {
       console.error('Error checking for existing assets:', error);
@@ -354,37 +365,67 @@ export default function LetterHuntRequest() {
           description: `"Letter Hunt for ${nameToUse}"`,
           status: 'missing'
         },
-        introAudio: {
+        introAudio: existingByType.get('introAudio') ? {
+          ...existingByType.get('introAudio'),
+          type: 'audio',
+          name: 'Intro Audio',
+          description: `"Today we're looking for the letter ${targetLetter}!"`
+        } : {
           type: 'audio',
           name: 'Intro Audio',
           description: `"Today we're looking for the letter ${targetLetter}!"`,
           status: 'missing'
         },
-        intro2Audio: {
+        intro2Audio: existingByType.get('intro2Audio') ? {
+          ...existingByType.get('intro2Audio'),
+          type: 'audio',
+          name: 'Search Audio',
+          description: `"Everywhere you go, look for the letter ${targetLetter}!"`
+        } : {
           type: 'audio',
           name: 'Search Audio',
           description: `"Everywhere you go, look for the letter ${targetLetter}!"`,
           status: 'missing'
         },
-        signAudio: {
+        signAudio: existingByType.get('signAudio') ? {
+          ...existingByType.get('signAudio'),
+          type: 'audio',
+          name: 'Signs Audio',
+          description: '"On signs"'
+        } : {
           type: 'audio',
           name: 'Signs Audio',
           description: '"On signs"',
           status: 'missing'
         },
-        bookAudio: {
+        bookAudio: existingByType.get('bookAudio') ? {
+          ...existingByType.get('bookAudio'),
+          type: 'audio',
+          name: 'Books Audio',
+          description: '"On books"'
+        } : {
           type: 'audio',
           name: 'Books Audio',
           description: '"On books"',
           status: 'missing'
         },
-        groceryAudio: {
+        groceryAudio: existingByType.get('groceryAudio') ? {
+          ...existingByType.get('groceryAudio'),
+          type: 'audio',
+          name: 'Grocery Audio',
+          description: '"Even in the grocery store!"'
+        } : {
           type: 'audio',
           name: 'Grocery Audio',
           description: '"Even in the grocery store!"',
           status: 'missing'
         },
-        happyDanceAudio: {
+        happyDanceAudio: existingByType.get('happyDanceAudio') ? {
+          ...existingByType.get('happyDanceAudio'),
+          type: 'audio',
+          name: 'Happy Dance Audio',
+          description: '"And when you find your letter, I want you to do a little happy dance!"'
+        } : {
           type: 'audio',
           name: 'Happy Dance Audio',
           description: '"And when you find your letter, I want you to do a little happy dance!"',
@@ -497,13 +538,18 @@ export default function LetterHuntRequest() {
         const audioParams = new URLSearchParams({
           templateType: 'letter-hunt',
           assetPurpose: assetKey,
-          childName: childName,
           targetLetter: targetLetter,
           script: script,
           voiceId: '248nvfaZe8BXhKntjmpp', // Murph voice
           speed: '1.0',
           assetKey: assetKey // So we know which asset to update when returning
         });
+
+        // For letter-specific audio (not personalized), don't include childName
+        const isLetterSpecificAudio = ['introAudio', 'intro2Audio', 'signAudio', 'bookAudio', 'groceryAudio', 'happyDanceAudio'].includes(assetKey);
+        if (!isLetterSpecificAudio) {
+          audioParams.append('childName', childName);
+        }
         
         console.log(`🎤 Redirecting to audio generator for ${asset.name}...`);
         console.log('📋 Audio params:', audioParams.toString());

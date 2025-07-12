@@ -37,7 +37,17 @@ async function testVideoIntegration() {
       .eq('type', 'video')
       .eq('metadata->>targetLetter', testLetter);
 
-    // 3. Generic Letter Hunt video assets
+    // 3. Letter-specific audio assets (not personalized, reusable across children)
+    const { data: letterSpecificAudioAssets } = await supabase
+      .from('assets')
+      .select('*')
+      .in('status', ['approved', 'pending'])
+      .eq('metadata->>template', 'letter-hunt')
+      .eq('type', 'audio')
+      .eq('metadata->>targetLetter', testLetter)
+      .is('metadata->>child_name', null);
+
+    // 4. Generic Letter Hunt video assets
     const { data: genericVideoAssets } = await supabase
       .from('assets')
       .select('*')
@@ -50,6 +60,7 @@ async function testVideoIntegration() {
     const existingAssets = [
       ...(specificAssets || []),
       ...(letterSpecificAssets || []),
+      ...(letterSpecificAudioAssets || []),
       ...(genericVideoAssets || [])
     ];
 

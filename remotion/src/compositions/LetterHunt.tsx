@@ -153,18 +153,19 @@ export const LetterHunt: React.FC<LetterHuntProps> = ({
     return handle;
   }, [assets]);
 
-  // Define segment durations (all 3 seconds each at 30fps = 90 frames)
-  const segmentDuration = 90; // 3 seconds * 30fps
+  // Define segment durations 
+  const standardDuration = 90; // 3 seconds * 30fps
+  const introDuration = 120; // 4 seconds * 30fps (extended for intro audio)
   
   const segments = [
-    { name: 'titleCard', start: 0, duration: segmentDuration },
-    { name: 'intro', start: segmentDuration, duration: segmentDuration },
-    { name: 'intro2', start: segmentDuration * 2, duration: segmentDuration },
-    { name: 'sign', start: segmentDuration * 3, duration: segmentDuration },
-    { name: 'book', start: segmentDuration * 4, duration: segmentDuration },
-    { name: 'grocery', start: segmentDuration * 5, duration: segmentDuration },
-    { name: 'happyDance', start: segmentDuration * 6, duration: segmentDuration },
-    { name: 'ending', start: segmentDuration * 7, duration: segmentDuration }
+    { name: 'titleCard', start: 0, duration: standardDuration },
+    { name: 'intro', start: standardDuration, duration: introDuration },
+    { name: 'intro2', start: standardDuration + introDuration, duration: standardDuration },
+    { name: 'sign', start: standardDuration + introDuration + standardDuration, duration: standardDuration },
+    { name: 'book', start: standardDuration + introDuration + standardDuration * 2, duration: standardDuration },
+    { name: 'grocery', start: standardDuration + introDuration + standardDuration * 3, duration: standardDuration },
+    { name: 'happyDance', start: standardDuration + introDuration + standardDuration * 4, duration: standardDuration },
+    { name: 'ending', start: standardDuration + introDuration + standardDuration * 5, duration: standardDuration }
   ];
 
   // Find current segment
@@ -377,12 +378,33 @@ export const LetterHunt: React.FC<LetterHuntProps> = ({
             </div>
           )}
 
-          {/* Intro Audio */}
+          {/* Intro Audio - starts 1 second into intro segment */}
           {assets.introAudio.status === 'ready' && assets.introAudio.url && (
-            <Audio 
-              src={assets.introAudio.url} 
-              volume={0.9}
-            />
+            <Sequence 
+              from={fps} // Start 1 second into the intro segment
+              durationInFrames={Math.min(introDuration - fps, 3 * fps)} // Play for remaining duration or 3 seconds max
+            >
+              <Audio 
+                src={assets.introAudio.url} 
+                volume={(frame) => {
+                  const fadeFrames = fps * 0.2; // 0.2 second fade
+                  const sequenceDuration = Math.min(introDuration - fps, 3 * fps);
+                  
+                  // Fade in at start
+                  if (frame < fadeFrames) {
+                    return 0.9 * (frame / fadeFrames);
+                  }
+                  
+                  // Fade out at end
+                  if (frame > sequenceDuration - fadeFrames) {
+                    return 0.9 * ((sequenceDuration - frame) / fadeFrames);
+                  }
+                  
+                  // Normal volume in between
+                  return 0.9;
+                }}
+              />
+            </Sequence>
           )}
         </AbsoluteFill>
       </Sequence>
@@ -708,7 +730,7 @@ export const LetterHunt: React.FC<LetterHuntProps> = ({
           🎬 Letter Hunt Debug Info
         </div>
         <div>Frame: {frame} / {durationInFrames}</div>
-        <div>Segment: {currentSegment?.name || 'none'} ({Math.ceil((frame % segmentDuration) / fps * 10) / 10}s)</div>
+        <div>Segment: {currentSegment?.name || 'none'} ({Math.ceil((frame % (currentSegment?.duration || standardDuration)) / fps * 10) / 10}s)</div>
         <div>Child: {childName} | Letter: {targetLetter} | Theme: {childTheme}</div>
         <div style={{ marginTop: '6px', fontSize: '12px', color: '#FFD700' }}>
           Videos: {[assets.introVideo, assets.intro2Video, assets.happyDanceVideo]
