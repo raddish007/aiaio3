@@ -48,9 +48,10 @@ export default function VideoAssetUpload() {
     'letter-hunt': {
       name: 'Letter Hunt',
       sections: [
-        { value: 'introVideo', label: 'Intro Video - Character pointing to giant letter' },
-        { value: 'intro2Video', label: 'Search Video - Character searching playfully' },
-        { value: 'happyDanceVideo', label: 'Happy Dance Video - Character doing joyful dance' }
+        { value: 'introVideo', label: 'Part 1 - Character pointing to giant letter' },
+        { value: 'intro2Video', label: 'Part 2 - Theme + Letter combination' },
+        { value: 'intro3Video', label: 'Part 3 - Character searching playfully' },
+        { value: 'happyDanceVideo', label: 'Happy Dance - Character doing joyful dance' }
       ]
     }
     // Future templates can be added here
@@ -112,6 +113,7 @@ export default function VideoAssetUpload() {
     const metadata: any = {
       template: formData.template,
       section: formData.section,
+      videoType: formData.section, // Add videoType field that matches section for consistent detection
       category: formData.category,
       volume: formData.volume,
       ageRange: formData.ageRange,

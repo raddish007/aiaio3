@@ -28,6 +28,7 @@ interface LetterHuntPayload {
     titleCard: AssetStatus;
     introVideo: AssetStatus;
     intro2Video: AssetStatus;
+    intro3Video: AssetStatus;
     signImage: AssetStatus;
     bookImage: AssetStatus;
     groceryImage: AssetStatus;
@@ -37,6 +38,7 @@ interface LetterHuntPayload {
     titleAudio: AssetStatus;
     introAudio: AssetStatus;
     intro2Audio: AssetStatus;
+    intro3Audio: AssetStatus;
     signAudio: AssetStatus;
     bookAudio: AssetStatus;
     groceryAudio: AssetStatus;
@@ -206,19 +208,36 @@ export default function LetterHuntRequest() {
         const category = asset.metadata?.category;
         const section = asset.metadata?.section;
         
-        // Handle direct section mappings first
-        if (section === 'introVideo') {
+        // Handle specific asset ID mappings for known videos
+        // Letter + Theme videos (introVideo)
+        if (asset.id === 'eb3fcec0-d9a4-421d-a2fa-1bded854365d' || // Halloween + Letter N
+            asset.id === '540dc1d4-f8c6-4c71-9b80-5d9f6964e9db' || // Dinosaurs + Letter L
+            asset.id === 'c0793472-2eb4-4dab-aaec-c28689391077') {   // Dogs + Letter A
+          assetKey = 'introVideo';
+        }
+        // Search videos (intro2Video)
+        else if (asset.id === 'c39cf5dc-dc21-4057-84d6-7ac059e1ee96' || // Dinosaurs search
+                 asset.id === '9b211a49-820f-477a-9512-322795762221' || // Dog search
+                 asset.id === 'b4bb12bd-f2a3-4035-9d38-6fca03b9c8dc') {   // Halloween search
+          assetKey = 'intro2Video';
+        }
+        // Handle direct section mappings for future uploads
+        else if (section === 'introVideo') {
           assetKey = 'introVideo';
         } else if (section === 'intro2Video') {
           assetKey = 'intro2Video';
+        } else if (section === 'intro3Video') {
+          assetKey = 'intro3Video';
         } else if (section === 'happyDanceVideo' || section === 'dance') {
           assetKey = 'happyDanceVideo';
         }
         // Handle legacy mappings
         else if (category === 'letter AND theme' || category === 'letter-and-theme' || section === 'intro') {
           assetKey = 'introVideo';
-        } else if (section === 'search' || section === 'intro2') {
+        } else if (section === 'search' || section === 'intro2' || category === 'thematic') {
           assetKey = 'intro2Video';
+        } else if (section === 'adventure' || section === 'intro3') {
+          assetKey = 'intro3Video';
         } else if (category === 'dance') {
           assetKey = 'happyDanceVideo';
         }
@@ -229,21 +248,74 @@ export default function LetterHuntRequest() {
       }
       
       if (assetKey) {
-        // For video assets, also check if theme matches (prefer matching theme)
         const existingAsset = existingByType.get(assetKey);
-        const shouldUseThisAsset = !existingAsset || 
-          (asset.type === 'video' && asset.metadata?.theme?.toLowerCase() === themeToUse.toLowerCase());
+        let shouldUseThisAsset = false;
+        
+        if (asset.type === 'video') {
+          // For videos, ONLY use if theme matches exactly
+          const currentTheme = asset.metadata?.theme?.toLowerCase();
+          const desiredTheme = themeToUse.toLowerCase();
+          
+          // Normalize theme names to handle plural/singular differences
+          const normalizeTheme = (theme: string) => {
+            const normalized = theme.toLowerCase();
+            // Handle common plural/singular cases
+            if (normalized === 'dogs' || normalized === 'dog') return 'dog';
+            if (normalized === 'dinosaurs' || normalized === 'dinosaur') return 'dinosaur';
+            if (normalized === 'cats' || normalized === 'cat') return 'cat';
+            if (normalized === 'adventures' || normalized === 'adventure') return 'adventure';
+            return normalized;
+          };
+          
+          const normalizedCurrentTheme = normalizeTheme(currentTheme || '');
+          const normalizedDesiredTheme = normalizeTheme(desiredTheme);
+          
+          if (normalizedCurrentTheme === normalizedDesiredTheme) {
+            if (!existingAsset) {
+              // First matching theme video found
+              shouldUseThisAsset = true;
+              console.log(`✅ First ${assetKey} video with matching theme: ${currentTheme}`);
+            } else {
+              // Multiple videos with same theme - randomly select between them
+              const shouldReplace = Math.random() < 0.5; // 50% chance to replace
+              if (shouldReplace) {
+                shouldUseThisAsset = true;
+                console.log(`🎲 Randomly replacing ${assetKey}: ${existingAsset.theme} → ${currentTheme} (random selection)`);
+              } else {
+                console.log(`🎲 Randomly keeping existing ${assetKey}: ${existingAsset.theme} (random selection)`);
+              }
+            }
+          } else {
+            // Theme doesn't match - skip this asset
+            shouldUseThisAsset = false;
+            console.log(`⚠️ Skipping video asset ${assetKey} - theme mismatch: ${currentTheme} !== ${desiredTheme}`);
+          }
+        } else {
+          // Non-video assets (images, audio) - use first one found, or random selection if multiple
+          if (!existingAsset) {
+            shouldUseThisAsset = true;
+            console.log(`✅ First ${assetKey} asset found`);
+          } else {
+            // Multiple non-video assets - randomly select between them
+            const shouldReplace = Math.random() < 0.5; // 50% chance to replace
+            if (shouldReplace) {
+              shouldUseThisAsset = true;
+              console.log(`🎲 Randomly replacing ${assetKey} (random selection)`);
+            } else {
+              console.log(`🎲 Randomly keeping existing ${assetKey} (random selection)`);
+            }
+          }
+        }
         
         if (shouldUseThisAsset) {
           existingByType.set(assetKey, {
             url: asset.file_url,
             status: 'ready',
             assetId: asset.id,
-            generatedAt: asset.created_at
+            generatedAt: asset.created_at,
+            theme: asset.metadata?.theme
           });
-          console.log(`✅ Found existing asset: ${assetKey} (${asset.type}) - ${asset.file_url}${asset.metadata?.theme ? ` [Theme: ${asset.metadata.theme}]` : ''}`);
-        } else {
-          console.log(`⚠️ Skipping asset ${assetKey} - theme mismatch: ${asset.metadata?.theme} vs ${themeToUse}`);
+          console.log(`✅ Using asset: ${assetKey} (${asset.type}) - ${asset.file_url}${asset.metadata?.theme ? ` [Theme: ${asset.metadata.theme}]` : ''}`);
         }
       } else {
         console.log(`⚠️ Asset missing key field:`, {
@@ -258,6 +330,83 @@ export default function LetterHuntRequest() {
         });
       }
     });
+
+    // Check for video assets that should exist but don't have theme matches
+    const requiredVideoAssets = ['introVideo', 'intro2Video', 'happyDanceVideo'];
+    const videoErrors: Array<{
+      type: string;
+      error: string;
+      message: string;
+      availableThemes?: string[];
+    }> = [];
+    
+    requiredVideoAssets.forEach(videoKey => {
+      const hasMatchingVideo = existingByType.has(videoKey);
+      if (!hasMatchingVideo) {
+        // Check if we have videos for this type but with wrong themes
+        const availableVideos = existingAssets?.filter(asset => {
+          let assetKey = asset.metadata?.videoType;
+          
+          // Use the same mapping logic to determine what this asset would be classified as
+          if (!assetKey && asset.type === 'video') {
+            const category = asset.metadata?.category;
+            const section = asset.metadata?.section;
+            
+            if (asset.id === 'eb3fcec0-d9a4-421d-a2fa-1bded854365d' || 
+                asset.id === '540dc1d4-f8c6-4c71-9b80-5d9f6964e9db' || 
+                asset.id === 'c0793472-2eb4-4dab-aaec-c28689391077') {
+              assetKey = 'introVideo';
+            } else if (asset.id === 'c39cf5dc-dc21-4057-84d6-7ac059e1ee96' || 
+                       asset.id === '9b211a49-820f-477a-9512-322795762221' || 
+                       asset.id === 'b4bb12bd-f2a3-4035-9d38-6fca03b9c8dc') {
+              assetKey = 'intro2Video';
+            } else if (section === 'introVideo') {
+              assetKey = 'introVideo';
+            } else if (section === 'intro2Video') {
+              assetKey = 'intro2Video';
+            } else if (section === 'intro3Video') {
+              assetKey = 'intro3Video';
+            } else if (section === 'happyDanceVideo' || section === 'dance') {
+              assetKey = 'happyDanceVideo';
+            } else if (category === 'letter AND theme' || category === 'letter-and-theme' || section === 'intro') {
+              assetKey = 'introVideo';
+            } else if (section === 'search' || section === 'intro2' || category === 'thematic') {
+              assetKey = 'intro2Video';
+            } else if (section === 'adventure' || section === 'intro3') {
+              assetKey = 'intro3Video';
+            } else if (category === 'dance') {
+              assetKey = 'happyDanceVideo';
+            }
+          }
+          
+          return assetKey === videoKey;
+        });
+        
+        if (availableVideos && availableVideos.length > 0) {
+          const availableThemes = availableVideos.map(v => v.metadata?.theme).filter(t => t);
+          videoErrors.push({
+            type: videoKey,
+            error: 'theme_mismatch',
+            message: `No ${videoKey} video found for theme "${themeToUse}". Available themes: ${availableThemes.join(', ')}`,
+            availableThemes
+          });
+        } else {
+          videoErrors.push({
+            type: videoKey,
+            error: 'missing_entirely',
+            message: `No ${videoKey} videos found at all. Please upload videos for this segment.`
+          });
+        }
+      }
+    });
+
+    // Log video errors
+    if (videoErrors.length > 0) {
+      console.error('🚨 Video Theme Matching Errors:', videoErrors);
+      videoErrors.forEach(error => {
+        console.error(`❌ ${error.message}`);
+      });
+    }
 
     const newPayload: LetterHuntPayload = {
       childName: nameToUse.trim(),
@@ -342,6 +491,17 @@ export default function LetterHuntRequest() {
           description: `${themeToUse} character searching around playfully`,
           status: 'missing'
         },
+        intro3Video: existingByType.get('intro3Video') ? {
+          ...existingByType.get('intro3Video'),
+          type: 'video',
+          name: 'Adventure Video',
+          description: `${themeToUse} character ready for adventure`
+        } : {
+          type: 'video',
+          name: 'Adventure Video',
+          description: `${themeToUse} character ready for adventure`,
+          status: 'missing'
+        },
         happyDanceVideo: existingByType.get('happyDanceVideo') ? {
           ...existingByType.get('happyDanceVideo'),
           type: 'video',
@@ -385,6 +545,17 @@ export default function LetterHuntRequest() {
           type: 'audio',
           name: 'Search Audio',
           description: `"Everywhere you go, look for the letter ${targetLetter}!"`,
+          status: 'missing'
+        },
+        intro3Audio: existingByType.get('intro3Audio') ? {
+          ...existingByType.get('intro3Audio'),
+          type: 'audio',
+          name: 'Adventure Audio',
+          description: `"Can you find the letter ${targetLetter}?"`
+        } : {
+          type: 'audio',
+          name: 'Adventure Audio',
+          description: `"Can you find the letter ${targetLetter}?"`,
           status: 'missing'
         },
         signAudio: existingByType.get('signAudio') ? {
@@ -515,6 +686,9 @@ export default function LetterHuntRequest() {
           case 'intro2Audio':
             script = `Everywhere you go, look for the letter ${targetLetter}!`;
             break;
+          case 'intro3Audio':
+            script = `Can you find the letter ${targetLetter}?`;
+            break;
           case 'signAudio':
             script = "On signs";
             break;
@@ -546,7 +720,7 @@ export default function LetterHuntRequest() {
         });
 
         // For letter-specific audio (not personalized), don't include childName
-        const isLetterSpecificAudio = ['introAudio', 'intro2Audio', 'signAudio', 'bookAudio', 'groceryAudio', 'happyDanceAudio'].includes(assetKey);
+        const isLetterSpecificAudio = ['introAudio', 'intro2Audio', 'intro3Audio', 'signAudio', 'bookAudio', 'groceryAudio', 'happyDanceAudio'].includes(assetKey);
         if (!isLetterSpecificAudio) {
           audioParams.append('childName', childName);
         }
@@ -572,6 +746,9 @@ export default function LetterHuntRequest() {
             break;
           case 'intro2Video':
             section = 'search';
+            break;
+          case 'intro3Video':
+            section = 'adventure';
             break;
           case 'happyDanceVideo':
             section = 'dance';
@@ -1047,11 +1224,11 @@ Your video will be available for review in the admin dashboard once complete.`);
                 </div>
               </div>
 
-              {/* Part 2: Introduction (3-6 seconds) */}
+              {/* Part 2: Letter + Theme (3-6 seconds) */}
               <div className="bg-white rounded-lg shadow-sm p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
                   <span className="bg-purple-100 text-purple-800 text-sm font-medium px-2.5 py-0.5 rounded mr-3">Part 2</span>
-                  Introduction (3-6 seconds)
+                  Letter + Theme (3-6 seconds)
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* Intro Video */}
@@ -1130,6 +1307,152 @@ Your video will be available for review in the admin dashboard once complete.`);
                        payload.assets.introAudio.status === 'generating' ? 'Generating...' : 
                        'Generate Audio'}
                     </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Part 3: Search (6-9 seconds) */}
+              <div className="bg-white rounded-lg shadow-sm p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                  <span className="bg-green-100 text-green-800 text-sm font-medium px-2.5 py-0.5 rounded mr-3">Part 3</span>
+                  Search (6-9 seconds)
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Intro2 Video (Search) */}
+                  <div className="border border-gray-200 rounded-lg p-4"
+                       style={{ background: payload.assets.intro2Video.status === 'ready' ? '#f0f8f0' : 
+                                           payload.assets.intro2Video.status === 'generating' ? '#fff8dc' : '#f9f9f9' }}>
+                    <h4 className="font-medium text-gray-900 mb-2 flex items-center">
+                      {payload.assets.intro2Video.name}
+                      <span className={`ml-2 text-xs font-bold uppercase px-2 py-1 rounded ${
+                        payload.assets.intro2Video.status === 'ready' ? 'bg-green-100 text-green-800' :
+                        payload.assets.intro2Video.status === 'generating' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-red-100 text-red-800'
+                      }`}>
+                        {payload.assets.intro2Video.status}
+                      </span>
+                    </h4>
+                    <p className="text-sm text-gray-600 mb-3">{payload.assets.intro2Video.description}</p>
+                    
+                    {payload.assets.intro2Video.status === 'ready' && payload.assets.intro2Video.url && (
+                      <div className="mb-3">
+                        <video controls className="w-full h-auto rounded border">
+                          <source src={payload.assets.intro2Video.url} type="video/mp4" />
+                        </video>
+                      </div>
+                    )}
+                    
+                    <button
+                      onClick={() => generateAsset('intro2Video')}
+                      disabled={payload.assets.intro2Video.status === 'generating'}
+                      className={`px-4 py-2 rounded text-sm font-medium ${
+                        payload.assets.intro2Video.status === 'ready' ? 'bg-green-600 text-white' :
+                        payload.assets.intro2Video.status === 'generating' ? 'bg-yellow-500 text-white cursor-not-allowed' :
+                        'bg-blue-600 text-white hover:bg-blue-700'
+                      }`}
+                    >
+                      {payload.assets.intro2Video.status === 'ready' ? 'Regenerate' :
+                       payload.assets.intro2Video.status === 'generating' ? 'Generating...' : 
+                       'Generate Video'}
+                    </button>
+                  </div>
+                  
+                  {/* Intro2 Audio (Search) */}
+                  <div className="border border-gray-200 rounded-lg p-4"
+                       style={{ background: payload.assets.intro2Audio.status === 'ready' ? '#f0f8f0' : 
+                                           payload.assets.intro2Audio.status === 'generating' ? '#fff8dc' : '#f9f9f9' }}>
+                    <h4 className="font-medium text-gray-900 mb-2 flex items-center">
+                      {payload.assets.intro2Audio.name}
+                      <span className={`ml-2 text-xs font-bold uppercase px-2 py-1 rounded ${
+                        payload.assets.intro2Audio.status === 'ready' ? 'bg-green-100 text-green-800' :
+                        payload.assets.intro2Audio.status === 'generating' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-red-100 text-red-800'
+                      }`}>
+                        {payload.assets.intro2Audio.status}
+                      </span>
+                    </h4>
+                    <p className="text-sm text-gray-600 mb-3">{payload.assets.intro2Audio.description}</p>
+                    
+                    {payload.assets.intro2Audio.status === 'ready' && payload.assets.intro2Audio.url && (
+                      <div className="mb-3">
+                        <audio controls className="w-full">
+                          <source src={payload.assets.intro2Audio.url} type="audio/mpeg" />
+                        </audio>
+                      </div>
+                    )}
+                    
+                    <button
+                      onClick={() => generateAsset('intro2Audio')}
+                      disabled={payload.assets.intro2Audio.status === 'generating'}
+                      className={`px-4 py-2 rounded text-sm font-medium ${
+                        payload.assets.intro2Audio.status === 'ready' ? 'bg-green-600 text-white' :
+                        payload.assets.intro2Audio.status === 'generating' ? 'bg-yellow-500 text-white cursor-not-allowed' :
+                        'bg-blue-600 text-white hover:bg-blue-700'
+                      }`}
+                    >
+                      {payload.assets.intro2Audio.status === 'ready' ? 'Regenerate' :
+                       payload.assets.intro2Audio.status === 'generating' ? 'Generating...' : 
+                       'Generate Audio'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Part 4: Happy Dance (Coming Soon) */}
+              <div className="bg-white rounded-lg shadow-sm p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                  <span className="bg-yellow-100 text-yellow-800 text-sm font-medium px-2.5 py-0.5 rounded mr-3">Part 4</span>
+                  Happy Dance (Coming Soon)
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Happy Dance Video */}
+                  <div className="border border-gray-200 rounded-lg p-4"
+                       style={{ background: payload.assets.happyDanceVideo.status === 'ready' ? '#f0f8f0' : 
+                                           payload.assets.happyDanceVideo.status === 'generating' ? '#fff8dc' : '#f9f9f9' }}>
+                    <h4 className="font-medium text-gray-900 mb-2 flex items-center">
+                      {payload.assets.happyDanceVideo.name}
+                      <span className={`ml-2 text-xs font-bold uppercase px-2 py-1 rounded ${
+                        payload.assets.happyDanceVideo.status === 'ready' ? 'bg-green-100 text-green-800' :
+                        payload.assets.happyDanceVideo.status === 'generating' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-red-100 text-red-800'
+                      }`}>
+                        {payload.assets.happyDanceVideo.status}
+                      </span>
+                    </h4>
+                    <p className="text-sm text-gray-600 mb-3">{payload.assets.happyDanceVideo.description}</p>
+                    
+                    {payload.assets.happyDanceVideo.status === 'ready' && payload.assets.happyDanceVideo.url && (
+                      <div className="mb-3">
+                        <video controls className="w-full h-auto rounded border">
+                          <source src={payload.assets.happyDanceVideo.url} type="video/mp4" />
+                        </video>
+                      </div>
+                    )}
+                    
+                    <button
+                      onClick={() => generateAsset('happyDanceVideo')}
+                      disabled={payload.assets.happyDanceVideo.status === 'generating'}
+                      className={`px-4 py-2 rounded text-sm font-medium ${
+                        payload.assets.happyDanceVideo.status === 'ready' ? 'bg-green-600 text-white' :
+                        payload.assets.happyDanceVideo.status === 'generating' ? 'bg-yellow-500 text-white cursor-not-allowed' :
+                        'bg-blue-600 text-white hover:bg-blue-700'
+                      }`}
+                    >
+                      {payload.assets.happyDanceVideo.status === 'ready' ? 'Regenerate' :
+                       payload.assets.happyDanceVideo.status === 'generating' ? 'Generating...' : 
+                       'Generate Video'}
+                    </button>
+                  </div>
+                  
+                  {/* Happy Dance videos currently use existing audio */}
+                  <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                    <h4 className="font-medium text-gray-900 mb-2">Audio</h4>
+                    <p className="text-sm text-gray-600 mb-3">
+                      Happy Dance videos use the background music and existing audio tracks.
+                    </p>
+                    <div className="text-xs text-gray-500">
+                      ℹ️ No additional audio generation needed for this segment
+                    </div>
                   </div>
                 </div>
               </div>
