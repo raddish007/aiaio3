@@ -42,6 +42,7 @@ interface LetterHuntPayload {
     groceryAudio: AssetStatus;
     happyDanceAudio: AssetStatus;
     endingAudio: AssetStatus;
+    backgroundMusic: AssetStatus;
   };
 }
 
@@ -274,6 +275,13 @@ export default function LetterHuntRequest() {
           name: 'Ending Audio',
           description: `"Have fun finding the letter ${targetLetter}, ${nameToUse}!"`,
           status: 'missing'
+        },
+        backgroundMusic: {
+          type: 'audio',
+          name: 'Background Music',
+          description: 'Cheerful background music for Letter Hunt video',
+          status: 'ready',
+          url: 'https://etshvxrgbssginmzsczo.supabase.co/storage/v1/object/public/assets/assets/audio/1752340926893.MP3'
         }
       }
     };
@@ -363,7 +371,8 @@ export default function LetterHuntRequest() {
 
   const canSubmitVideo = () => {
     if (!payload) return false;
-    // For now, only require Title Card to be ready for testing
+    // For Letter Hunt, we don't require child selection in test mode
+    // The API handles invalid/missing child IDs gracefully by skipping moderation records
     return payload.assets.titleCard.status === 'ready';
     // TODO: Later enable all assets: return Object.values(payload.assets).every(asset => asset.status === 'ready');
   };
@@ -375,6 +384,17 @@ export default function LetterHuntRequest() {
     try {
       console.log('🎬 Submitting Letter Hunt video generation:', payload);
       
+      // Clean asset objects to only include url and status (remove type, name, description, etc.)
+      const cleanedAssets: any = {};
+      Object.entries(payload.assets).forEach(([key, asset]) => {
+        cleanedAssets[key] = {
+          url: asset.url || '',
+          status: asset.status
+        };
+      });
+      
+      console.log('🧹 Cleaned assets for API:', cleanedAssets);
+      
       // Call our new Letter Hunt generation API
       const response = await fetch('/api/videos/generate-letter-hunt', {
         method: 'POST',
@@ -384,9 +404,9 @@ export default function LetterHuntRequest() {
           targetLetter: payload.targetLetter,
           childTheme: selectedChild?.primary_interest || 'adventure',
           childAge: selectedChild?.age || 3,
-          childId: selectedChild?.id || 'placeholder-child-id',
-          submitted_by: 'current-user-id', // This should come from user session
-          assets: payload.assets
+          childId: selectedChild?.id || null, // Send null instead of placeholder
+          submitted_by: '1cb80063-9b5f-4fff-84eb-309f12bd247d', // Use valid admin UUID
+          assets: cleanedAssets
         })
       });
 
@@ -475,48 +495,49 @@ Your video will be available for review in the admin dashboard once complete.`);
         <title>Letter Hunt - Create Video</title>
       </Head>
       
-      <div style={{ padding: 32, maxWidth: 1200, margin: '0 auto' }}>
-        <h1 style={{ color: '#333', marginBottom: 32 }}>
-          Letter Hunt Video Creator
-          {router.query.assignment_id && (
-            <span style={{ 
-              marginLeft: 16, 
-              fontSize: '14px', 
-              fontWeight: 'normal', 
-              color: '#0066cc', 
-              backgroundColor: '#e6f3ff', 
-              padding: '4px 8px', 
-              borderRadius: 4 
-            }}>
-              Assignment Mode
-            </span>
-          )}
-        </h1>
+      <div className="min-h-screen bg-gray-50">
+        {/* Header */}
+        <header className="bg-white shadow-sm">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center py-4">
+              <h1 className="text-2xl font-bold text-gray-900">
+                Letter Hunt Video Request
+                {router.query.assignment_id && (
+                  <span className="ml-2 text-sm font-normal text-blue-600 bg-blue-100 px-2 py-1 rounded">
+                    Assignment Mode
+                  </span>
+                )}
+              </h1>
+              <button
+                onClick={() => router.push('/admin')}
+                className="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 text-sm"
+              >
+                Back to Dashboard
+              </button>
+            </div>
+          </div>
+        </header>
+
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         
         {/* Missing Video Tracker */}
         <MissingVideoTracker
           videoType="letter-hunt"
           templateName="Letter Hunt"
-          className="mb-8"
+          className="mb-6"
           onChildSelect={handleChildSelect}
         />
         
         {!payload ? (
-          <div style={{ background: '#f9f9f9', padding: 24, borderRadius: 8, marginBottom: 32 }}>
-            <h2>Step 1: Video Details</h2>
+          <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Step 1: Video Details</h2>
             
             {selectedChild && (
-              <div style={{ 
-                background: '#e8f5e8', 
-                border: '1px solid #4caf50', 
-                borderRadius: 8, 
-                padding: 16, 
-                marginBottom: 16 
-              }}>
-                <div style={{ fontWeight: 'bold', color: '#2e7d32' }}>
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+                <div className="font-semibold text-green-800">
                   ✅ Selected Child: {selectedChild.name}
                 </div>
-                <div style={{ fontSize: 14, color: '#666', marginBottom: 4 }}>
+                <div className="text-sm text-gray-600 mb-1">
                   Age {selectedChild.age}, loves {selectedChild.primary_interest}
                 </div>
                 <div style={{ fontSize: 14, color: '#2e7d32', fontWeight: 'bold' }}>
@@ -735,6 +756,50 @@ Your video will be available for review in the admin dashboard once complete.`);
               ))}
             </div>
 
+            {/* JSON Payload Preview */}
+            <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <h4 className="font-medium text-blue-900 mb-2">JSON Payload Preview:</h4>
+              
+              {/* Asset Status Summary */}
+              <div className="mb-3 p-2 bg-white border border-blue-300 rounded text-sm">
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Title Card:</span>
+                    <span className={payload.assets.titleCard.status === 'ready' ? 'text-green-600' : 'text-yellow-600'}>
+                      {payload.assets.titleCard.status === 'ready' ? '✅ Ready' : '⚠️ Not ready'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Total Assets:</span>
+                    <span className="font-medium">
+                      {Object.values(payload.assets).filter(asset => asset.status === 'ready').length}/16 ready
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* JSON Preview */}
+              <pre className="bg-gray-900 text-green-400 p-3 rounded text-xs overflow-x-auto max-h-64 overflow-y-auto">
+{JSON.stringify({
+  childName: payload.childName,
+  targetLetter: payload.targetLetter,
+  childTheme: selectedChild?.primary_interest || 'monsters',
+  childAge: selectedChild?.age || 3,
+  childId: selectedChild?.id || 'test-child',
+  submitted_by: '1cb80063-9b5f-4fff-84eb-309f12bd247d',
+  assets: Object.fromEntries(
+    Object.entries(payload.assets).map(([key, asset]) => [
+      key,
+      {
+        url: asset.url || '',
+        status: asset.status
+      }
+    ])
+  )
+}, null, 2)}
+              </pre>
+            </div>
+
             <div style={{ marginTop: 32, textAlign: 'center' }}>
               <button
                 onClick={submitForVideoGeneration}
@@ -756,6 +821,7 @@ Your video will be available for review in the admin dashboard once complete.`);
             </div>
           </div>
         )}
+        </div>
       </div>
     </>
   );

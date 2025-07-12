@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
+import { useRouter } from 'next/router';
 
 interface MissingVideoSummary {
   templateType: string;
@@ -22,6 +23,7 @@ interface MissingVideoSummary {
 }
 
 export default function VideoStatusDashboard() {
+  const router = useRouter();
   const [summaries, setSummaries] = useState<Record<string, MissingVideoSummary>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -136,17 +138,33 @@ export default function VideoStatusDashboard() {
         <title>Video Status Dashboard</title>
       </Head>
       
-      <div className="min-h-screen bg-gray-50 p-8">
-        <div className="max-w-6xl mx-auto">
-          <div className="flex items-center justify-between mb-8">
-            <h1 className="text-3xl font-bold text-gray-900">Video Status Dashboard</h1>
-            <button
-              onClick={fetchAllSummaries}
-              className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
-            >
-              🔄 Refresh All
-            </button>
+      <div className="min-h-screen bg-gray-50">
+        {/* Header */}
+        <header className="bg-white shadow-sm">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center py-4">
+              <h1 className="text-2xl font-bold text-gray-900">
+                Video Status Dashboard
+              </h1>
+              <div className="flex items-center space-x-3">
+                <button
+                  onClick={fetchAllSummaries}
+                  className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 text-sm"
+                >
+                  🔄 Refresh All
+                </button>
+                <button
+                  onClick={() => router.push('/admin')}
+                  className="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 text-sm"
+                >
+                  Back to Dashboard
+                </button>
+              </div>
+            </div>
           </div>
+        </header>
+
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
           {error && (
             <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">

@@ -33,6 +33,7 @@ export interface LetterHuntAssets {
   groceryAudio: AssetItem;
   happyDanceAudio: AssetItem;
   endingAudio: AssetItem;
+  backgroundMusic: AssetItem;
 }
 
 export interface LetterHuntProps {
@@ -117,6 +118,16 @@ export const LetterHunt: React.FC<LetterHuntProps> = ({
 
   return (
     <AbsoluteFill style={backgroundStyle}>
+      
+      {/* Background Music - plays throughout entire video */}
+      {assets.backgroundMusic?.status === 'ready' && assets.backgroundMusic?.url && (
+        <Audio 
+          src={assets.backgroundMusic.url} 
+          volume={0.3} 
+          startFrom={0}
+          endAt={durationInFrames}
+        />
+      )}
       
       {/* SEGMENT 1: Title Card */}
       <Sequence from={segments[0].start} durationInFrames={segments[0].duration}>

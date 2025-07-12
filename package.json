@@ -28,6 +28,7 @@
     "@remotion/lambda": "^4.0.322",
     "@remotion/player": "^4.0.322",
     "@remotion/renderer": "^4.0.322",
+    "@remotion/transitions": "^4.0.323",
     "@supabase/supabase-js": "^2.38.0",
     "@tailwindcss/forms": "^0.5.10",
     "@tailwindcss/typography": "^0.5.16",

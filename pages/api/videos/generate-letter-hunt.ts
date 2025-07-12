@@ -43,6 +43,7 @@ interface LetterHuntAssets {
   groceryAudio: { url: string; status: 'missing' | 'generating' | 'ready' };
   happyDanceAudio: { url: string; status: 'missing' | 'generating' | 'ready' };
   endingAudio: { url: string; status: 'missing' | 'generating' | 'ready' };
+  backgroundMusic: { url: string; status: 'missing' | 'generating' | 'ready' };
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -61,14 +62,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       assets 
     } = req.body;
 
-    if (!childName || !targetLetter || !childId) {
+    if (!childName || !targetLetter) {
       return res.status(400).json({ 
-        error: 'Missing required fields: childName, targetLetter, childId' 
+        error: 'Missing required fields: childName, targetLetter' 
       });
     }
 
-    // Use provided submitted_by or fallback to a default admin user
-    const userId = submitted_by || '1cb80063-9b5f-4fff-84eb-309f12bd247d';
+    // Validate childId is a valid UUID
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const validChildId = childId && uuidRegex.test(childId) ? childId : null;
+    
+    if (!validChildId) {
+      console.warn('⚠️ Invalid or missing childId, proceeding without moderation record');
+    }
+
+    // Validate submitted_by is a valid UUID, or use default admin user
+    const validSubmittedBy = submitted_by && uuidRegex.test(submitted_by) ? submitted_by : '1cb80063-9b5f-4fff-84eb-309f12bd247d';
+    
+    if (submitted_by && !uuidRegex.test(submitted_by)) {
+      console.warn('⚠️ Invalid submitted_by UUID, using default admin user');
+    }
 
     // Check if supabaseAdmin is available
     if (!supabaseAdmin) {
@@ -93,7 +106,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       'titleCard', 'introVideo', 'intro2Video', 'signImage', 'bookImage', 
       'groceryImage', 'happyDanceVideo', 'endingImage', 'titleAudio', 
       'introAudio', 'intro2Audio', 'signAudio', 'bookAudio', 'groceryAudio', 
-      'happyDanceAudio', 'endingAudio'
+      'happyDanceAudio', 'endingAudio', 'backgroundMusic'
     ];
 
     const processedAssets: LetterHuntAssets = {} as LetterHuntAssets;
@@ -126,9 +139,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const { data: jobRecord, error: jobError } = await supabaseAdmin
       .from('video_generation_jobs')
       .insert({
-        template_id: 'letter-hunt-template',
+        template_id: '79717227-d524-48cc-af06-55b25a6e053a', // Letter Hunt template UUID
         status: 'pending',
-        submitted_by: userId,
+        submitted_by: validSubmittedBy,
         assets: [],
         template_data: {
           composition: 'LetterHunt',
@@ -197,13 +210,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           video_generation_job_id: jobRecord.id,
           video_url: outputUrl,
           video_title: `Letter Hunt for ${childName} - Letter ${targetLetter}`,
-          child_id: childId,
+          child_id: validChildId,
           child_name: childName,
           child_age: childAge || 3,
           child_theme: childTheme || 'monsters',
           personalization_level: 'child_specific',
           approval_status: 'pending_review',
-          submitted_by: userId,
+          submitted_by: validSubmittedBy,
           duration_seconds: durationInSeconds,
           template_type: 'letter-hunt',
           template_data: {
