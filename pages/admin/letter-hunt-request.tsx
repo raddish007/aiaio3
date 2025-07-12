@@ -134,16 +134,33 @@ export default function LetterHuntRequest() {
 
     console.log(`📦 Found ${existingAssets?.length || 0} existing Letter Hunt assets:`, existingAssets);
 
-    // Create mapping of existing assets by imageType
+    // Create mapping of existing assets by imageType (for images) or assetPurpose (for audio)
     const existingByType = new Map();
     existingAssets?.forEach(asset => {
-      const imageType = asset.metadata?.imageType;
-      if (imageType) {
-        existingByType.set(imageType, {
+      // For images, use imageType; for audio, use assetPurpose
+      let assetKey = asset.metadata?.imageType || asset.metadata?.assetPurpose;
+      
+      // FALLBACK: For legacy audio assets without assetPurpose, try to infer from template_context
+      if (!assetKey && asset.type === 'audio' && asset.metadata?.template_context?.asset_purpose) {
+        assetKey = asset.metadata.template_context.asset_purpose;
+        console.log(`� Legacy asset: Using template_context.asset_purpose: ${assetKey} for asset ${asset.id}`);
+      }
+      
+      if (assetKey) {
+        existingByType.set(assetKey, {
           url: asset.file_url,
           status: 'ready',
           assetId: asset.id,
           generatedAt: asset.created_at
+        });
+        console.log(`✅ Found existing asset: ${assetKey} (${asset.type}) - ${asset.file_url}`);
+      } else {
+        console.log(`⚠️ Asset missing key field:`, {
+          id: asset.id,
+          type: asset.type,
+          imageType: asset.metadata?.imageType,
+          assetPurpose: asset.metadata?.assetPurpose,
+          templateContextAssetPurpose: asset.metadata?.template_context?.asset_purpose
         });
       }
     });
@@ -228,7 +245,12 @@ export default function LetterHuntRequest() {
           status: 'missing'
         },
         // Audio assets
-        titleAudio: {
+        titleAudio: existingByType.get('titleAudio') ? {
+          ...existingByType.get('titleAudio'),
+          type: 'audio',
+          name: 'Title Audio',
+          description: `"Letter Hunt for ${nameToUse}"`
+        } : {
           type: 'audio',
           name: 'Title Audio',
           description: `"Letter Hunt for ${nameToUse}"`,
@@ -290,6 +312,10 @@ export default function LetterHuntRequest() {
     const foundAssets = Array.from(existingByType.keys());
     if (foundAssets.length > 0) {
       console.log(`✅ Found existing assets: ${foundAssets.join(', ')}`);
+      
+      // Debug: Check what titleAudio data we have
+      const titleAudioData = existingByType.get('titleAudio');
+      console.log('🎯 TitleAudio data from map:', titleAudioData);
     } else {
       console.log('📭 No existing assets found for this child/letter combination');
     }
@@ -378,7 +404,6 @@ export default function LetterHuntRequest() {
           script: script,
           voiceId: '248nvfaZe8BXhKntjmpp', // Murph voice
           speed: '1.0',
-          returnUrl: window.location.href, // Return to this page after generation
           assetKey: assetKey // So we know which asset to update when returning
         });
         

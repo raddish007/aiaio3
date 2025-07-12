@@ -251,28 +251,21 @@ export default function AudioGenerator() {
         // Refresh the generated audios list
         await fetchGeneratedAudios();
         
-        // Check if this was called from Letter Hunt page
-        if (router.query.returnUrl && router.query.assetKey) {
-          console.log('🔄 Returning to Letter Hunt page with generated audio...');
-          const returnUrl = new URL(router.query.returnUrl as string);
-          returnUrl.searchParams.set('generatedAudioUrl', result.asset.file_url);
-          returnUrl.searchParams.set('assetKey', router.query.assetKey as string);
-          
-          // Redirect back to Letter Hunt page
-          await router.push(returnUrl.toString());
-          return;
-        }
+        // Don't automatically redirect - let user stay on audio generator
+        // They can manually navigate back if needed
+        console.log('✅ Audio generated successfully. Staying on audio generator page.');
         
-        // Reset the form for next generation
-        setAudioForm({
+        // Reset the form for next generation (but keep template context)
+        setAudioForm(prev => ({
           script: '',
           voiceId: '248nvfaZe8BXhKntjmpp',
           speed: 0.8,
           style: '',
-          isPersonalized: false,
-          templateContext: undefined,
-        });
-        alert('Audio generated successfully!');
+          isPersonalized: prev.isPersonalized,
+          templateContext: prev.templateContext, // Keep template context
+        }));
+        
+        alert('Audio generated successfully! You can listen to it below and navigate back when ready.');
       } else {
         if (result.error === 'ELEVENLABS_API_KEY not configured') {
           setConfigError('ELEVENLABS_API_KEY not configured. Please add your ElevenLabs API key to your .env.local file.');
@@ -645,95 +638,120 @@ export default function AudioGenerator() {
                   )}
                 </div>
 
-                {/* Template Context */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">🎬 Template Context (optional)</label>
-                  <div className="space-y-3 p-3 border border-gray-200 rounded-md bg-gray-50">
-                    <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Template Type</label>
-                      <select
-                        value={audioForm.templateContext?.templateType || ''}
-                        onChange={(e) => setAudioForm(prev => ({ 
-                          ...prev, 
-                          templateContext: {
-                            ...prev.templateContext,
-                            templateType: e.target.value
-                          }
-                        }))}
-                        className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                      >
-                        <option value="">No Template</option>
-                        <option value="lullaby">Lullaby Template</option>
-                        <option value="name-video">Name Video Template</option>
-                        <option value="letter-hunt">Letter Hunt Template</option>
-                      </select>
+                {/* Template Context - Only show if not pre-filled from URL */}
+                {!router.query.templateType && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">🎬 Template Context (optional)</label>
+                    <div className="space-y-3 p-3 border border-gray-200 rounded-md bg-gray-50">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Template Type</label>
+                        <select
+                          value={audioForm.templateContext?.templateType || ''}
+                          onChange={(e) => setAudioForm(prev => ({ 
+                            ...prev, 
+                            templateContext: {
+                              ...prev.templateContext,
+                              templateType: e.target.value
+                            }
+                          }))}
+                          className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        >
+                          <option value="">No Template</option>
+                          <option value="lullaby">Lullaby Template</option>
+                          <option value="name-video">Name Video Template</option>
+                          <option value="letter-hunt">Letter Hunt Template</option>
+                        </select>
+                      </div>
+                      
+                      {audioForm.templateContext?.templateType && (
+                        <>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-600 mb-1">Asset Purpose</label>
+                            <select
+                              value={audioForm.templateContext?.assetPurpose || ''}
+                              onChange={(e) => setAudioForm(prev => ({ 
+                                ...prev, 
+                                templateContext: {
+                                  ...prev.templateContext,
+                                  assetPurpose: e.target.value
+                                }
+                              }))}
+                              className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            >
+                              <option value="">Select Purpose</option>
+                              {audioForm.templateContext?.templateType === 'lullaby' && (
+                                <>
+                                  <option value="intro_audio">Intro Audio</option>
+                                  <option value="outro_audio">Outro Audio</option>
+                                  <option value="background_music">Background Music</option>
+                                </>
+                              )}
+                              {audioForm.templateContext?.templateType === 'name-video' && (
+                                <>
+                                  <option value="intro_audio">Intro Audio</option>
+                                  <option value="outro_audio">Outro Audio</option>
+                                  <option value="background_music">Background Music</option>
+                                </>
+                              )}
+                              {audioForm.templateContext?.templateType === 'letter-hunt' && (
+                                <>
+                                  <option value="intro_audio">Intro Audio</option>
+                                  <option value="outro_audio">Outro Audio</option>
+                                  <option value="background_music">Background Music</option>
+                                </>
+                              )}
+                            </select>
+                          </div>
+                          
+                          <div>
+                            <label className="block text-xs font-medium text-gray-600 mb-1">Child Name (optional)</label>
+                            <input
+                              type="text"
+                              placeholder="e.g., Nolan"
+                              value={audioForm.templateContext?.childName || ''}
+                              onChange={(e) => setAudioForm(prev => ({ 
+                                ...prev, 
+                                templateContext: {
+                                  ...prev.templateContext,
+                                  childName: e.target.value
+                                }
+                              }))}
+                              className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            />
+                          </div>
+                        </>
+                      )}
                     </div>
-                    
                     {audioForm.templateContext?.templateType && (
-                      <>
-                        <div>
-                          <label className="block text-xs font-medium text-gray-600 mb-1">Asset Purpose</label>
-                          <select
-                            value={audioForm.templateContext?.assetPurpose || ''}
-                            onChange={(e) => setAudioForm(prev => ({ 
-                              ...prev, 
-                              templateContext: {
-                                ...prev.templateContext,
-                                assetPurpose: e.target.value
-                              }
-                            }))}
-                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                          >
-                            <option value="">Select Purpose</option>
-                            {audioForm.templateContext?.templateType === 'lullaby' && (
-                              <>
-                                <option value="intro_audio">Intro Audio</option>
-                                <option value="outro_audio">Outro Audio</option>
-                                <option value="background_music">Background Music</option>
-                              </>
-                            )}
-                            {audioForm.templateContext?.templateType === 'name-video' && (
-                              <>
-                                <option value="intro_audio">Intro Audio</option>
-                                <option value="outro_audio">Outro Audio</option>
-                                <option value="background_music">Background Music</option>
-                              </>
-                            )}
-                            {audioForm.templateContext?.templateType === 'letter-hunt' && (
-                              <>
-                                <option value="intro_audio">Intro Audio</option>
-                                <option value="outro_audio">Outro Audio</option>
-                                <option value="background_music">Background Music</option>
-                              </>
-                            )}
-                          </select>
-                        </div>
-                        
-                        <div>
-                          <label className="block text-xs font-medium text-gray-600 mb-1">Child Name (optional)</label>
-                          <input
-                            type="text"
-                            placeholder="e.g., Nolan"
-                            value={audioForm.templateContext?.childName || ''}
-                            onChange={(e) => setAudioForm(prev => ({ 
-                              ...prev, 
-                              templateContext: {
-                                ...prev.templateContext,
-                                childName: e.target.value
-                              }
-                            }))}
-                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                          />
-                        </div>
-                      </>
+                      <p className="text-xs text-gray-500 mt-1">
+                        This audio will be tagged for the {audioForm.templateContext.templateType} template as {audioForm.templateContext.assetPurpose}.
+                      </p>
                     )}
                   </div>
-                  {audioForm.templateContext?.templateType && (
+                )}
+
+                {/* Child Name input for template context when coming from URL */}
+                {router.query.templateType && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">👶 Child Name</label>
+                    <input
+                      type="text"
+                      placeholder="Enter child's name for personalization"
+                      value={audioForm.templateContext?.childName || ''}
+                      onChange={(e) => setAudioForm(prev => ({ 
+                        ...prev, 
+                        templateContext: {
+                          ...prev.templateContext,
+                          childName: e.target.value
+                        }
+                      }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
                     <p className="text-xs text-gray-500 mt-1">
-                      This audio will be tagged for the {audioForm.templateContext.templateType} template as {audioForm.templateContext.assetPurpose}.
+                      This will personalize the audio script for the child (template context is locked when coming from {audioForm.templateContext?.templateType} workflow).
                     </p>
-                  )}
-                </div>
+                  </div>
+                )}
 
                 {/* Generate Button */}
                 <button

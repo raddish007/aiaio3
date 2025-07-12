@@ -194,7 +194,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           template: 'letter-hunt',
           child_name: templateContext.childName,
           targetLetter: templateContext.targetLetter,
-          imageType: templateContext.assetPurpose // Map asset purpose to imageType for consistency
+          assetPurpose: templateContext.assetPurpose, // Save as assetPurpose for audio assets
+          imageType: templateContext.assetPurpose // Also save as imageType for consistency with existing logic
         } : {})
       },
     };
