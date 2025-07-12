@@ -158,6 +158,7 @@ export const RemotionRoot: React.FC = () => {
             titleCard: { url: '', status: 'missing' as const },
             introVideo: { url: '', status: 'missing' as const },
             intro2Video: { url: '', status: 'missing' as const },
+            intro3Video: { url: '', status: 'missing' as const },
             signImage: { url: '', status: 'missing' as const },
             bookImage: { url: '', status: 'missing' as const },
             groceryImage: { url: '', status: 'missing' as const },
@@ -166,6 +167,7 @@ export const RemotionRoot: React.FC = () => {
             titleAudio: { url: '', status: 'missing' as const },
             introAudio: { url: '', status: 'missing' as const },
             intro2Audio: { url: '', status: 'missing' as const },
+            intro3Audio: { url: '', status: 'missing' as const },
             signAudio: { url: '', status: 'missing' as const },
             bookAudio: { url: '', status: 'missing' as const },
             groceryAudio: { url: '', status: 'missing' as const },
@@ -178,17 +180,19 @@ export const RemotionRoot: React.FC = () => {
           }
         }}
         calculateMetadata={({ props }) => {
-          // 7 segments * 3 seconds + 1 intro segment * 5.5 seconds = 26.5 seconds total
+          // 9 segments total: 8 standard segments * 3 seconds + 1 extended intro segment * 5.5 seconds = 29.5 seconds
+          // Segments: titleCard(3s), intro(5.5s), intro2(3s), intro3(3s), sign(3s), book(3s), grocery(3s), happyDance(3s), ending(3s)
           const standardSegmentDuration = 3;
           const extendedIntroSegmentDuration = 5.5;
-          const standardSegments = 7;
-          const totalDurationFrames = (standardSegments * standardSegmentDuration + extendedIntroSegmentDuration) * 30; // 795 frames
+          const standardSegments = 8; // titleCard, intro2, intro3, sign, book, grocery, happyDance, ending
+          const totalDurationFrames = (standardSegments * standardSegmentDuration + extendedIntroSegmentDuration) * 30; // 885 frames
           
           console.log(`🎬 Letter Hunt duration calculation for "${props.childName}" (Letter ${props.targetLetter}):`, {
+            totalSegments: 9,
             standardSegments,
             standardSegmentDurationSeconds: standardSegmentDuration,
             extendedIntroSegmentDurationSeconds: extendedIntroSegmentDuration,
-            totalDurationSeconds: 26.5,
+            totalDurationSeconds: 29.5,
             totalDurationFrames,
             fps: 30
           });
