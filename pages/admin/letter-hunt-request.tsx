@@ -134,16 +134,44 @@ export default function LetterHuntRequest() {
 
     console.log(`📦 Found ${existingAssets?.length || 0} existing Letter Hunt assets:`, existingAssets);
 
-    // Create mapping of existing assets by imageType (for images) or assetPurpose (for audio)
+    // Create mapping of existing assets by imageType (for images), assetPurpose (for audio), or videoType (for videos)
     const existingByType = new Map();
     existingAssets?.forEach(asset => {
-      // For images, use imageType; for audio, use assetPurpose
-      let assetKey = asset.metadata?.imageType || asset.metadata?.assetPurpose;
+      // For images, use imageType; for audio, use assetPurpose; for videos, use videoType
+      let assetKey = asset.metadata?.imageType || asset.metadata?.assetPurpose || asset.metadata?.videoType;
       
       // FALLBACK: For legacy audio assets without assetPurpose, try to infer from template_context
       if (!assetKey && asset.type === 'audio' && asset.metadata?.template_context?.asset_purpose) {
         assetKey = asset.metadata.template_context.asset_purpose;
-        console.log(`� Legacy asset: Using template_context.asset_purpose: ${assetKey} for asset ${asset.id}`);
+        console.log(`🔄 Legacy asset: Using template_context.asset_purpose: ${assetKey} for asset ${asset.id}`);
+      }
+      
+      // FALLBACK: For legacy video assets, try to infer from category or section
+      if (!assetKey && asset.type === 'video') {
+        // Try to map common video categories to our asset keys
+        const category = asset.metadata?.category;
+        const section = asset.metadata?.section;
+        
+        // Handle direct section mappings first
+        if (section === 'introVideo') {
+          assetKey = 'introVideo';
+        } else if (section === 'intro2Video') {
+          assetKey = 'intro2Video';
+        } else if (section === 'happyDanceVideo' || section === 'dance') {
+          assetKey = 'happyDanceVideo';
+        }
+        // Handle legacy mappings
+        else if (category === 'letter AND theme' || category === 'letter-and-theme' || section === 'intro') {
+          assetKey = 'introVideo';
+        } else if (section === 'search' || section === 'intro2') {
+          assetKey = 'intro2Video';
+        } else if (category === 'dance') {
+          assetKey = 'happyDanceVideo';
+        }
+        
+        if (assetKey) {
+          console.log(`🔄 Legacy video: Inferred videoType: ${assetKey} from category: ${category}, section: ${section} for asset ${asset.id}`);
+        }
       }
       
       if (assetKey) {
@@ -160,6 +188,9 @@ export default function LetterHuntRequest() {
           type: asset.type,
           imageType: asset.metadata?.imageType,
           assetPurpose: asset.metadata?.assetPurpose,
+          videoType: asset.metadata?.videoType,
+          category: asset.metadata?.category,
+          section: asset.metadata?.section,
           templateContextAssetPurpose: asset.metadata?.template_context?.asset_purpose
         });
       }
@@ -226,19 +257,34 @@ export default function LetterHuntRequest() {
           status: 'missing'
         },
         // Videos
-        introVideo: {
+        introVideo: existingByType.get('introVideo') ? {
+          ...existingByType.get('introVideo'),
+          type: 'video',
+          name: 'Intro Video',
+          description: `${themeToUse} character pointing to giant letter`
+        } : {
           type: 'video',
           name: 'Intro Video',
           description: `${themeToUse} character pointing to giant letter`,
           status: 'missing'
         },
-        intro2Video: {
+        intro2Video: existingByType.get('intro2Video') ? {
+          ...existingByType.get('intro2Video'),
+          type: 'video',
+          name: 'Search Video',
+          description: `${themeToUse} character searching around playfully`
+        } : {
           type: 'video',
           name: 'Search Video',
           description: `${themeToUse} character searching around playfully`,
           status: 'missing'
         },
-        happyDanceVideo: {
+        happyDanceVideo: existingByType.get('happyDanceVideo') ? {
+          ...existingByType.get('happyDanceVideo'),
+          type: 'video',
+          name: 'Happy Dance Video',
+          description: `${themeToUse} character doing a joyful dance`
+        } : {
           type: 'video',
           name: 'Happy Dance Video',
           description: `${themeToUse} character doing a joyful dance`,
@@ -414,6 +460,47 @@ export default function LetterHuntRequest() {
         return; // Don't update status since we're redirecting
       } 
       
+      // Handle video generation
+      else if (asset.type === 'video') {
+        console.log(`🎬 Redirecting to video asset upload for ${assetKey}...`);
+        
+        // Map asset keys to appropriate metadata for video upload
+        let videoType = assetKey;
+        let section = '';
+        
+        switch (assetKey) {
+          case 'introVideo':
+            section = 'intro';
+            break;
+          case 'intro2Video':
+            section = 'search';
+            break;
+          case 'happyDanceVideo':
+            section = 'dance';
+            break;
+          default:
+            section = assetKey.replace('Video', '');
+        }
+
+        // Redirect to video asset upload with pre-filled parameters
+        const videoParams = new URLSearchParams({
+          template: 'letter-hunt',
+          videoType: videoType,
+          section: section,
+          theme: selectedChild?.primary_interest || 'adventure',
+          letter: payload.targetLetter,
+          childName: payload.childName,
+          returnUrl: window.location.href,
+          assetKey: assetKey
+        });
+        
+        console.log(`🎬 Redirecting to video asset upload for ${asset.name}...`);
+        console.log('📋 Video params:', videoParams.toString());
+        
+        await router.push(`/admin/video-asset-upload?${videoParams.toString()}`);
+        return; // Don't update status since we're redirecting
+      }
+      
       else {
         // Update status to generating for other asset types
         setPayload(prev => prev ? {
@@ -551,16 +638,17 @@ Your video will be available for review in the admin dashboard once complete.`);
     }
   };
 
-  // Handle returning from prompt creation or audio generation with generated asset
+  // Handle returning from prompt creation, audio generation, or video upload with generated asset
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const generatedImageUrl = urlParams.get('generatedImageUrl');
     const generatedAudioUrl = urlParams.get('generatedAudioUrl');
+    const generatedVideoUrl = urlParams.get('generatedVideoUrl');
     const assetKey = urlParams.get('assetKey');
     
-    if ((generatedImageUrl || generatedAudioUrl) && assetKey && payload) {
-      const assetUrl = generatedImageUrl || generatedAudioUrl;
-      const assetType = generatedImageUrl ? 'image' : 'audio';
+    if ((generatedImageUrl || generatedAudioUrl || generatedVideoUrl) && assetKey && payload) {
+      const assetUrl = generatedImageUrl || generatedAudioUrl || generatedVideoUrl;
+      const assetType = generatedImageUrl ? 'image' : generatedAudioUrl ? 'audio' : 'video';
       
       console.log(`🎨 Received generated ${assetType} for ${assetKey}:`, assetUrl);
       
@@ -579,7 +667,7 @@ Your video will be available for review in the admin dashboard once complete.`);
       } : null);
       
       // Clean up URL parameters
-      const newUrl = window.location.pathname + (window.location.search.replace(/[?&](generatedImageUrl|generatedAudioUrl|assetKey)=[^&]*/g, '').replace(/^&/, '?') || '');
+      const newUrl = window.location.pathname + (window.location.search.replace(/[?&](generatedImageUrl|generatedAudioUrl|generatedVideoUrl|assetKey)=[^&]*/g, '').replace(/^&/, '?') || '');
       window.history.replaceState({}, '', newUrl);
     }
   }, [payload, router.query]);
