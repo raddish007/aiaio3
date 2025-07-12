@@ -107,7 +107,7 @@ export default function LetterHuntRequest() {
     }
   };
 
-  const initializePayload = () => {
+  const initializePayload = async () => {
     const nameToUse = selectedChild?.name || childName;
     const themeToUse = selectedChild?.primary_interest || 'adventure';
     
@@ -116,36 +116,92 @@ export default function LetterHuntRequest() {
       return;
     }
 
+    console.log(`🔍 Checking for existing Letter Hunt assets for ${nameToUse} (Letter ${targetLetter})`);
+
+    // Check for existing approved Letter Hunt assets for this child and letter
+    const { data: existingAssets, error } = await supabase
+      .from('assets')
+      .select('*')
+      .eq('status', 'approved')
+      .eq('metadata->>template', 'letter-hunt')
+      .eq('metadata->>child_name', nameToUse)
+      .eq('metadata->>targetLetter', targetLetter);
+
+    if (error) {
+      console.error('Error checking for existing assets:', error);
+    }
+
+    console.log(`📦 Found ${existingAssets?.length || 0} existing Letter Hunt assets:`, existingAssets);
+
+    // Create mapping of existing assets by imageType
+    const existingByType = new Map();
+    existingAssets?.forEach(asset => {
+      const imageType = asset.metadata?.imageType;
+      if (imageType) {
+        existingByType.set(imageType, {
+          url: asset.file_url,
+          status: 'ready',
+          assetId: asset.id,
+          generatedAt: asset.created_at
+        });
+      }
+    });
+
     const newPayload: LetterHuntPayload = {
       childName: nameToUse.trim(),
       targetLetter: targetLetter.toUpperCase().trim(),
       assets: {
         // Images
-        titleCard: {
+        titleCard: existingByType.get('titleCard') ? {
+          ...existingByType.get('titleCard'),
+          type: 'image',
+          name: 'Title Card',
+          description: `"${nameToUse}'s Letter Hunt!" title card with ${themeToUse} theme`
+        } : {
           type: 'image',
           name: 'Title Card',
           description: `"${nameToUse}'s Letter Hunt!" title card with ${themeToUse} theme`,
           status: 'missing'
         },
-        signImage: {
+        signImage: existingByType.get('signImage') ? {
+          ...existingByType.get('signImage'),
+          type: 'image',
+          name: 'Letter on Signs',
+          description: `Letter ${targetLetter} on colorful street sign with ${themeToUse} theme`
+        } : {
           type: 'image',
           name: 'Letter on Signs',
           description: `Letter ${targetLetter} on colorful street sign with ${themeToUse} theme`,
           status: 'missing'
         },
-        bookImage: {
+        bookImage: existingByType.get('bookImage') ? {
+          ...existingByType.get('bookImage'),
+          type: 'image',
+          name: 'Letter on Books',
+          description: `Letter ${targetLetter} on children's book cover with ${themeToUse} theme`
+        } : {
           type: 'image',
           name: 'Letter on Books',
           description: `Letter ${targetLetter} on children's book cover with ${themeToUse} theme`,
           status: 'missing'
         },
-        groceryImage: {
+        groceryImage: existingByType.get('groceryImage') ? {
+          ...existingByType.get('groceryImage'),
+          type: 'image',
+          name: 'Letter in Grocery Store',
+          description: `Letter ${targetLetter} on grocery store sign/cereal box with ${themeToUse} theme`
+        } : {
           type: 'image',
           name: 'Letter in Grocery Store',
           description: `Letter ${targetLetter} on grocery store sign/cereal box with ${themeToUse} theme`,
           status: 'missing'
         },
-        endingImage: {
+        endingImage: existingByType.get('endingImage') ? {
+          ...existingByType.get('endingImage'),
+          type: 'image',
+          name: 'Ending Image',
+          description: `Letter ${targetLetter} with ${themeToUse} characters waving goodbye`
+        } : {
           type: 'image',
           name: 'Ending Image',
           description: `Letter ${targetLetter} with ${themeToUse} characters waving goodbye`,
@@ -221,6 +277,14 @@ export default function LetterHuntRequest() {
         }
       }
     };
+
+    // Log findings
+    const foundAssets = Array.from(existingByType.keys());
+    if (foundAssets.length > 0) {
+      console.log(`✅ Found existing assets: ${foundAssets.join(', ')}`);
+    } else {
+      console.log('📭 No existing assets found for this child/letter combination');
+    }
 
     setPayload(newPayload);
   };
