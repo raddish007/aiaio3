@@ -13,6 +13,7 @@ interface AudioGenerationRequest {
     templateType?: string;
     assetPurpose?: string;
     childName?: string;
+    targetLetter?: string;
   };
 }
 
@@ -78,6 +79,28 @@ export default function AudioGenerator() {
     fetchGeneratedAudios();
     fetchTemplateScripts();
   }, []);
+
+  // Handle URL parameters from Letter Hunt page
+  useEffect(() => {
+    if (router.query.script && router.query.templateType) {
+      console.log('🎯 Received Letter Hunt audio generation request:', router.query);
+      
+      // Pre-fill the form with Letter Hunt parameters
+      setAudioForm(prev => ({
+        ...prev,
+        script: router.query.script as string,
+        voiceId: router.query.voiceId as string || '248nvfaZe8BXhKntjmpp',
+        speed: parseFloat(router.query.speed as string) || 1.0,
+        isPersonalized: true,
+        templateContext: {
+          templateType: router.query.templateType as string,
+          assetPurpose: router.query.assetPurpose as string,
+          childName: router.query.childName as string,
+          targetLetter: router.query.targetLetter as string,
+        }
+      }));
+    }
+  }, [router.query]);
 
   const checkAdminAccess = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -161,7 +184,20 @@ export default function AudioGenerator() {
     const selectedScript = templateScripts.find(script => script.id === scriptId);
     if (selectedScript) {
       const childName = audioForm.templateContext?.childName || '[NAME]';
-      const personalizedScript = selectedScript.script.replace(/\[NAME\]/g, childName);
+      const targetLetter = audioForm.templateContext?.targetLetter || '[LETTER]';
+      
+      // Replace both [NAME] and [LETTER] placeholders
+      let personalizedScript = selectedScript.script
+        .replace(/\[NAME\]/g, childName)
+        .replace(/\[LETTER\]/g, targetLetter);
+      
+      console.log('🎯 Template script selected:', {
+        templateName: selectedScript.name,
+        originalScript: selectedScript.script,
+        personalizedScript: personalizedScript,
+        childName,
+        targetLetter
+      });
       
       setAudioForm(prev => ({
         ...prev,
@@ -171,7 +207,8 @@ export default function AudioGenerator() {
         templateContext: {
           templateType: selectedScript.template_type,
           assetPurpose: selectedScript.asset_purpose,
-          childName: prev.templateContext?.childName || '[NAME]'
+          childName: prev.templateContext?.childName || '[NAME]',
+          targetLetter: prev.templateContext?.targetLetter || '[LETTER]'
         }
       }));
     }
@@ -213,6 +250,19 @@ export default function AudioGenerator() {
         setGenerationResult(result);
         // Refresh the generated audios list
         await fetchGeneratedAudios();
+        
+        // Check if this was called from Letter Hunt page
+        if (router.query.returnUrl && router.query.assetKey) {
+          console.log('🔄 Returning to Letter Hunt page with generated audio...');
+          const returnUrl = new URL(router.query.returnUrl as string);
+          returnUrl.searchParams.set('generatedAudioUrl', result.asset.file_url);
+          returnUrl.searchParams.set('assetKey', router.query.assetKey as string);
+          
+          // Redirect back to Letter Hunt page
+          await router.push(returnUrl.toString());
+          return;
+        }
+        
         // Reset the form for next generation
         setAudioForm({
           script: '',
@@ -446,15 +496,41 @@ export default function AudioGenerator() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="">Select a template script...</option>
-                    {templateScripts.map((script) => (
-                      <option key={script.id} value={script.id}>
-                        {script.name}
-                      </option>
+                    
+                    {/* Group templates by type for better organization */}
+                    {Object.entries(
+                      templateScripts.reduce((groups, script) => {
+                        const type = script.template_type;
+                        if (!groups[type]) groups[type] = [];
+                        groups[type].push(script);
+                        return groups;
+                      }, {} as Record<string, TemplateAudio[]>)
+                    ).map(([templateType, scripts]) => (
+                      <optgroup key={templateType} label={`${templateType.toUpperCase()} Templates`}>
+                        {scripts.map((script) => (
+                          <option key={script.id} value={script.id}>
+                            {script.name} - "{script.script}"
+                          </option>
+                        ))}
+                      </optgroup>
                     ))}
                   </select>
                   <p className="text-xs text-gray-500 mt-1">
-                    Select a template script to auto-fill the form with predefined content
+                    Select a template script to auto-fill with personalized content ({audioForm.templateContext?.childName || '[NAME]'}, letter {audioForm.templateContext?.targetLetter || '[LETTER]'})
                   </p>
+                  
+                  {/* Show current template context if available */}
+                  {audioForm.templateContext && (
+                    <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-sm">
+                      <div className="font-medium text-blue-800">Current Template Context:</div>
+                      <div className="text-blue-700">
+                        Template: {audioForm.templateContext.templateType} | 
+                        Purpose: {audioForm.templateContext.assetPurpose} | 
+                        Child: {audioForm.templateContext.childName}
+                        {audioForm.templateContext.targetLetter && ` | Letter: ${audioForm.templateContext.targetLetter}`}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Voice Selection */}

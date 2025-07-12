@@ -43,7 +43,52 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(500).json({ error: 'Database admin client not available' });
     }
 
-    console.log('Starting audio generation with ElevenLabs...');
+    // Check for existing audio asset with same script and template context
+    if (templateContext) {
+      console.log('🔍 Checking for existing audio asset...');
+      const { data: existingAssets, error: checkError } = await supabaseAdmin
+        .from('assets')
+        .select('*')
+        .eq('type', 'audio')
+        .eq('metadata->>script', script)
+        .eq('metadata->>voice_id', voiceId)
+        .eq('metadata->>template_context->template_type', templateContext.templateType)
+        .eq('metadata->>template_context->asset_purpose', templateContext.assetPurpose)
+        .eq('metadata->>template_context->child_name', templateContext.childName)
+        .eq('metadata->>template_context->target_letter', templateContext.targetLetter || '')
+        .in('status', ['pending', 'approved'])
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (checkError) {
+        console.warn('Error checking for existing assets:', checkError);
+        // Continue with generation if check fails
+      } else if (existingAssets && existingAssets.length > 0) {
+        const existingAsset = existingAssets[0];
+        console.log(`✅ Found existing audio asset: ${existingAsset.id}`);
+        console.log(`📄 Existing asset details:`, {
+          id: existingAsset.id,
+          status: existingAsset.status,
+          script: existingAsset.metadata?.script,
+          created_at: existingAsset.created_at
+        });
+        
+        return res.status(200).json({
+          success: true,
+          asset: existingAsset,
+          reused: true,
+          message: 'Reused existing audio asset with identical script and context',
+          generationInfo: {
+            voiceId: existingAsset.metadata?.voice_id,
+            speed: existingAsset.metadata?.speed,
+            scriptLength: script.length,
+            audioSize: existingAsset.metadata?.audio_size_bytes,
+          },
+        });
+      }
+    }
+
+    console.log('🎤 No existing asset found, generating new audio with ElevenLabs...');
 
     // Generate audio using ElevenLabs API
     const audioResponse = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
@@ -136,13 +181,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         duration: audioDuration, // Store extracted duration
         script: script, // Store script for regeneration
         audio_data: `data:audio/mpeg;base64,${audioData.toString('base64')}`, // Store audio in metadata for legacy support
-        // Template-specific metadata
+        // Template-specific metadata (nested format)
         template_context: templateContext ? {
           template_type: templateContext.templateType,
           asset_purpose: templateContext.assetPurpose,
           child_name: templateContext.childName,
+          target_letter: templateContext.targetLetter,
           template_specific: true
-        } : undefined
+        } : undefined,
+        // Letter Hunt specific metadata (flat format for easy querying)
+        ...(templateContext?.templateType === 'letter-hunt' ? {
+          template: 'letter-hunt',
+          child_name: templateContext.childName,
+          targetLetter: templateContext.targetLetter,
+          imageType: templateContext.assetPurpose // Map asset purpose to imageType for consistency
+        } : {})
       },
     };
 

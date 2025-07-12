@@ -119,11 +119,11 @@ export default function LetterHuntRequest() {
 
     console.log(`🔍 Checking for existing Letter Hunt assets for ${nameToUse} (Letter ${targetLetter})`);
 
-    // Check for existing approved Letter Hunt assets for this child and letter
+    // Check for existing Letter Hunt assets for this child and letter (approved OR pending status)
     const { data: existingAssets, error } = await supabase
       .from('assets')
       .select('*')
-      .eq('status', 'approved')
+      .in('status', ['approved', 'pending'])
       .eq('metadata->>template', 'letter-hunt')
       .eq('metadata->>child_name', nameToUse)
       .eq('metadata->>targetLetter', targetLetter);
@@ -307,7 +307,7 @@ export default function LetterHuntRequest() {
     console.log(`🎯 Generating asset: ${assetKey}`, { asset, payload });
 
     try {
-      // For now, we'll start with generating the title card image
+      // Handle image generation 
       if (asset.type === 'image' && assetKey === 'titleCard') {
         // Instead of calling API directly, redirect to manual prompt creation flow
         const promptParams = new URLSearchParams({
@@ -328,7 +328,68 @@ export default function LetterHuntRequest() {
         
         await router.push(`/admin/prompt-generator?${promptParams.toString()}`);
         return; // Don't update status since we're redirecting
-      } else {
+      } 
+      
+      // Handle audio generation
+      else if (asset.type === 'audio') {
+        console.log(`🎤 Redirecting to audio generator for ${assetKey}...`);
+        
+        // Create the script based on the asset description and payload data
+        let script = '';
+        const childName = payload.childName;
+        const targetLetter = payload.targetLetter;
+
+        // Map each audio asset to its script
+        switch (assetKey) {
+          case 'titleAudio':
+            script = `Letter hunt for ${childName}!`;
+            break;
+          case 'introAudio':
+            script = `Today we're looking for the letter ${targetLetter}!`;
+            break;
+          case 'intro2Audio':
+            script = `Everywhere you go, look for the letter ${targetLetter}!`;
+            break;
+          case 'signAudio':
+            script = "On signs";
+            break;
+          case 'bookAudio':
+            script = "On books";
+            break;
+          case 'groceryAudio':
+            script = "Even in the grocery store!";
+            break;
+          case 'happyDanceAudio':
+            script = "And when you find your letter, I want you to do a little happy dance!";
+            break;
+          case 'endingAudio':
+            script = `Have fun finding the letter ${targetLetter}, ${childName}!`;
+            break;
+          default:
+            throw new Error(`Unknown audio asset: ${assetKey}`);
+        }
+
+        // Redirect to audio generator with pre-filled parameters
+        const audioParams = new URLSearchParams({
+          templateType: 'letter-hunt',
+          assetPurpose: assetKey,
+          childName: childName,
+          targetLetter: targetLetter,
+          script: script,
+          voiceId: '248nvfaZe8BXhKntjmpp', // Murph voice
+          speed: '1.0',
+          returnUrl: window.location.href, // Return to this page after generation
+          assetKey: assetKey // So we know which asset to update when returning
+        });
+        
+        console.log(`🎤 Redirecting to audio generator for ${asset.name}...`);
+        console.log('📋 Audio params:', audioParams.toString());
+        
+        await router.push(`/admin/audio-generator?${audioParams.toString()}`);
+        return; // Don't update status since we're redirecting
+      } 
+      
+      else {
         // Update status to generating for other asset types
         setPayload(prev => prev ? {
           ...prev,
@@ -460,16 +521,20 @@ Your video will be available for review in the admin dashboard once complete.`);
     }
   };
 
-  // Handle returning from prompt creation with generated asset
+  // Handle returning from prompt creation or audio generation with generated asset
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const generatedImageUrl = urlParams.get('generatedImageUrl');
+    const generatedAudioUrl = urlParams.get('generatedAudioUrl');
     const assetKey = urlParams.get('assetKey');
     
-    if (generatedImageUrl && assetKey && payload) {
-      console.log(`🎨 Received generated image for ${assetKey}:`, generatedImageUrl);
+    if ((generatedImageUrl || generatedAudioUrl) && assetKey && payload) {
+      const assetUrl = generatedImageUrl || generatedAudioUrl;
+      const assetType = generatedImageUrl ? 'image' : 'audio';
       
-      // Update the asset status to ready with the generated image URL
+      console.log(`🎨 Received generated ${assetType} for ${assetKey}:`, assetUrl);
+      
+      // Update the asset status to ready with the generated asset URL
       setPayload(prev => prev ? {
         ...prev,
         assets: {
@@ -477,14 +542,14 @@ Your video will be available for review in the admin dashboard once complete.`);
           [assetKey]: {
             ...prev.assets[assetKey as keyof typeof prev.assets],
             status: 'ready',
-            url: generatedImageUrl,
+            url: assetUrl,
             generatedAt: new Date().toISOString()
           }
         }
       } : null);
       
       // Clean up URL parameters
-      const newUrl = window.location.pathname + (window.location.search.replace(/[?&](generatedImageUrl|assetKey)=[^&]*/g, '').replace(/^&/, '?') || '');
+      const newUrl = window.location.pathname + (window.location.search.replace(/[?&](generatedImageUrl|generatedAudioUrl|assetKey)=[^&]*/g, '').replace(/^&/, '?') || '');
       window.history.replaceState({}, '', newUrl);
     }
   }, [payload, router.query]);
