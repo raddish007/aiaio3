@@ -178,13 +178,17 @@ export const RemotionRoot: React.FC = () => {
           }
         }}
         calculateMetadata={({ props }) => {
-          // 8 segments * 3 seconds each = 24 seconds total
-          const totalDurationFrames = 8 * 3 * 30; // 720 frames
+          // 7 segments * 3 seconds + 1 intro segment * 4 seconds = 25 seconds total
+          const standardSegmentDuration = 3;
+          const extendedIntroSegmentDuration = 4;
+          const standardSegments = 7;
+          const totalDurationFrames = (standardSegments * standardSegmentDuration + extendedIntroSegmentDuration) * 30; // 750 frames
           
           console.log(`🎬 Letter Hunt duration calculation for "${props.childName}" (Letter ${props.targetLetter}):`, {
-            segments: 8,
-            segmentDurationSeconds: 3,
-            totalDurationSeconds: 24,
+            standardSegments,
+            standardSegmentDurationSeconds: standardSegmentDuration,
+            extendedIntroSegmentDurationSeconds: extendedIntroSegmentDuration,
+            totalDurationSeconds: 25,
             totalDurationFrames,
             fps: 30
           });
