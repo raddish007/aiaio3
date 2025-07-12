@@ -9,6 +9,7 @@ interface Asset {
   type: 'image' | 'audio' | 'video' | 'prompt';
   status: 'pending' | 'approved' | 'rejected';
   file_url?: string;
+  prompt?: string;
   tags?: string[];
   created_at: string;
   metadata?: {
@@ -224,7 +225,7 @@ export default function AssetManagement() {
     // Apply search filter
     if (filters.search) {
       // Search across multiple fields using OR conditions
-      query = query.or(`theme.ilike.%${filters.search}%,metadata->description.ilike.%${filters.search}%,metadata->child_name.ilike.%${filters.search}%,metadata->prompt.ilike.%${filters.search}%,metadata->audio_class.ilike.%${filters.search}%,metadata->letter.ilike.%${filters.search}%`);
+      query = query.or(`theme.ilike.%${filters.search}%,prompt.ilike.%${filters.search}%,metadata->description.ilike.%${filters.search}%,metadata->child_name.ilike.%${filters.search}%,metadata->prompt.ilike.%${filters.search}%,metadata->audio_class.ilike.%${filters.search}%,metadata->letter.ilike.%${filters.search}%`);
     }
     
     // Get total count for pagination with filters applied
@@ -241,7 +242,7 @@ export default function AssetManagement() {
       countQuery = countQuery.eq('metadata->template', filters.template);
     }
     if (filters.search) {
-      countQuery = countQuery.or(`theme.ilike.%${filters.search}%,metadata->description.ilike.%${filters.search}%,metadata->child_name.ilike.%${filters.search}%,metadata->prompt.ilike.%${filters.search}%,metadata->audio_class.ilike.%${filters.search}%,metadata->letter.ilike.%${filters.search}%`);
+      countQuery = countQuery.or(`theme.ilike.%${filters.search}%,prompt.ilike.%${filters.search}%,metadata->description.ilike.%${filters.search}%,metadata->child_name.ilike.%${filters.search}%,metadata->prompt.ilike.%${filters.search}%,metadata->audio_class.ilike.%${filters.search}%,metadata->letter.ilike.%${filters.search}%`);
     }
     
     const { count: totalCount, error: countError } = await countQuery;
@@ -340,9 +341,11 @@ export default function AssetManagement() {
       .from('assets')
       .update({ 
         status: 'approved',
+        prompt: editForm.prompt,
         metadata: {
           ...currentAsset?.metadata,
           ...editForm,
+          prompt: undefined, // Remove from metadata since it's now top-level
           letter: editForm.audio_class === 'letter_audio' ? editForm.letter : undefined,
           review: {
             reviewed_at: new Date().toISOString(),
@@ -438,10 +441,10 @@ export default function AssetManagement() {
         .update({ 
           status: 'approved',
           theme: editForm.theme,
+          prompt: editForm.prompt,
           tags: editForm.tags ? editForm.tags.split(',').map(tag => tag.trim()) : [],
           metadata: {
             description: editForm.description,
-            prompt: editForm.prompt,
             personalization: editForm.personalization,
             child_name: editForm.child_name,
             template: editForm.template,
@@ -491,10 +494,10 @@ export default function AssetManagement() {
         .update({ 
           status: 'rejected',
           theme: editForm.theme,
+          prompt: editForm.prompt,
           tags: editForm.tags ? editForm.tags.split(',').map(tag => tag.trim()) : [],
           metadata: {
             description: editForm.description,
-            prompt: editForm.prompt,
             personalization: editForm.personalization,
             child_name: editForm.child_name,
             template: editForm.template,
@@ -581,7 +584,7 @@ export default function AssetManagement() {
       theme: asset.theme || '',
       description: asset.metadata?.description || '',
       tags: asset.tags ? asset.tags.join(', ') : '',
-      prompt: asset.metadata?.prompt || '',
+      prompt: asset.prompt || asset.metadata?.prompt || '',
       personalization: asset.metadata?.personalization || 'general',
       child_name: asset.metadata?.child_name || '',
       template: asset.metadata?.template || '',
@@ -719,13 +722,13 @@ export default function AssetManagement() {
         .insert({
           theme: uploadForm.theme,
           type: uploadForm.type,
+          prompt: uploadForm.prompt || null,
           file_url: publicUrl,
           tags: uploadForm.tags ? uploadForm.tags.split(',').map(tag => tag.trim()) : [],
           status: 'pending',
           metadata: {
             description: uploadForm.description,
             project_id: uploadForm.project_id || null,
-            prompt: uploadForm.prompt || null,
             personalization: uploadForm.personalization,
             child_name: uploadForm.personalization === 'personalized' ? uploadForm.child_name : null,
             template: uploadForm.template || null,
@@ -806,12 +809,12 @@ export default function AssetManagement() {
           .insert({
             theme: file.name.replace(/\.[^/.]+$/, ''), // Use filename without extension as theme
             type: detectedType,
+            prompt: bulkUploadForm.prompt,
             file_url: publicUrl,
             tags: bulkUploadForm.tags ? bulkUploadForm.tags.split(',').map(tag => tag.trim()) : [],
             status: 'pending',
             metadata: {
               description: bulkUploadForm.description,
-              prompt: bulkUploadForm.prompt,
               personalization: bulkUploadForm.personalization,
               child_name: bulkUploadForm.personalization === 'personalized' ? bulkUploadForm.child_name : null,
               template: bulkUploadForm.template,
@@ -1219,6 +1222,13 @@ export default function AssetManagement() {
                         
                         {asset.metadata?.description && (
                           <p className="text-sm text-gray-600 mb-4 line-clamp-2">{asset.metadata.description}</p>
+                        )}
+                        
+                        {asset.prompt && (
+                          <div className="mb-4">
+                            <h4 className="text-xs font-semibold text-gray-700 mb-1">Generation Prompt:</h4>
+                            <p className="text-xs text-gray-600 bg-gray-50 p-2 rounded line-clamp-3">{asset.prompt}</p>
+                          </div>
                         )}
                         
                         {asset.metadata?.personalization && (
