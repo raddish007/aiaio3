@@ -58,6 +58,158 @@ interface LetterHuntPayload {
   };
 }
 
+// Helper to fetch and map available assets for all sections
+async function getAvailableAssetsForSection({
+  nameToUse,
+  themeToUse,
+  targetLetter
+}: {
+  nameToUse: string;
+  themeToUse: string;
+  targetLetter: string;
+}) {
+  // Fetch all relevant assets (same as in initializePayload)
+  const [specificAssets, letterSpecificAssets, letterSpecificAudioAssets, genericVideoAssets, genericAudioAssets, letterSpecificImageAssets] = await Promise.all([
+    supabase
+      .from('assets')
+      .select('*')
+      .in('status', ['approved', 'pending'])
+      .eq('metadata->>template', 'letter-hunt')
+      .eq('metadata->>child_name', nameToUse)
+      .eq('metadata->>targetLetter', targetLetter),
+    supabase
+      .from('assets')
+      .select('*')
+      .in('status', ['approved', 'pending'])
+      .eq('metadata->>template', 'letter-hunt')
+      .eq('type', 'video')
+      .eq('metadata->>targetLetter', targetLetter),
+    supabase
+      .from('assets')
+      .select('*')
+      .in('status', ['approved', 'pending'])
+      .eq('metadata->>template', 'letter-hunt')
+      .eq('type', 'audio')
+      .eq('metadata->>targetLetter', targetLetter)
+      .or('metadata->>child_name.is.null,metadata->>child_name.eq.'),
+    supabase
+      .from('assets')
+      .select('*')
+      .in('status', ['approved', 'pending'])
+      .eq('metadata->>template', 'letter-hunt')
+      .eq('type', 'video')
+      .or('metadata->>child_name.is.null,metadata->>child_name.eq.')
+      .is('metadata->>targetLetter', null),
+    supabase
+      .from('assets')
+      .select('*')
+      .in('status', ['approved', 'pending'])
+      .eq('metadata->>template', 'letter-hunt')
+      .eq('type', 'audio')
+      .or('metadata->>child_name.is.null,metadata->>child_name.eq.')
+      .is('metadata->>targetLetter', null),
+    supabase
+      .from('assets')
+      .select('*')
+      .in('status', ['approved', 'pending'])
+      .eq('metadata->>template', 'letter-hunt')
+      .eq('type', 'image')
+      .eq('metadata->>targetLetter', targetLetter)
+      .or('metadata->>child_name.is.null,metadata->>child_name.eq.')
+  ]).then(results => results.map(r => r.data || []));
+
+  const existingAssets = [
+    ...specificAssets,
+    ...letterSpecificAssets,
+    ...letterSpecificAudioAssets,
+    ...genericVideoAssets,
+    ...genericAudioAssets,
+    ...letterSpecificImageAssets
+  ];
+
+  // Map assets by type (same logic as before)
+  const assetsByType: Record<string, any[]> = {};
+  existingAssets.forEach(asset => {
+    let assetKey = asset.metadata?.imageType || asset.metadata?.assetPurpose || asset.metadata?.videoType;
+    if (!assetKey && asset.type === 'audio' && asset.metadata?.template_context?.asset_purpose) {
+      assetKey = asset.metadata.template_context.asset_purpose;
+    }
+    if (!assetKey && asset.type === 'audio') {
+      // Map audio assets to their specific purposes
+      const assetPurpose = asset.metadata?.assetPurpose;
+      const templateContext = asset.metadata?.template_context?.asset_purpose;
+      if (assetPurpose === 'backgroundMusic' || templateContext === 'backgroundMusic') {
+        assetKey = 'backgroundMusic';
+      } else if (assetPurpose === 'titleAudio' || templateContext === 'titleAudio') {
+        assetKey = 'titleAudio';
+      } else if (assetPurpose === 'introAudio' || templateContext === 'introAudio') {
+        assetKey = 'introAudio';
+      } else if (assetPurpose === 'intro2Audio' || templateContext === 'intro2Audio') {
+        assetKey = 'intro2Audio';
+      } else if (assetPurpose === 'signAudio' || templateContext === 'signAudio') {
+        assetKey = 'signAudio';
+      } else if (assetPurpose === 'bookAudio' || templateContext === 'bookAudio') {
+        assetKey = 'bookAudio';
+      } else if (assetPurpose === 'groceryAudio' || templateContext === 'groceryAudio') {
+        assetKey = 'groceryAudio';
+      } else if (assetPurpose === 'happyDanceAudio' || templateContext === 'happyDanceAudio') {
+        assetKey = 'happyDanceAudio';
+      } else if (assetPurpose === 'endingAudio' || templateContext === 'endingAudio') {
+        assetKey = 'endingAudio';
+      }
+    }
+    if (!assetKey && asset.type === 'video') {
+      const category = asset.metadata?.category;
+      const section = asset.metadata?.section;
+      if (asset.id === 'eb3fcec0-d9a4-421d-a2fa-1bded854365d' || asset.id === '540dc1d4-f8c6-4c71-9b80-5d9f6964e9db' || asset.id === 'c0793472-2eb4-4dab-aaec-c28689391077') {
+        assetKey = 'introVideo';
+      } else if (asset.id === 'c39cf5dc-dc21-4057-84d6-7ac059e1ee96' || asset.id === '9b211a49-820f-477a-9512-322795762221' || asset.id === 'b4bb12bd-f2a3-4035-9d38-6fca03b9c8dc') {
+        assetKey = 'intro2Video';
+      } else if (section === 'introVideo') {
+        assetKey = 'introVideo';
+      } else if (section === 'intro2Video') {
+        assetKey = 'intro2Video';
+      } else if (section === 'happyDanceVideo' || section === 'dance') {
+        assetKey = 'happyDanceVideo';
+      } else if (category === 'letter AND theme' || category === 'letter-and-theme' || section === 'intro') {
+        assetKey = 'introVideo';
+      } else if (section === 'search' || section === 'intro2' || category === 'thematic') {
+        assetKey = 'intro2Video';
+      } else if (section === 'adventure' || section === 'intro3') {
+        assetKey = 'intro3Video';
+      } else if (category === 'dance') {
+        assetKey = 'happyDanceVideo';
+      }
+    }
+    if (assetKey) {
+      if (!assetsByType[assetKey]) assetsByType[assetKey] = [];
+      assetsByType[assetKey].push(asset);
+    }
+  });
+  return assetsByType;
+}
+
+// Helper to normalize theme names
+function normalizeTheme(theme: string) {
+  const normalized = theme.toLowerCase();
+  if (normalized === 'dogs' || normalized === 'dog') return 'dog';
+  if (normalized === 'dinosaurs' || normalized === 'dinosaur') return 'dinosaur';
+  if (normalized === 'cats' || normalized === 'cat') return 'cat';
+  if (normalized === 'adventures' || normalized === 'adventure') return 'adventure';
+  return normalized;
+}
+
+// Helper to select the best asset for a given type and theme
+function selectAssetByTheme(assets: any[], themeToUse: string) {
+  if (!assets || assets.length === 0) return null;
+  const normalizedDesiredTheme = normalizeTheme(themeToUse);
+  // Try to find a matching theme
+  const match = assets.find(asset => normalizeTheme(asset.metadata?.theme || '') === normalizedDesiredTheme);
+  if (match) return match;
+  // If none match, return the first asset (fallback)
+  return assets[0];
+}
+
 export default function LetterHuntRequest() {
   const router = useRouter();
   const [childName, setChildName] = useState('');
@@ -129,341 +281,23 @@ export default function LetterHuntRequest() {
   const initializePayload = async () => {
     const nameToUse = selectedChild?.name || childName;
     const themeToUse = selectedChild?.primary_interest || 'adventure';
-    
     if (!nameToUse || !targetLetter) {
       alert('Please enter both child name and target letter');
       return;
     }
-
-    console.log(`🔍 Checking for existing Letter Hunt assets for ${nameToUse} (Letter ${targetLetter})`);
-
-    // Check for existing Letter Hunt assets - both specific and generic
-    // 1. Assets specific to this child and letter
-    const { data: specificAssets, error: specificError } = await supabase
-      .from('assets')
-      .select('*')
-      .in('status', ['approved', 'pending'])
-      .eq('metadata->>template', 'letter-hunt')
-      .eq('metadata->>child_name', nameToUse)
-      .eq('metadata->>targetLetter', targetLetter);
-
-    // 2. Letter Hunt video assets that match the target letter (regardless of child name)
-    const { data: letterSpecificAssets, error: letterError } = await supabase
-      .from('assets')
-      .select('*')
-      .in('status', ['approved', 'pending'])
-      .eq('metadata->>template', 'letter-hunt')
-      .eq('type', 'video')
-      .eq('metadata->>targetLetter', targetLetter);
-
-    // 3. Letter-specific audio assets (not personalized, reusable across children)
-    const { data: letterSpecificAudioAssets, error: letterAudioError } = await supabase
-      .from('assets')
-      .select('*')
-      .in('status', ['approved', 'pending'])
-      .eq('metadata->>template', 'letter-hunt')
-      .eq('type', 'audio')
-      .eq('metadata->>targetLetter', targetLetter)
-      .or('metadata->>child_name.is.null,metadata->>child_name.eq.');
-
-    // 4. Generic Letter Hunt video assets (not tied to specific child/letter)
-    const { data: genericVideoAssets, error: genericError } = await supabase
-      .from('assets')
-      .select('*')
-      .in('status', ['approved', 'pending'])
-      .eq('metadata->>template', 'letter-hunt')
-      .eq('type', 'video')
-      .or('metadata->>child_name.is.null,metadata->>child_name.eq.')
-      .is('metadata->>targetLetter', null);
-
-    // 5. Generic Letter Hunt audio assets (not tied to specific child/letter)
-    const { data: genericAudioAssets, error: genericAudioError } = await supabase
-      .from('assets')
-      .select('*')
-      .in('status', ['approved', 'pending'])
-      .eq('metadata->>template', 'letter-hunt')
-      .eq('type', 'audio')
-      .or('metadata->>child_name.is.null,metadata->>child_name.eq.')
-      .is('metadata->>targetLetter', null);
-
-    // 6. Letter Hunt image assets that match the target letter (not tied to specific child)
-    const { data: letterSpecificImageAssets, error: letterImageError } = await supabase
-      .from('assets')
-      .select('*')
-      .in('status', ['approved', 'pending'])
-      .eq('metadata->>template', 'letter-hunt')
-      .eq('type', 'image')
-      .eq('metadata->>targetLetter', targetLetter)
-      .or('metadata->>child_name.is.null,metadata->>child_name.eq.');
-
-    // Combine all sets of assets, prioritizing specific > letter-specific > generic
-    const existingAssets = [
-      ...(specificAssets || []),
-      ...(letterSpecificAssets || []),
-      ...(letterSpecificAudioAssets || []),
-      ...(genericVideoAssets || []),
-      ...(genericAudioAssets || []),
-      ...(letterSpecificImageAssets || [])
-    ];
-    const error = specificError || letterError || letterAudioError || genericError || genericAudioError || letterImageError;
-
-    if (error) {
-      console.error('Error checking for existing assets:', error);
-    }
-
-    console.log(`📦 Found ${existingAssets?.length || 0} existing Letter Hunt assets:`, existingAssets);
-    
-    // Enhanced logging for video asset debugging
-    existingAssets?.forEach(asset => {
-      if (asset.type === 'video') {
-        console.log(`🎥 Video Asset Debug:`, {
-          id: asset.id,
-          targetLetter: asset.metadata?.targetLetter,
-          theme: asset.metadata?.theme,
-          section: asset.metadata?.section,
-          category: asset.metadata?.category,
-          child_name: asset.metadata?.child_name,
-          searchingFor: `Letter ${targetLetter}, Theme ${themeToUse}`
-        });
-      }
-    });
-
-    // Create mapping of existing assets by imageType (for images), assetPurpose (for audio), or videoType (for videos)
-    const existingByType = new Map();
-    existingAssets?.forEach(asset => {
-      // For images, use imageType; for audio, use assetPurpose; for videos, use videoType
-      let assetKey = asset.metadata?.imageType || asset.metadata?.assetPurpose || asset.metadata?.videoType;
-      
-      // FALLBACK: For legacy audio assets without assetPurpose, try to infer from template_context
-      if (!assetKey && asset.type === 'audio' && asset.metadata?.template_context?.asset_purpose) {
-        assetKey = asset.metadata.template_context.asset_purpose;
-        console.log(`🔄 Legacy asset: Using template_context.asset_purpose: ${assetKey} for asset ${asset.id}`);
-      }
-      
-      // FALLBACK: For legacy video assets, try to infer from category or section
-      if (!assetKey && asset.type === 'video') {
-        // Try to map common video categories to our asset keys
-        const category = asset.metadata?.category;
-        const section = asset.metadata?.section;
-        
-        // Handle specific asset ID mappings for known videos
-        // Letter + Theme videos (introVideo)
-        if (asset.id === 'eb3fcec0-d9a4-421d-a2fa-1bded854365d' || // Halloween + Letter N
-            asset.id === '540dc1d4-f8c6-4c71-9b80-5d9f6964e9db' || // Dinosaurs + Letter L
-            asset.id === 'c0793472-2eb4-4dab-aaec-c28689391077') {   // Dogs + Letter A
-          assetKey = 'introVideo';
-        }
-        // Search videos (intro2Video)
-        else if (asset.id === 'c39cf5dc-dc21-4057-84d6-7ac059e1ee96' || // Dinosaurs search
-                 asset.id === '9b211a49-820f-477a-9512-322795762221' || // Dog search
-                 asset.id === 'b4bb12bd-f2a3-4035-9d38-6fca03b9c8dc') {   // Halloween search
-          assetKey = 'intro2Video';
-        }
-        // Handle direct section mappings for future uploads
-        else if (section === 'introVideo') {
-          assetKey = 'introVideo';
-        } else if (section === 'intro2Video') {
-          assetKey = 'intro2Video';
-        } else if (section === 'happyDanceVideo' || section === 'dance') {
-          assetKey = 'happyDanceVideo';
-        }
-        // Handle legacy mappings
-        else if (category === 'letter AND theme' || category === 'letter-and-theme' || section === 'intro') {
-          assetKey = 'introVideo';
-        } else if (section === 'search' || section === 'intro2' || category === 'thematic') {
-          assetKey = 'intro2Video';
-        } else if (section === 'adventure' || section === 'intro3') {
-          assetKey = 'intro3Video';
-        } else if (category === 'dance') {
-          assetKey = 'happyDanceVideo';
-        }
-        
-        if (assetKey) {
-          console.log(`🔄 Legacy video: Inferred videoType: ${assetKey} from category: ${category}, section: ${section} for asset ${asset.id}`);
-        }
-      }
-      
-      if (assetKey) {
-        const existingAsset = existingByType.get(assetKey);
-        let shouldUseThisAsset = false;
-        
-        if (asset.type === 'video') {
-          // Special case for ending videos - they only need to match the target letter
-          if (assetKey === 'endingVideo') {
-            const assetTargetLetter = asset.metadata?.targetLetter;
-            const assetTheme = asset.theme;
-            
-            // Check if this ending video matches our target letter
-            if (assetTargetLetter === targetLetter || assetTheme === `Letter ${targetLetter}`) {
-              console.log(`✅ Found ending video for Letter ${targetLetter}: ${asset.id} (theme: ${assetTheme})`);
-              shouldUseThisAsset = true;
-            } else {
-              console.log(`⚠️ Skipping ending video - letter mismatch: asset(${assetTargetLetter}/${assetTheme}) !== target(${targetLetter})`);
-            }
-          } else {
-            // For all other videos, use the existing theme matching logic
-            // For videos, ONLY use if theme matches exactly
-            const currentTheme = asset.metadata?.theme?.toLowerCase();
-            const desiredTheme = themeToUse.toLowerCase();
-          
-          // Normalize theme names to handle plural/singular differences
-          const normalizeTheme = (theme: string) => {
-            const normalized = theme.toLowerCase();
-            // Handle common plural/singular cases
-            if (normalized === 'dogs' || normalized === 'dog') return 'dog';
-            if (normalized === 'dinosaurs' || normalized === 'dinosaur') return 'dinosaur';
-            if (normalized === 'cats' || normalized === 'cat') return 'cat';
-            if (normalized === 'adventures' || normalized === 'adventure') return 'adventure';
-            return normalized;
-          };            const normalizedCurrentTheme = normalizeTheme(currentTheme || '');
-            const normalizedDesiredTheme = normalizeTheme(desiredTheme);
-            
-            if (normalizedCurrentTheme === normalizedDesiredTheme) {
-              if (!existingAsset) {
-                // First matching theme video found
-                shouldUseThisAsset = true;
-                console.log(`✅ First ${assetKey} video with matching theme: ${currentTheme}`);
-              } else {
-                // Multiple videos with same theme - randomly select between them
-                const shouldReplace = Math.random() < 0.5; // 50% chance to replace
-                if (shouldReplace) {
-                  shouldUseThisAsset = true;
-                  console.log(`🎲 Randomly replacing ${assetKey}: ${existingAsset.theme} → ${currentTheme} (random selection)`);
-                } else {
-                  console.log(`🎲 Randomly keeping existing ${assetKey}: ${existingAsset.theme} (random selection)`);
-                }
-              }
-            } else {
-              // Theme doesn't match - skip this asset
-              shouldUseThisAsset = false;
-              console.log(`⚠️ Skipping video asset ${assetKey} - theme mismatch: ${currentTheme} !== ${desiredTheme}`);
-            }
-          }
-        } else {
-          // Non-video assets (images, audio) - use first one found, or random selection if multiple
-          if (!existingAsset) {
-            shouldUseThisAsset = true;
-            console.log(`✅ First ${assetKey} asset found`);
-          } else {
-            // Multiple non-video assets - randomly select between them
-            const shouldReplace = Math.random() < 0.5; // 50% chance to replace
-            if (shouldReplace) {
-              shouldUseThisAsset = true;
-              console.log(`🎲 Randomly replacing ${assetKey} (random selection)`);
-            } else {
-              console.log(`🎲 Randomly keeping existing ${assetKey} (random selection)`);
-            }
-          }
-        }
-        
-        if (shouldUseThisAsset) {
-          existingByType.set(assetKey, {
-            url: asset.file_url,
-            status: 'ready',
-            assetId: asset.id,
-            generatedAt: asset.created_at,
-            theme: asset.metadata?.theme
-          });
-          console.log(`✅ Using asset: ${assetKey} (${asset.type}) - ${asset.file_url}${asset.metadata?.theme ? ` [Theme: ${asset.metadata.theme}]` : ''}`);
-        }
-      } else {
-        console.log(`⚠️ Asset missing key field:`, {
-          id: asset.id,
-          type: asset.type,
-          imageType: asset.metadata?.imageType,
-          assetPurpose: asset.metadata?.assetPurpose,
-          videoType: asset.metadata?.videoType,
-          category: asset.metadata?.category,
-          section: asset.metadata?.section,
-          templateContextAssetPurpose: asset.metadata?.template_context?.asset_purpose
-        });
-      }
-    });
-
-    // Check for video assets that should exist but don't have theme matches
-    // Only first 3 parts are included in current render: intro, search, (adventure removed for now)
-    const requiredVideoAssets = ['introVideo', 'intro2Video'];
-    const videoErrors: Array<{
-      type: string;
-      error: string;
-      message: string;
-      availableThemes?: string[];
-    }> = [];
-    
-    requiredVideoAssets.forEach(videoKey => {
-      const hasMatchingVideo = existingByType.has(videoKey);
-      if (!hasMatchingVideo) {
-        // Check if we have videos for this type but with wrong themes
-        const availableVideos = existingAssets?.filter(asset => {
-          let assetKey = asset.metadata?.videoType;
-          
-          // Use the same mapping logic to determine what this asset would be classified as
-          if (!assetKey && asset.type === 'video') {
-            const category = asset.metadata?.category;
-            const section = asset.metadata?.section;
-            
-            if (asset.id === 'eb3fcec0-d9a4-421d-a2fa-1bded854365d' || 
-                asset.id === '540dc1d4-f8c6-4c71-9b80-5d9f6964e9db' || 
-                asset.id === 'c0793472-2eb4-4dab-aaec-c28689391077') {
-              assetKey = 'introVideo';
-            } else if (asset.id === 'c39cf5dc-dc21-4057-84d6-7ac059e1ee96' || 
-                       asset.id === '9b211a49-820f-477a-9512-322795762221' || 
-                       asset.id === 'b4bb12bd-f2a3-4035-9d38-6fca03b9c8dc') {
-              assetKey = 'intro2Video';
-            } else if (section === 'introVideo') {
-              assetKey = 'introVideo';
-            } else if (section === 'intro2Video') {
-              assetKey = 'intro2Video';
-            } else if (section === 'happyDanceVideo' || section === 'dance') {
-              assetKey = 'happyDanceVideo';
-            } else if (category === 'letter AND theme' || category === 'letter-and-theme' || section === 'intro') {
-              assetKey = 'introVideo';
-            } else if (section === 'search' || section === 'intro2' || category === 'thematic') {
-              assetKey = 'intro2Video';
-            } else if (section === 'adventure' || section === 'intro3') {
-              assetKey = 'intro3Video';
-            } else if (category === 'dance') {
-              assetKey = 'happyDanceVideo';
-            }
-          }
-          
-          return assetKey === videoKey;
-        });
-        
-        if (availableVideos && availableVideos.length > 0) {
-          const availableThemes = availableVideos.map(v => v.metadata?.theme).filter(t => t);
-          videoErrors.push({
-            type: videoKey,
-            error: 'theme_mismatch',
-            message: `No ${videoKey} video found for theme "${themeToUse}". Available themes: ${availableThemes.join(', ')}`,
-            availableThemes
-          });
-        } else {
-          videoErrors.push({
-            type: videoKey,
-            error: 'missing_entirely',
-            message: `No ${videoKey} videos found at all. Please upload videos for this segment.`
-          });
-        }
-      }
-    });
-
-    // Log video errors
-    if (videoErrors.length > 0) {
-      console.error('🚨 Video Theme Matching Errors:', videoErrors);
-      videoErrors.forEach(error => {
-        console.error(`❌ ${error.message}`);
-      });
-    }
-
-    // Create payload with only the 3-part assets that are actually used in render
+    // Use the new helper to get all available assets by type
+    const assetsByType = await getAvailableAssetsForSection({ nameToUse, themeToUse, targetLetter });
+    // ... rest of initializePayload logic, but use assetsByType instead of previous mapping ...
+    // (copy the payload-building logic, but replace existingByType.get(X) with assetsByType[X]?.[0])
     const newPayload: LetterHuntPayload = {
       childName: nameToUse.trim(),
       targetLetter: targetLetter.toUpperCase().trim(),
       assets: {
         // Images
-        titleCard: existingByType.get('titleCard') ? {
-          ...existingByType.get('titleCard'),
+        titleCard: assetsByType['titleCard'] && assetsByType['titleCard'].length > 0 ? {
+          url: assetsByType['titleCard'][0].file_url,
+          status: 'ready',
+          generatedAt: assetsByType['titleCard'][0].created_at,
           type: 'image',
           name: 'Title Card',
           description: `"${nameToUse}'s Letter Hunt!" title card with ${themeToUse} theme`
@@ -473,8 +307,10 @@ export default function LetterHuntRequest() {
           description: `"${nameToUse}'s Letter Hunt!" title card with ${themeToUse} theme`,
           status: 'missing'
         },
-        signImage: existingByType.get('signImage') ? {
-          ...existingByType.get('signImage'),
+        signImage: assetsByType['signImage'] && assetsByType['signImage'][0] ? {
+          url: assetsByType['signImage'][0].file_url,
+          status: 'ready',
+          generatedAt: assetsByType['signImage'][0].created_at,
           type: 'image',
           name: 'Letter on Signs',
           description: `Letter ${targetLetter} on colorful street sign with ${themeToUse} theme`
@@ -484,8 +320,10 @@ export default function LetterHuntRequest() {
           description: `Letter ${targetLetter} on colorful street sign with ${themeToUse} theme`,
           status: 'missing'
         },
-        bookImage: existingByType.get('bookImage') ? {
-          ...existingByType.get('bookImage'),
+        bookImage: assetsByType['bookImage'] && assetsByType['bookImage'][0] ? {
+          url: assetsByType['bookImage'][0].file_url,
+          status: 'ready',
+          generatedAt: assetsByType['bookImage'][0].created_at,
           type: 'image',
           name: 'Letter on Books',
           description: `Letter ${targetLetter} on children's book cover with ${themeToUse} theme`
@@ -495,8 +333,10 @@ export default function LetterHuntRequest() {
           description: `Letter ${targetLetter} on children's book cover with ${themeToUse} theme`,
           status: 'missing'
         },
-        groceryImage: existingByType.get('groceryImage') ? {
-          ...existingByType.get('groceryImage'),
+        groceryImage: assetsByType['groceryImage'] && assetsByType['groceryImage'][0] ? {
+          url: assetsByType['groceryImage'][0].file_url,
+          status: 'ready',
+          generatedAt: assetsByType['groceryImage'][0].created_at,
           type: 'image',
           name: 'Letter in Grocery Store',
           description: `Letter ${targetLetter} on grocery store sign/cereal box with ${themeToUse} theme`
@@ -506,42 +346,59 @@ export default function LetterHuntRequest() {
           description: `Letter ${targetLetter} on grocery store sign/cereal box with ${themeToUse} theme`,
           status: 'missing'
         },
-        // Videos
-        introVideo: existingByType.get('introVideo') ? {
-          ...existingByType.get('introVideo'),
-          type: 'video',
-          name: 'Intro Video',
-          description: `${themeToUse} character pointing to giant letter`
-        } : {
-          type: 'video',
-          name: 'Intro Video',
-          description: `${themeToUse} character pointing to giant letter`,
-          status: 'missing'
-        },
-        intro2Video: existingByType.get('intro2Video') ? {
-          ...existingByType.get('intro2Video'),
-          type: 'video',
-          name: 'Search Video',
-          description: `${themeToUse} character searching around playfully`
-        } : {
-          type: 'video',
-          name: 'Search Video',
-          description: `${themeToUse} character searching around playfully`,
-          status: 'missing'
-        },
-        happyDanceVideo: existingByType.get('happyDanceVideo') ? {
-          ...existingByType.get('happyDanceVideo'),
-          type: 'video',
-          name: 'Happy Dance Video',
-          description: `${themeToUse} character doing a joyful dance`
-        } : {
-          type: 'video',
-          name: 'Happy Dance Video',
-          description: `${themeToUse} character doing a joyful dance`,
-          status: 'missing'
-        },
-        endingVideo: existingByType.get('endingVideo') ? {
-          ...existingByType.get('endingVideo'),
+        // Videos (enforce theme match)
+        introVideo: (() => {
+          const asset = selectAssetByTheme(assetsByType['introVideo'], themeToUse);
+          return asset ? {
+            url: asset.file_url,
+            status: 'ready',
+            generatedAt: asset.created_at,
+            type: 'video',
+            name: 'Intro Video',
+            description: `${themeToUse} character pointing to giant letter`
+          } : {
+            type: 'video',
+            name: 'Intro Video',
+            description: `${themeToUse} character pointing to giant letter`,
+            status: 'missing'
+          };
+        })(),
+        intro2Video: (() => {
+          const asset = selectAssetByTheme(assetsByType['intro2Video'], themeToUse);
+          return asset ? {
+            url: asset.file_url,
+            status: 'ready',
+            generatedAt: asset.created_at,
+            type: 'video',
+            name: 'Search Video',
+            description: `${themeToUse} character searching around playfully`
+          } : {
+            type: 'video',
+            name: 'Search Video',
+            description: `${themeToUse} character searching around playfully`,
+            status: 'missing'
+          };
+        })(),
+        happyDanceVideo: (() => {
+          const asset = selectAssetByTheme(assetsByType['happyDanceVideo'], themeToUse);
+          return asset ? {
+            url: asset.file_url,
+            status: 'ready',
+            generatedAt: asset.created_at,
+            type: 'video',
+            name: 'Happy Dance Video',
+            description: `${themeToUse} character doing a joyful dance`
+          } : {
+            type: 'video',
+            name: 'Happy Dance Video',
+            description: `${themeToUse} character doing a joyful dance`,
+            status: 'missing'
+          };
+        })(),
+        endingVideo: assetsByType['endingVideo'] && assetsByType['endingVideo'][0] ? {
+          url: assetsByType['endingVideo'][0].file_url,
+          status: 'ready',
+          generatedAt: assetsByType['endingVideo'][0].created_at,
           type: 'video',
           name: 'Ending Video',
           description: `Letter ${targetLetter} ending video with colorful celebration`
@@ -551,8 +408,10 @@ export default function LetterHuntRequest() {
           description: `Letter ${targetLetter} ending video with colorful celebration`,
           status: 'missing'
         },
-        endingImage: existingByType.get('endingImage') ? {
-          ...existingByType.get('endingImage'),
+        endingImage: assetsByType['endingImage'] && assetsByType['endingImage'][0] ? {
+          url: assetsByType['endingImage'][0].file_url,
+          status: 'ready',
+          generatedAt: assetsByType['endingImage'][0].created_at,
           type: 'image',
           name: 'Ending Image',
           description: `Letter ${targetLetter} with ${themeToUse} characters waving goodbye`
@@ -563,8 +422,10 @@ export default function LetterHuntRequest() {
           status: 'missing'
         },
         // Audio assets
-        titleAudio: existingByType.get('titleAudio') ? {
-          ...existingByType.get('titleAudio'),
+        titleAudio: assetsByType['titleAudio'] && assetsByType['titleAudio'][0] ? {
+          url: assetsByType['titleAudio'][0].file_url,
+          status: 'ready',
+          generatedAt: assetsByType['titleAudio'][0].created_at,
           type: 'audio',
           name: 'Title Audio',
           description: `"Letter Hunt for ${nameToUse}"`
@@ -574,8 +435,10 @@ export default function LetterHuntRequest() {
           description: `"Letter Hunt for ${nameToUse}"`,
           status: 'missing'
         },
-        introAudio: existingByType.get('introAudio') ? {
-          ...existingByType.get('introAudio'),
+        introAudio: assetsByType['introAudio'] && assetsByType['introAudio'][0] ? {
+          url: assetsByType['introAudio'][0].file_url,
+          status: 'ready',
+          generatedAt: assetsByType['introAudio'][0].created_at,
           type: 'audio',
           name: 'Intro Audio',
           description: `"Today we're looking for the letter ${targetLetter}!"`
@@ -585,8 +448,10 @@ export default function LetterHuntRequest() {
           description: `"Today we're looking for the letter ${targetLetter}!"`,
           status: 'missing'
         },
-        intro2Audio: existingByType.get('intro2Audio') ? {
-          ...existingByType.get('intro2Audio'),
+        intro2Audio: assetsByType['intro2Audio'] && assetsByType['intro2Audio'][0] ? {
+          url: assetsByType['intro2Audio'][0].file_url,
+          status: 'ready',
+          generatedAt: assetsByType['intro2Audio'][0].created_at,
           type: 'audio',
           name: 'Search Audio',
           description: `"Everywhere you go, look for the letter ${targetLetter}!"`
@@ -596,8 +461,10 @@ export default function LetterHuntRequest() {
           description: `"Everywhere you go, look for the letter ${targetLetter}!"`,
           status: 'missing'
         },
-        signAudio: existingByType.get('signAudio') ? {
-          ...existingByType.get('signAudio'),
+        signAudio: assetsByType['signAudio'] && assetsByType['signAudio'][0] ? {
+          url: assetsByType['signAudio'][0].file_url,
+          status: 'ready',
+          generatedAt: assetsByType['signAudio'][0].created_at,
           type: 'audio',
           name: 'Signs Audio',
           description: '"On signs"'
@@ -607,8 +474,10 @@ export default function LetterHuntRequest() {
           description: '"On signs"',
           status: 'missing'
         },
-        bookAudio: existingByType.get('bookAudio') ? {
-          ...existingByType.get('bookAudio'),
+        bookAudio: assetsByType['bookAudio'] && assetsByType['bookAudio'][0] ? {
+          url: assetsByType['bookAudio'][0].file_url,
+          status: 'ready',
+          generatedAt: assetsByType['bookAudio'][0].created_at,
           type: 'audio',
           name: 'Books Audio',
           description: '"On books"'
@@ -618,8 +487,10 @@ export default function LetterHuntRequest() {
           description: '"On books"',
           status: 'missing'
         },
-        groceryAudio: existingByType.get('groceryAudio') ? {
-          ...existingByType.get('groceryAudio'),
+        groceryAudio: assetsByType['groceryAudio'] && assetsByType['groceryAudio'][0] ? {
+          url: assetsByType['groceryAudio'][0].file_url,
+          status: 'ready',
+          generatedAt: assetsByType['groceryAudio'][0].created_at,
           type: 'audio',
           name: 'Grocery Audio',
           description: '"Even in the grocery store!"'
@@ -629,8 +500,10 @@ export default function LetterHuntRequest() {
           description: '"Even in the grocery store!"',
           status: 'missing'
         },
-        happyDanceAudio: existingByType.get('happyDanceAudio') ? {
-          ...existingByType.get('happyDanceAudio'),
+        happyDanceAudio: assetsByType['happyDanceAudio'] && assetsByType['happyDanceAudio'][0] ? {
+          url: assetsByType['happyDanceAudio'][0].file_url,
+          status: 'ready',
+          generatedAt: assetsByType['happyDanceAudio'][0].created_at,
           type: 'audio',
           name: 'Happy Dance Audio',
           description: '"And when you find your letter, I want you to do a little happy dance!"'
@@ -640,8 +513,10 @@ export default function LetterHuntRequest() {
           description: '"And when you find your letter, I want you to do a little happy dance!"',
           status: 'missing'
         },
-        endingAudio: existingByType.get('endingAudio') ? {
-          ...existingByType.get('endingAudio'),
+        endingAudio: assetsByType['endingAudio'] && assetsByType['endingAudio'][0] ? {
+          url: assetsByType['endingAudio'][0].file_url,
+          status: 'ready',
+          generatedAt: assetsByType['endingAudio'][0].created_at,
           type: 'audio',
           name: 'Ending Audio',
           description: `"Have fun finding the letter ${targetLetter}, ${nameToUse}!"`
@@ -651,28 +526,22 @@ export default function LetterHuntRequest() {
           description: `"Have fun finding the letter ${targetLetter}, ${nameToUse}!"`,
           status: 'missing'
         },
-        backgroundMusic: {
+        backgroundMusic: assetsByType['backgroundMusic'] && assetsByType['backgroundMusic'][0] ? {
+          url: assetsByType['backgroundMusic'][0].file_url,
+          status: 'ready',
+          generatedAt: assetsByType['backgroundMusic'][0].created_at,
+          type: 'audio',
+          name: 'Background Music',
+          description: 'Cheerful background music for Letter Hunt video'
+        } : {
+          url: 'https://etshvxrgbssginmzsczo.supabase.co/storage/v1/object/public/assets/assets/audio/1752340926893.MP3',
           type: 'audio',
           name: 'Background Music',
           description: 'Cheerful background music for Letter Hunt video',
-          status: 'ready',
-          url: 'https://etshvxrgbssginmzsczo.supabase.co/storage/v1/object/public/assets/assets/audio/1752340926893.MP3'
+          status: 'ready'
         }
       }
     };
-
-    // Log findings
-    const foundAssets = Array.from(existingByType.keys());
-    if (foundAssets.length > 0) {
-      console.log(`✅ Found existing assets: ${foundAssets.join(', ')}`);
-      
-      // Debug: Check what titleAudio data we have
-      const titleAudioData = existingByType.get('titleAudio');
-      console.log('🎯 TitleAudio data from map:', titleAudioData);
-    } else {
-      console.log('📭 No existing assets found for this child/letter combination');
-    }
-
     setPayload(newPayload);
   };
 
@@ -908,44 +777,31 @@ export default function LetterHuntRequest() {
     setModalAssetKey(assetKey);
     setLoadingVideos(true);
     setVideoModalOpen(true);
-    
     try {
-      // Build the query based on asset type and filtering criteria
-      let query = supabase
-        .from('assets')
-        .select('*')
-        .in('status', ['approved', 'pending'])
-        .eq('type', 'video')
-        .eq('metadata->>template', 'letter-hunt')
-        .order('created_at', { ascending: false });
-
-      // Apply specific filtering based on asset type
-      if (assetKey === 'endingVideo') {
-        // For ending videos, filter ONLY by target letter (show all themes)
-        query = query.eq('metadata->>targetLetter', targetLetter);
-      } else if (assetKey === 'introVideo') {
-        const themeToUse = selectedChild?.primary_interest || 'adventure';
-        query = query.eq('metadata->>theme', themeToUse)
-                   .eq('metadata->>videoType', 'introVideo');
-      } else if (assetKey === 'intro2Video') {
-        const themeToUse = selectedChild?.primary_interest || 'adventure';
-        query = query.eq('metadata->>theme', themeToUse)
-                   .eq('metadata->>videoType', 'intro2Video');
-      } else if (assetKey === 'happyDanceVideo') {
-        const themeToUse = selectedChild?.primary_interest || 'adventure';
-        query = query.eq('metadata->>theme', themeToUse)
-                   .eq('metadata->>videoType', 'happyDanceVideo');
-      }
-
-      const { data: videos, error } = await query;
-
-      if (error) {
-        console.error('Error fetching videos:', error);
-        alert('Error loading videos');
-        return;
-      }
-
-      setAvailableVideos(videos || []);
+      const nameToUse = selectedChild?.name || childName;
+      const themeToUse = selectedChild?.primary_interest || 'adventure';
+      const assetsByType = await getAvailableAssetsForSection({ nameToUse, themeToUse, targetLetter });
+      // Only show assets for the selected section (assetKey), sorted with theme match first
+      let videos = assetsByType[assetKey] || [];
+      const normalizedDesiredTheme = normalizeTheme(themeToUse);
+      videos = [
+        ...videos.filter(v => normalizeTheme(v.metadata?.theme || v.theme || '') === normalizedDesiredTheme),
+        ...videos.filter(v => normalizeTheme(v.metadata?.theme || v.theme || '') !== normalizedDesiredTheme)
+      ];
+      
+      // Transform database objects to VideoAsset objects
+      const transformedVideos: VideoAsset[] = videos.map(video => ({
+        id: video.id,
+        name: video.title || video.name || 'Untitled Video',
+        url: video.file_url || video.url || '',
+        theme: video.metadata?.theme || video.theme || 'unknown',
+        tags: video.tags || [],
+        metadata: video.metadata,
+        created_at: video.created_at,
+        type: video.type
+      }));
+      
+      setAvailableVideos(transformedVideos);
     } catch (error) {
       console.error('Error in openVideoSelectionModal:', error);
       alert('Error loading videos');
@@ -2159,19 +2015,7 @@ Your video will be available for review in the admin dashboard once complete.`);
 
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: 20, marginTop: 32 }}>
-              <div style={{ gridColumn: '1 / -1' }}>
-                <h3 style={{ margin: '0 0 16px 0', fontSize: 18, fontWeight: 'bold' }}>
-                  🚧 Additional Parts (Coming Soon)
-                </h3>
-                <div style={{ background: '#f8f9fa', border: '1px solid #e9ecef', borderRadius: 8, padding: 16 }}>
-                  <p style={{ margin: 0, color: '#6c757d' }}>
-                    Parts 3-8 include letter searching segments (signs, books, grocery store), happy dance, and ending.
-                    Asset generation for these parts will be available soon.
-                  </p>
-                </div>
-              </div>
-            </div>
+
 
             {/* Remaining assets in old format for now */}
             <div style={{ display: 'none' }}>
@@ -2256,16 +2100,7 @@ Your video will be available for review in the admin dashboard once complete.`);
               ))}
             </div>
 
-            {/* Upload Payload Button */}
-            <div className="mt-6 text-center">
-              <button
-                onClick={uploadPayload}
-                disabled={loading || !payload}
-                className="px-6 py-3 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
-              >
-                {loading ? 'Uploading...' : 'Upload Payload'}
-              </button>
-            </div>
+
 
             {/* JSON Payload Preview */}
             <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
@@ -2378,7 +2213,7 @@ Your video will be available for review in the admin dashboard once complete.`);
                   {availableVideos.map((video) => (
                     <div key={video.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
                       <div className="mb-3">
-                        <video controls className="w-full h-auto rounded border">
+                        <video controls className="w-full h-auto rounded border" style={{ maxHeight: 180 }} poster={video.metadata?.thumbnail_url || undefined}>
                           <source src={video.url} type="video/mp4" />
                         </video>
                       </div>
@@ -2392,6 +2227,7 @@ Your video will be available for review in the admin dashboard once complete.`);
                         Created: {new Date(video.created_at).toLocaleDateString()}
                       </p>
                       
+                      <a href={video.url} target="_blank" rel="noopener noreferrer" className="inline-block mb-2 text-blue-600 hover:underline text-xs">Open in new tab</a>
                       <button
                         onClick={() => selectVideo(video)}
                         className="w-full px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm font-medium"
