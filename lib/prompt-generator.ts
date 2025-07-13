@@ -29,6 +29,7 @@ export interface PromptContext {
   additionalContext?: string;
   assetType?: string; // Keep for backward compatibility
   imageType?: 'titleCard' | 'signImage' | 'bookImage' | 'groceryImage' | 'endingImage' | 'characterImage' | 'sceneImage'; // New structured approach
+  targetLetter?: string; // Add target letter for letter hunt
 }
 
 export interface GeneratedPrompts {
@@ -41,6 +42,7 @@ export interface GeneratedPrompts {
     aspectRatio: string;
     artStyle: string;
     imageType?: string; // Add imageType to metadata
+    targetLetter?: string; // Add target letter to metadata
     variations?: string[];
     generatedAt: string;
   };
@@ -85,6 +87,7 @@ export class PromptGenerator {
           aspectRatio: aspectRatio,
           artStyle: context.artStyle || '2D Pixar Style',
           imageType: context.imageType || context.assetType, // Include the new imageType metadata
+          targetLetter: context.targetLetter, // Include target letter in metadata
           variations: result.metadata.variations,
           generatedAt: result.metadata.generatedAt
         }
@@ -135,7 +138,32 @@ export class PromptGenerator {
   private static async legacyGeneratePrompts(context: PromptContext): Promise<GeneratedPrompts> {
     // FIXED: Handle name-show template properly in legacy fallback
     let instructions;
-    if (context.template === 'lullaby') {
+    
+    // For letter-hunt with custom image types, use custom instructions
+    if (context.template === 'letter-hunt' && context.imageType && 
+        ['signImage', 'bookImage', 'groceryImage'].includes(context.imageType)) {
+      // This is a custom prompt from letter hunt request - use simplified instructions
+      instructions = `You are generating prompts for letter hunt educational content for preschool children (ages 2-5). Follow these rules carefully.
+
+🧒 CHILD SAFETY REQUIREMENTS (CRITICAL)
+Content must be 100% appropriate for ages 2-5 years old.
+NO scary, frightening, or intense imagery whatsoever.
+NO violence, conflict, or aggressive behavior (even cartoon style).
+Characters must ALWAYS appear happy, calm, and friendly.
+Colors must be bright, warm, and inviting.
+All imagery must be gentle and non-startling.
+Themes must be interpreted in the most innocent, playful way possible.
+
+🎯 CUSTOM PROMPT REQUIREMENTS:
+Follow the specific visual requirements provided in the task description EXACTLY.
+Focus entirely on the target letter as specified.
+Use 2D Pixar animation style with bright, cheerful colors.
+No additional objects, text, or elements beyond what's specified.
+The letter should be the clear focal point.
+
+📝 PROMPT STRUCTURE
+Each prompt must include art style, the specific visual requirements from the task description, and appropriate background as specified.`;
+    } else if (context.template === 'lullaby') {
       instructions = this.getLullabyInstructions();
     } else if (context.template === 'name-show') {
       instructions = this.getNameShowInstructions();
@@ -183,6 +211,7 @@ export class PromptGenerator {
           aspectRatio: aspectRatio,
           artStyle: context.artStyle || '2D Pixar Style',
           imageType: context.imageType || context.assetType, // Include the new imageType metadata
+          targetLetter: context.targetLetter, // Include target letter in metadata
           generatedAt: new Date().toISOString()
         }
       };
@@ -287,15 +316,15 @@ Themes must be interpreted in the most innocent, playful way possible.
 Large, bold, uppercase letter prominently displayed in the center as the main focal point.
 Letter must be highly readable for young children - use thick, rounded, child-friendly fonts.
 Bright, vibrant colors with strong contrast between letter and background.
-Themed decorative elements scattered around the letter but NOT blocking or overlapping it.
+Clean, simple design that doesn't distract from the letter.
 Educational atmosphere - encouraging learning, discovery, and letter recognition.
 Background should complement but not compete with the letter readability.
-Include 2-3 objects that start with the target letter as visual learning aids positioned around the edges.
 The letter should be large enough to fill a significant portion of the image.
-Letter should be the clear focal point of the entire composition, similar to how "THE [NAME] SHOW" works for name videos.
+Letter should be the clear focal point of the entire composition.
+Focus entirely on making the letter prominent and easy to read.
 
 📝 PROMPT STRUCTURE
-Each prompt must include the target letter prominently displayed, art style, themed decorative elements, background description, and educational objects that start with the letter. The letter should be the star of the image, not a border or frame.`;
+Each prompt must include the target letter prominently displayed, art style, simple background description. The letter should be the star of the image, not a border or frame.`;
   }
 
   private static getLetterHuntAssetInstructions(assetType: string): string {
@@ -346,10 +375,10 @@ Include multiple colorful signs with the letter clearly visible as signage text.
 Signs should be child-friendly, bright, and easy to read with the letter as the main text element.
 Background can include a simple street, playground, or park setting.
 The letter displayed ON the signs should be the main focus, not separate decorative elements.
-Include 2-3 themed objects that start with the target letter positioned around the edges.
+Focus on clean, simple sign designs that make the letter stand out clearly.
 
 📝 PROMPT STRUCTURE
-Each prompt must include the target letter prominently displayed on signs, art style, themed decorative elements, background description, and educational objects that start with the letter.`;
+Each prompt must include the target letter prominently displayed on signs, art style, simple background description. The letter should be the sole focus - no additional objects or decorative elements needed.`;
 
       case 'bookImage':
         return `You are generating prompts for letter hunt educational content featuring a target letter displayed on books for preschool children (ages 2-5). The letter should appear prominently on book covers with themed decorative elements around them.
@@ -369,10 +398,10 @@ Books should be colorful, thick, and obviously meant for young children.
 The letter should be the main design element on the book covers.
 Include 2-3 books showing the letter in different fun, educational contexts.
 Background can be a cozy reading area or bookshelf setting.
-Include 2-3 themed objects that start with the target letter positioned around the edges.
+Focus on clean, simple book designs that make the letter stand out clearly.
 
 📝 PROMPT STRUCTURE
-Each prompt must include the target letter prominently displayed on books, art style, themed decorative elements, background description, and educational objects that start with the letter.`;
+Each prompt must include the target letter prominently displayed on books, art style, simple background description. The letter should be the sole focus - no additional objects or decorative elements needed.`;
 
       case 'groceryImage':
         return `You are generating prompts for letter hunt educational content featuring a target letter displayed on grocery items for preschool children (ages 2-5). The letter should appear prominently on products with themed decorative elements around them.
@@ -391,11 +420,10 @@ Show the target letter prominently on grocery store items like cereal boxes, fru
 Include colorful, child-friendly grocery items that clearly display the letter.
 The letter should be the main identifying feature on the products.
 Background should be a bright, welcoming grocery store or market setting.
-Focus on healthy, colorful foods that start with the target letter.
-Include 2-3 themed objects that start with the target letter positioned around the edges.
+Focus on clean, simple product designs that make the letter stand out clearly.
 
 📝 PROMPT STRUCTURE
-Each prompt must include the target letter prominently displayed on grocery items, art style, themed decorative elements, background description, and educational objects that start with the letter.`;
+Each prompt must include the target letter prominently displayed on grocery items, art style, simple background description. The letter should be the sole focus - no additional objects or decorative elements needed.`;
 
       case 'endingImage':
         return `You are generating prompts for letter hunt educational content featuring a celebratory target letter for preschool children (ages 2-5). This is the concluding image showing the letter in a triumphant way.
@@ -431,6 +459,7 @@ Each prompt must include the target letter prominently displayed in a celebrator
       ? `This content is personalized for a child named ${context.childName}.`
       : 'This is general content for children.';
 
+    // Additional context should only be used for admin-added context, not our custom prompts
     const themeContext = context.additionalContext 
       ? `\nAdditional context: ${context.additionalContext}`
       : '';
@@ -441,39 +470,50 @@ Each prompt must include the target letter prominently displayed in a celebrator
     // Extract target letter for letter-hunt template
     let targetLetterText = '';
     let imageTypeText = '';
-    if (context.template === 'letter-hunt' && context.additionalContext) {
-      const letterMatch = context.additionalContext.match(/Target letter:\s*([A-Z])/i);
-      if (letterMatch) {
-        targetLetterText = `\nTarget Letter: ${letterMatch[1].toUpperCase()}`;
-      }
+    if (context.template === 'letter-hunt') {
       // Use imageType if available, fallback to assetType
       const imageType = context.imageType || context.assetType;
       if (imageType) {
         imageTypeText = `\nImage Type: ${imageType}`;
       }
+      
+      // Use targetLetter from context if available
+      if (context.targetLetter) {
+        targetLetterText = `\nTarget Letter: ${context.targetLetter.toUpperCase()}`;
+      }
     }
 
-    // Special prompt text for letter-hunt
+    // Build task text based on context and imageType
     let taskText;
     if (context.template === 'letter-hunt') {
       const imageType = context.imageType || context.assetType;
+      const targetLetter = context.targetLetter || 'A';
+      
       if (imageType === 'titleCard') {
         const childNameText = context.childName || '[NAME]';
         taskText = `Generate ${context.promptCount || 3} image prompts for "Letter Hunt for ${childNameText}" title cards with a ${context.theme}-themed background targeting ${context.ageRange} year olds. Each image should show the title text prominently with themed decorative elements around it.`;
+      } else if (imageType === 'signImage') {
+        taskText = `Generate ${context.promptCount || 3} image prompts for: A simple, colorful street sign that displays only the letter "${targetLetter}" in large, bold, clear text. The letter should be the ONLY text visible on the sign - no other words, numbers, or letters. The sign should be bright and cheerful with a clean, simple design in 2D Pixar animation style. Set against a simple background like a park or street scene. Focus entirely on making the letter "${targetLetter}" prominent and easy to read.`;
+      } else if (imageType === 'bookImage') {
+        taskText = `Generate ${context.promptCount || 3} image prompts for: A children's book with the letter "${targetLetter}" prominently displayed on the front cover in large, bold, clear text. The letter should be the main focus of the book cover - no other text or letters visible. Simple, clean book design in 2D Pixar animation style with bright, cheerful colors. The book can be shown on a simple surface or held, but the letter "${targetLetter}" should be the clear focal point.`;
+      } else if (imageType === 'groceryImage') {
+        taskText = `Generate ${context.promptCount || 3} image prompts for: A grocery store product (can, box, or jar) with the letter "${targetLetter}" prominently displayed on the label in large, bold, clear text. The letter should be the ONLY visible text on the product - no brand names, other letters, or words. Simple, clean product design in 2D Pixar animation style with bright, cheerful colors. The product should be clearly visible, with the letter "${targetLetter}" as the main focal point.`;
       } else {
-        taskText = `Generate ${context.promptCount || 3} image prompts featuring the target letter prominently for a ${context.theme}-themed letter hunt targeting ${context.ageRange} year olds. Each image should show the letter as the main focus with themed objects that start with that letter.`;
+        taskText = `Generate ${context.promptCount || 3} image prompts featuring the target letter prominently for a letter hunt targeting ${context.ageRange} year olds. Each image should show the letter as the main focus with clean, simple design.`;
       }
     } else {
       taskText = `Generate ${context.promptCount || 3} image prompts for a ${context.theme} video targeting ${context.ageRange} year olds.`;
     }
+
+    // Only include safe zone in context if it's not 'all_ok' (which means no restrictions)
+    const safeZoneText = safeZone !== 'all_ok' ? `\nSafe Zone: ${safeZone}` : '';
 
     return `${instructions}
 
 CONTEXT:
 Theme: ${context.theme}
 Age Range: ${context.ageRange}
-Template: ${context.template}
-Safe Zone: ${safeZone}${artStyleText}${targetLetterText}${imageTypeText}
+Template: ${context.template}${safeZoneText}${artStyleText}${targetLetterText}${imageTypeText}
 ${personalization}${themeContext}
 
 TASK:
@@ -489,8 +529,7 @@ Return a JSON object with the following structure:
 }
 
 IMPORTANT:
-- Each prompt must follow the exact format and safety requirements above
-- Include the safe zone placement instructions in each image prompt
+- Each prompt must follow the exact format and safety requirements above${safeZone !== 'all_ok' ? '\n- Include the safe zone placement instructions in each image prompt' : ''}
 - Make content engaging and age-appropriate
 - Ensure all prompts are consistent with the theme
 - Return ONLY the JSON object, no additional text`;

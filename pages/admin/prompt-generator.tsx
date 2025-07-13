@@ -19,6 +19,7 @@ interface PromptForm {
   additionalContext: string;
   assetType?: string; // Keep for backward compatibility
   imageType?: 'titleCard' | 'signImage' | 'bookImage' | 'groceryImage' | 'endingImage' | 'characterImage' | 'sceneImage';
+  targetLetter?: string; // Add target letter field for Letter Hunt
 }
 
 interface GeneratedPrompts {
@@ -52,7 +53,8 @@ export default function PromptGeneratorPage() {
     customArtStyle: '',
     additionalContext: '',
     assetType: undefined,
-    imageType: undefined
+    imageType: undefined,
+    targetLetter: undefined
   });
 
   const [generatedPrompts, setGeneratedPrompts] = useState<GeneratedPrompts | null>(null);
@@ -82,7 +84,7 @@ export default function PromptGeneratorPage() {
         }
         // Other image types might need different safe zones based on their requirements
         else if (imageType === 'signImage' || imageType === 'bookImage' || imageType === 'groceryImage') {
-          safeZone = 'center_safe'; // Keep important elements centered for readability
+          safeZone = 'all_ok'; // Letter-specific images can use full composition for better visual impact
         }
         else if (imageType === 'endingImage') {
           safeZone = 'all_ok'; // Celebratory ending can use full composition
@@ -92,22 +94,23 @@ export default function PromptGeneratorPage() {
           ...prev,
           template: 'letter-hunt',
           childName: (query.childName as string) || '',
-          theme: (query.theme as string) || 'monsters',
+          theme: (query.theme as string) || '', // Don't default to 'monsters' - use empty string
           ageRange: (query.ageRange as string) || '3-5',
           safeZones: [safeZone],
           aspectRatio: (query.aspectRatio as '16:9' | '9:16') || '16:9',
           artStyle: (query.artStyle as string) || '2D Pixar Style',
-          personalization: 'personalized',
-          additionalContext: `Target letter: ${(query.targetLetter as string) || 'A'}`,
+          personalization: (query.personalization as 'general' | 'personalized') || 'general', // Use passed personalization
+          additionalContext: '', // Keep additionalContext empty for letter hunt - target letter will be passed separately
           imageType: imageType as any, // Use the new imageType field
-          assetType: imageType // Keep for backward compatibility
+          assetType: imageType, // Keep for backward compatibility
+          targetLetter: (query.letterFocus as string) || (query.targetLetter as string) || 'A' // Use letterFocus parameter
         }));
         
         // Store Letter Hunt specific parameters for return
         if (query.returnUrl && query.assetKey) {
           sessionStorage.setItem('letterHuntReturnUrl', query.returnUrl as string);
           sessionStorage.setItem('letterHuntAssetKey', query.assetKey as string);
-          sessionStorage.setItem('letterHuntTargetLetter', (query.targetLetter as string) || '');
+          sessionStorage.setItem('letterHuntTargetLetter', (query.letterFocus as string) || (query.targetLetter as string) || '');
           sessionStorage.setItem('letterHuntImageType', imageType);
         }
       }
@@ -142,8 +145,8 @@ export default function PromptGeneratorPage() {
     setError(null);
     setSuccess(null);
 
-    // Validate name for name-show and letter-hunt templates
-    if ((form.template === 'name-show' || form.template === 'letter-hunt') && !form.childName.trim()) {
+    // Validate name for name-show templates and letter-hunt templates with personalized content
+    if ((form.template === 'name-show' || (form.template === 'letter-hunt' && form.personalization === 'personalized')) && !form.childName.trim()) {
       setError(`Child's name is required for ${form.template === 'name-show' ? 'Name Show' : 'Letter Hunt'} template`);
       setLoading(false);
       return;
@@ -153,7 +156,10 @@ export default function PromptGeneratorPage() {
       const response = await fetch('/api/prompts/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form)
+        body: JSON.stringify({
+          ...form,
+          targetLetter: form.targetLetter // Make sure targetLetter is included
+        })
       });
 
       if (response.ok) {
@@ -182,8 +188,8 @@ export default function PromptGeneratorPage() {
       template,
       safeZones: template === 'lullaby' ? ['slideshow'] : 
                  template === 'letter-hunt' ? ['all_ok'] : ['center_safe'],
-      // Automatically set personalization to 'personalized' for name-show and letter-hunt templates
-      personalization: (template === 'name-show' || template === 'letter-hunt') ? 'personalized' : prev.personalization
+      // Only automatically set personalization for name-show templates, not letter-hunt
+      personalization: template === 'name-show' ? 'personalized' : prev.personalization
     }));
   };
 
@@ -254,7 +260,7 @@ export default function PromptGeneratorPage() {
                 imageType: sessionStorage.getItem('letterHuntImageType'),
                 assetType: sessionStorage.getItem('letterHuntImageType'), // Keep for backward compatibility
                 childName: form.childName,
-                targetLetter: sessionStorage.getItem('letterHuntTargetLetter')
+                targetLetter: form.targetLetter || sessionStorage.getItem('letterHuntTargetLetter')
               })
             });
 
@@ -298,6 +304,7 @@ export default function PromptGeneratorPage() {
       childName: form.childName || '',
       ...(metadata.imageType && { imageType: metadata.imageType }),
       ...(form.additionalContext && { additionalContext: form.additionalContext }),
+      ...(form.targetLetter && { targetLetter: form.targetLetter }),
       ...(sessionStorage.getItem('letterHuntTargetLetter') && { targetLetter: sessionStorage.getItem('letterHuntTargetLetter')! })
     });
 
@@ -446,22 +453,33 @@ export default function PromptGeneratorPage() {
               {/* Theme */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Theme *
+                  Theme {form.template === 'letter-hunt' && form.personalization === 'general' ? '' : '*'}
                 </label>
                 <input
                   type="text"
                   value={form.theme}
                   onChange={(e) => setForm(prev => ({ ...prev, theme: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="e.g., Space Adventure, Ocean Friends, Forest Animals"
-                  required
+                  placeholder={form.template === 'letter-hunt' && form.personalization === 'general' 
+                    ? "Optional for letter-specific images (leave empty)" 
+                    : "e.g., Space Adventure, Ocean Friends, Forest Animals"}
+                  required={!(form.template === 'letter-hunt' && form.personalization === 'general')}
                 />
-                <div className="mt-2 text-xs text-gray-500">
-                  <strong>Popular themes with variety:</strong> dogs, cats, space, ocean, farm, forest, dinosaurs, vehicles, princesses, superheroes
-                </div>
-                <div className="mt-1 text-xs text-blue-600">
-                  💡 <strong>Tip:</strong> Our new system automatically creates variety - "dogs" will generate different breeds like Golden Retriever, Beagle, Pug, etc.
-                </div>
+                {form.template === 'letter-hunt' && form.personalization === 'general' ? (
+                  <div className="mt-2 text-xs text-green-600">
+                    🎯 <strong>Letter Hunt (General):</strong> Theme is optional for letter-specific images (signs, books, grocery). 
+                    These images focus on displaying the letter clearly and are reusable across different themes.
+                  </div>
+                ) : (
+                  <>
+                    <div className="mt-2 text-xs text-gray-500">
+                      <strong>Popular themes with variety:</strong> dogs, cats, space, ocean, farm, forest, dinosaurs, vehicles, princesses, superheroes
+                    </div>
+                    <div className="mt-1 text-xs text-blue-600">
+                      💡 <strong>Tip:</strong> Our new system automatically creates variety - "dogs" will generate different breeds like Golden Retriever, Beagle, Pug, etc.
+                    </div>
+                  </>
+                )}
                 <button
                   type="button"
                   onClick={() => setShowThemeHelper(!showThemeHelper)}
@@ -511,6 +529,50 @@ export default function PromptGeneratorPage() {
                   <div className="mt-2 text-xs text-gray-600">
                     💡 This will appear as "THE [NAME] SHOW" in large, bold letters on the title card
                   </div>
+                </div>
+              )}
+
+              {/* Letter Hunt Template Fields */}
+              {form.template === 'letter-hunt' && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4 space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Target Letter *
+                    </label>
+                    <select
+                      value={form.targetLetter || ''}
+                      onChange={(e) => setForm(prev => ({ ...prev, targetLetter: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                    >
+                      <option value="">Select a letter...</option>
+                      {Array.from({ length: 26 }, (_, i) => String.fromCharCode(65 + i)).map(letter => (
+                        <option key={letter} value={letter}>{letter}</option>
+                      ))}
+                    </select>
+                    <div className="mt-2 text-xs text-gray-600">
+                      🎯 The letter that will be prominently featured in the image
+                    </div>
+                  </div>
+                  
+                  {form.personalization === 'personalized' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Child's Name *
+                      </label>
+                      <input
+                        type="text"
+                        value={form.childName}
+                        onChange={(e) => setForm(prev => ({ ...prev, childName: e.target.value }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Enter child's name (e.g., Emma, Alex, Sam)"
+                        required
+                      />
+                      <div className="mt-2 text-xs text-gray-600">
+                        💡 For title cards: Will appear as "[NAME]'s Letter Hunt!" For general images: Not included in image
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -708,7 +770,7 @@ export default function PromptGeneratorPage() {
               {/* Submit Button */}
               <button
                 type="submit"
-                disabled={loading || !form.theme}
+                disabled={loading || (!form.theme && !(form.template === 'letter-hunt' && form.personalization === 'general'))}
                 className="w-full bg-blue-600 text-white px-6 py-3 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? 'Generating Prompts...' : 'Generate Prompts'}

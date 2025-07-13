@@ -22,13 +22,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       additionalContext,
       projectId,
       assetType,
-      imageType // New structured field
+      imageType, // New structured field
+      targetLetter // Add target letter for letter hunt
     } = req.body;
 
     // Validate required fields
-    if (!theme || !ageRange || !template) {
+    if (!ageRange || !template) {
       return res.status(400).json({ 
-        error: 'Missing required fields: theme, ageRange, template' 
+        error: 'Missing required fields: ageRange, template' 
+      });
+    }
+
+    // Theme is required unless it's a letter-hunt template with general personalization
+    if (!theme && !(template === 'letter-hunt' && personalization === 'general')) {
+      return res.status(400).json({ 
+        error: 'Missing required field: theme' 
       });
     }
 
@@ -68,7 +76,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           promptCount: count,
           additionalContext,
           assetType, // Keep for backward compatibility
-          imageType: imageType || assetType // Use imageType if available, fallback to assetType
+          imageType: imageType || assetType, // Use imageType if available, fallback to assetType
+          targetLetter // Add target letter for letter hunt
         };
       // Generate prompts for this safe zone and aspect ratio
       const prompts = await PromptGenerator.generatePrompts(context);
@@ -136,6 +145,7 @@ async function savePromptsToDatabase(projectId: string, allPrompts: any) {
             ageRange: promptData.metadata.ageRange,
             aspectRatio: promptData.metadata.aspectRatio,
             artStyle: promptData.metadata.artStyle,
+            targetLetter: promptData.metadata.targetLetter, // Include target letter in metadata
             generatedAt: promptData.metadata.generatedAt
           }
         });

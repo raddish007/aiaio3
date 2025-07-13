@@ -146,7 +146,7 @@ export default function LetterHuntRequest() {
       .eq('metadata->>template', 'letter-hunt')
       .eq('type', 'audio')
       .eq('metadata->>targetLetter', targetLetter)
-      .is('metadata->>child_name', null);
+      .or('metadata->>child_name.is.null,metadata->>child_name.eq.');
 
     // 4. Generic Letter Hunt video assets (not tied to specific child/letter)
     const { data: genericVideoAssets, error: genericError } = await supabase
@@ -155,17 +155,28 @@ export default function LetterHuntRequest() {
       .in('status', ['approved', 'pending'])
       .eq('metadata->>template', 'letter-hunt')
       .eq('type', 'video')
-      .is('metadata->>child_name', null)
+      .or('metadata->>child_name.is.null,metadata->>child_name.eq.')
       .is('metadata->>targetLetter', null);
+
+    // 5. Letter Hunt image assets that match the target letter (not tied to specific child)
+    const { data: letterSpecificImageAssets, error: letterImageError } = await supabase
+      .from('assets')
+      .select('*')
+      .in('status', ['approved', 'pending'])
+      .eq('metadata->>template', 'letter-hunt')
+      .eq('type', 'image')
+      .eq('metadata->>targetLetter', targetLetter)
+      .or('metadata->>child_name.is.null,metadata->>child_name.eq.');
 
     // Combine all sets of assets, prioritizing specific > letter-specific > generic
     const existingAssets = [
       ...(specificAssets || []),
       ...(letterSpecificAssets || []),
       ...(letterSpecificAudioAssets || []),
-      ...(genericVideoAssets || [])
+      ...(genericVideoAssets || []),
+      ...(letterSpecificImageAssets || [])
     ];
-    const error = specificError || letterError || letterAudioError || genericError;
+    const error = specificError || letterError || letterAudioError || genericError || letterImageError;
 
     if (error) {
       console.error('Error checking for existing assets:', error);
@@ -622,16 +633,61 @@ export default function LetterHuntRequest() {
         // Instead of calling API directly, redirect to manual prompt creation flow
         const promptParams = new URLSearchParams({
           templateType: 'letter-hunt',
-          theme: selectedChild?.primary_interest || 'general',
           childName: payload.childName,
           targetLetter: payload.targetLetter,
           assetType: 'titleCard', // This will be mapped to imageType in the prompt generator
           artStyle: '2D Pixar Style',
           ageRange: '3-5',
           aspectRatio: '16:9',
+          personalization: 'personalized', // Title card is personalized with child's name
           returnUrl: window.location.href, // Return to this page after prompt creation
           assetKey: assetKey // So we know which asset to update when returning
         });
+
+        // Only add theme if a child is selected (titleCard is personalized)
+        if (selectedChild?.primary_interest) {
+          promptParams.append('theme', selectedChild.primary_interest);
+        }
+        
+        console.log(`🎨 Redirecting to manual prompt creation for ${asset.name}...`);
+        console.log('📋 Prompt params:', promptParams.toString());
+        
+        await router.push(`/admin/prompt-generator?${promptParams.toString()}`);
+        return; // Don't update status since we're redirecting
+      } 
+      
+      // Handle letter-specific image generation (signImage, bookImage, groceryImage)
+      else if (asset.type === 'image' && ['signImage', 'bookImage', 'groceryImage'].includes(assetKey)) {
+        let promptContext = '';
+        
+        switch (assetKey) {
+          case 'signImage':
+            promptContext = `A simple, colorful street sign that displays only the letter "${payload.targetLetter}" in large, bold, clear text. The letter should be the ONLY text visible on the sign - no other words, numbers, or letters. The sign should be bright and cheerful with a clean, simple design in 2D Pixar animation style. Set against a simple background like a park or street scene. Focus entirely on making the letter "${payload.targetLetter}" prominent and easy to read.`;
+            break;
+          case 'bookImage':
+            promptContext = `A children's book with the letter "${payload.targetLetter}" prominently displayed on the front cover in large, bold, clear text. The letter should be the main focus of the book cover - no other text or letters visible. Simple, clean book design in 2D Pixar animation style with bright, cheerful colors. The book can be shown on a simple surface or held, but the letter "${payload.targetLetter}" should be the clear focal point.`;
+            break;
+          case 'groceryImage':
+            promptContext = `A grocery store product (can, box, or jar) with the letter "${payload.targetLetter}" prominently displayed on the label in large, bold, clear text. The letter should be the ONLY visible text on the product - no brand names, other letters, or words. Simple, clean product design in 2D Pixar animation style with bright, cheerful colors. The product should be clearly visible, with the letter "${payload.targetLetter}" as the main focal point.`;
+            break;
+        }
+
+        const promptParams = new URLSearchParams({
+          templateType: 'letter-hunt',
+          targetLetter: payload.targetLetter,
+          assetType: assetKey, // This will be mapped to imageType in the prompt generator
+          artStyle: '2D Pixar Style',
+          ageRange: '3-5',
+          aspectRatio: '16:9',
+          personalization: 'general', // Letter-specific images are general, not personalized
+          theme: '', // Pass empty theme to avoid 'monsters' fallback
+          letterFocus: payload.targetLetter, // Add letter focus dropdown assignment
+          returnUrl: window.location.href,
+          assetKey: assetKey
+        });
+        
+        // Note: We no longer pass customPrompt as additionalContext
+        // The prompt generator will build the appropriate task based on imageType and targetLetter
         
         console.log(`🎨 Redirecting to manual prompt creation for ${asset.name}...`);
         console.log('📋 Prompt params:', promptParams.toString());
@@ -807,11 +863,14 @@ export default function LetterHuntRequest() {
       console.log('🎬 Submitting Letter Hunt video generation:', payload);
       
       // Clean asset objects to only include url and status (remove type, name, description, etc.)
-      // Only send assets for the first 3 parts of the video (title, intro, search)
+      // Send assets for the 6-part video (title, intro, search, signs, books, grocery)
       const allowedAssetKeys = [
         'titleCard', 'titleAudio',           // Part 1: Title (0-3s)
         'introVideo', 'introAudio',          // Part 2: Letter + Theme (3-6s) 
         'intro2Video', 'intro2Audio',        // Part 3: Search (6-9s)
+        'signImage', 'signAudio',            // Part 4: Signs (9-12s)
+        'bookImage', 'bookAudio',            // Part 5: Books (12-15s)
+        'groceryImage', 'groceryAudio',      // Part 6: Grocery (15-18s)
         'backgroundMusic'                    // Background music throughout
       ];
       
@@ -1104,11 +1163,11 @@ Your video will be available for review in the admin dashboard once complete.`);
               marginBottom: 32 
             }}>
               <h3 style={{ margin: '0 0 8px 0', color: '#856404' }}>
-                🧪 Phase 2: 3-Part Video Render (Title + Letter + Search)
+                🧪 Phase 3: 6-Part Video Render (Title + Letter + Search + Signs + Books + Grocery)
               </h3>
               <p style={{ margin: 0, color: '#856404' }}>
-                Currently rendering 3-part videos: Title Card + Title Audio are required. 
-                The render includes Part 1 (Title), Part 2 (Letter + Theme), and Part 3 (Search) only.
+                Currently rendering 6-part videos: Title Card + Title Audio are required. 
+                The render includes Parts 1-6 (Title, Letter + Theme, Search, Signs, Books, Grocery Store).
                 Happy Dance segment is not included in current renders.
               </p>
             </div>
@@ -1379,10 +1438,277 @@ Your video will be available for review in the admin dashboard once complete.`);
                 </div>
               </div>
 
-              {/* Part 4: Happy Dance (Not Included in Current Render) */}
+              {/* Part 4: Letter Hunt - Signs (9-12 seconds) */}
+              <div className="bg-white rounded-lg shadow-sm p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                  <span className="bg-orange-100 text-orange-800 text-sm font-medium px-2.5 py-0.5 rounded mr-3">Part 4</span>
+                  Letter Hunt - Signs (9-12 seconds)
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Sign Image */}
+                  <div className="border border-gray-200 rounded-lg p-4"
+                       style={{ background: payload.assets.signImage.status === 'ready' ? '#f0f8f0' : 
+                                           payload.assets.signImage.status === 'generating' ? '#fff8dc' : '#f9f9f9' }}>
+                    <h4 className="font-medium text-gray-900 mb-2 flex items-center">
+                      {payload.assets.signImage.name}
+                      <span className={`ml-2 text-xs font-bold uppercase px-2 py-1 rounded ${
+                        payload.assets.signImage.status === 'ready' ? 'bg-green-100 text-green-800' :
+                        payload.assets.signImage.status === 'generating' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-red-100 text-red-800'
+                      }`}>
+                        {payload.assets.signImage.status}
+                      </span>
+                    </h4>
+                    <p className="text-sm text-gray-600 mb-3">{payload.assets.signImage.description}</p>
+                    
+                    {payload.assets.signImage.status === 'ready' && payload.assets.signImage.url && (
+                      <div className="mb-3">
+                        <img 
+                          src={payload.assets.signImage.url} 
+                          alt={payload.assets.signImage.name}
+                          className="w-full h-auto rounded border"
+                        />
+                      </div>
+                    )}
+                    
+                    <button
+                      onClick={() => generateAsset('signImage')}
+                      disabled={payload.assets.signImage.status === 'generating'}
+                      className={`px-4 py-2 rounded text-sm font-medium ${
+                        payload.assets.signImage.status === 'ready' ? 'bg-green-600 text-white' :
+                        payload.assets.signImage.status === 'generating' ? 'bg-yellow-500 text-white cursor-not-allowed' :
+                        'bg-blue-600 text-white hover:bg-blue-700'
+                      }`}
+                    >
+                      {payload.assets.signImage.status === 'ready' ? 'Regenerate' :
+                       payload.assets.signImage.status === 'generating' ? 'Generating...' : 
+                       'Generate Image'}
+                    </button>
+                  </div>
+                  
+                  {/* Sign Audio */}
+                  <div className="border border-gray-200 rounded-lg p-4"
+                       style={{ background: payload.assets.signAudio.status === 'ready' ? '#f0f8f0' : 
+                                           payload.assets.signAudio.status === 'generating' ? '#fff8dc' : '#f9f9f9' }}>
+                    <h4 className="font-medium text-gray-900 mb-2 flex items-center">
+                      {payload.assets.signAudio.name}
+                      <span className={`ml-2 text-xs font-bold uppercase px-2 py-1 rounded ${
+                        payload.assets.signAudio.status === 'ready' ? 'bg-green-100 text-green-800' :
+                        payload.assets.signAudio.status === 'generating' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-red-100 text-red-800'
+                      }`}>
+                        {payload.assets.signAudio.status}
+                      </span>
+                    </h4>
+                    <p className="text-sm text-gray-600 mb-3">{payload.assets.signAudio.description}</p>
+                    
+                    {payload.assets.signAudio.status === 'ready' && payload.assets.signAudio.url && (
+                      <div className="mb-3">
+                        <audio controls className="w-full">
+                          <source src={payload.assets.signAudio.url} type="audio/mpeg" />
+                        </audio>
+                      </div>
+                    )}
+                    
+                    <button
+                      onClick={() => generateAsset('signAudio')}
+                      disabled={payload.assets.signAudio.status === 'generating'}
+                      className={`px-4 py-2 rounded text-sm font-medium ${
+                        payload.assets.signAudio.status === 'ready' ? 'bg-green-600 text-white' :
+                        payload.assets.signAudio.status === 'generating' ? 'bg-yellow-500 text-white cursor-not-allowed' :
+                        'bg-blue-600 text-white hover:bg-blue-700'
+                      }`}
+                    >
+                      {payload.assets.signAudio.status === 'ready' ? 'Regenerate' :
+                       payload.assets.signAudio.status === 'generating' ? 'Generating...' : 
+                       'Generate Audio'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Part 5: Letter Hunt - Books (12-15 seconds) */}
+              <div className="bg-white rounded-lg shadow-sm p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                  <span className="bg-pink-100 text-pink-800 text-sm font-medium px-2.5 py-0.5 rounded mr-3">Part 5</span>
+                  Letter Hunt - Books (12-15 seconds)
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Book Image */}
+                  <div className="border border-gray-200 rounded-lg p-4"
+                       style={{ background: payload.assets.bookImage.status === 'ready' ? '#f0f8f0' : 
+                                           payload.assets.bookImage.status === 'generating' ? '#fff8dc' : '#f9f9f9' }}>
+                    <h4 className="font-medium text-gray-900 mb-2 flex items-center">
+                      {payload.assets.bookImage.name}
+                      <span className={`ml-2 text-xs font-bold uppercase px-2 py-1 rounded ${
+                        payload.assets.bookImage.status === 'ready' ? 'bg-green-100 text-green-800' :
+                        payload.assets.bookImage.status === 'generating' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-red-100 text-red-800'
+                      }`}>
+                        {payload.assets.bookImage.status}
+                      </span>
+                    </h4>
+                    <p className="text-sm text-gray-600 mb-3">{payload.assets.bookImage.description}</p>
+                    
+                    {payload.assets.bookImage.status === 'ready' && payload.assets.bookImage.url && (
+                      <div className="mb-3">
+                        <img 
+                          src={payload.assets.bookImage.url} 
+                          alt={payload.assets.bookImage.name}
+                          className="w-full h-auto rounded border"
+                        />
+                      </div>
+                    )}
+                    
+                    <button
+                      onClick={() => generateAsset('bookImage')}
+                      disabled={payload.assets.bookImage.status === 'generating'}
+                      className={`px-4 py-2 rounded text-sm font-medium ${
+                        payload.assets.bookImage.status === 'ready' ? 'bg-green-600 text-white' :
+                        payload.assets.bookImage.status === 'generating' ? 'bg-yellow-500 text-white cursor-not-allowed' :
+                        'bg-blue-600 text-white hover:bg-blue-700'
+                      }`}
+                    >
+                      {payload.assets.bookImage.status === 'ready' ? 'Regenerate' :
+                       payload.assets.bookImage.status === 'generating' ? 'Generating...' : 
+                       'Generate Image'}
+                    </button>
+                  </div>
+                  
+                  {/* Book Audio */}
+                  <div className="border border-gray-200 rounded-lg p-4"
+                       style={{ background: payload.assets.bookAudio.status === 'ready' ? '#f0f8f0' : 
+                                           payload.assets.bookAudio.status === 'generating' ? '#fff8dc' : '#f9f9f9' }}>
+                    <h4 className="font-medium text-gray-900 mb-2 flex items-center">
+                      {payload.assets.bookAudio.name}
+                      <span className={`ml-2 text-xs font-bold uppercase px-2 py-1 rounded ${
+                        payload.assets.bookAudio.status === 'ready' ? 'bg-green-100 text-green-800' :
+                        payload.assets.bookAudio.status === 'generating' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-red-100 text-red-800'
+                      }`}>
+                        {payload.assets.bookAudio.status}
+                      </span>
+                    </h4>
+                    <p className="text-sm text-gray-600 mb-3">{payload.assets.bookAudio.description}</p>
+                    
+                    {payload.assets.bookAudio.status === 'ready' && payload.assets.bookAudio.url && (
+                      <div className="mb-3">
+                        <audio controls className="w-full">
+                          <source src={payload.assets.bookAudio.url} type="audio/mpeg" />
+                        </audio>
+                      </div>
+                    )}
+                    
+                    <button
+                      onClick={() => generateAsset('bookAudio')}
+                      disabled={payload.assets.bookAudio.status === 'generating'}
+                      className={`px-4 py-2 rounded text-sm font-medium ${
+                        payload.assets.bookAudio.status === 'ready' ? 'bg-green-600 text-white' :
+                        payload.assets.bookAudio.status === 'generating' ? 'bg-yellow-500 text-white cursor-not-allowed' :
+                        'bg-blue-600 text-white hover:bg-blue-700'
+                      }`}
+                    >
+                      {payload.assets.bookAudio.status === 'ready' ? 'Regenerate' :
+                       payload.assets.bookAudio.status === 'generating' ? 'Generating...' : 
+                       'Generate Audio'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Part 6: Letter Hunt - Grocery Store (15-18 seconds) */}
+              <div className="bg-white rounded-lg shadow-sm p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                  <span className="bg-yellow-100 text-yellow-800 text-sm font-medium px-2.5 py-0.5 rounded mr-3">Part 6</span>
+                  Letter Hunt - Grocery Store (15-18 seconds)
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Grocery Image */}
+                  <div className="border border-gray-200 rounded-lg p-4"
+                       style={{ background: payload.assets.groceryImage.status === 'ready' ? '#f0f8f0' : 
+                                           payload.assets.groceryImage.status === 'generating' ? '#fff8dc' : '#f9f9f9' }}>
+                    <h4 className="font-medium text-gray-900 mb-2 flex items-center">
+                      {payload.assets.groceryImage.name}
+                      <span className={`ml-2 text-xs font-bold uppercase px-2 py-1 rounded ${
+                        payload.assets.groceryImage.status === 'ready' ? 'bg-green-100 text-green-800' :
+                        payload.assets.groceryImage.status === 'generating' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-red-100 text-red-800'
+                      }`}>
+                        {payload.assets.groceryImage.status}
+                      </span>
+                    </h4>
+                    <p className="text-sm text-gray-600 mb-3">{payload.assets.groceryImage.description}</p>
+                    
+                    {payload.assets.groceryImage.status === 'ready' && payload.assets.groceryImage.url && (
+                      <div className="mb-3">
+                        <img 
+                          src={payload.assets.groceryImage.url} 
+                          alt={payload.assets.groceryImage.name}
+                          className="w-full h-auto rounded border"
+                        />
+                      </div>
+                    )}
+                    
+                    <button
+                      onClick={() => generateAsset('groceryImage')}
+                      disabled={payload.assets.groceryImage.status === 'generating'}
+                      className={`px-4 py-2 rounded text-sm font-medium ${
+                        payload.assets.groceryImage.status === 'ready' ? 'bg-green-600 text-white' :
+                        payload.assets.groceryImage.status === 'generating' ? 'bg-yellow-500 text-white cursor-not-allowed' :
+                        'bg-blue-600 text-white hover:bg-blue-700'
+                      }`}
+                    >
+                      {payload.assets.groceryImage.status === 'ready' ? 'Regenerate' :
+                       payload.assets.groceryImage.status === 'generating' ? 'Generating...' : 
+                       'Generate Image'}
+                    </button>
+                  </div>
+                  
+                  {/* Grocery Audio */}
+                  <div className="border border-gray-200 rounded-lg p-4"
+                       style={{ background: payload.assets.groceryAudio.status === 'ready' ? '#f0f8f0' : 
+                                           payload.assets.groceryAudio.status === 'generating' ? '#fff8dc' : '#f9f9f9' }}>
+                    <h4 className="font-medium text-gray-900 mb-2 flex items-center">
+                      {payload.assets.groceryAudio.name}
+                      <span className={`ml-2 text-xs font-bold uppercase px-2 py-1 rounded ${
+                        payload.assets.groceryAudio.status === 'ready' ? 'bg-green-100 text-green-800' :
+                        payload.assets.groceryAudio.status === 'generating' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-red-100 text-red-800'
+                      }`}>
+                        {payload.assets.groceryAudio.status}
+                      </span>
+                    </h4>
+                    <p className="text-sm text-gray-600 mb-3">{payload.assets.groceryAudio.description}</p>
+                    
+                    {payload.assets.groceryAudio.status === 'ready' && payload.assets.groceryAudio.url && (
+                      <div className="mb-3">
+                        <audio controls className="w-full">
+                          <source src={payload.assets.groceryAudio.url} type="audio/mpeg" />
+                        </audio>
+                      </div>
+                    )}
+                    
+                    <button
+                      onClick={() => generateAsset('groceryAudio')}
+                      disabled={payload.assets.groceryAudio.status === 'generating'}
+                      className={`px-4 py-2 rounded text-sm font-medium ${
+                        payload.assets.groceryAudio.status === 'ready' ? 'bg-green-600 text-white' :
+                        payload.assets.groceryAudio.status === 'generating' ? 'bg-yellow-500 text-white cursor-not-allowed' :
+                        'bg-blue-600 text-white hover:bg-blue-700'
+                      }`}
+                    >
+                      {payload.assets.groceryAudio.status === 'ready' ? 'Regenerate' :
+                       payload.assets.groceryAudio.status === 'generating' ? 'Generating...' : 
+                       'Generate Audio'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Part 7: Happy Dance (Not Included in Current Render) */}
               <div className="bg-white rounded-lg shadow-sm p-6 opacity-60">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                  <span className="bg-gray-100 text-gray-600 text-sm font-medium px-2.5 py-0.5 rounded mr-3">Part 4</span>
+                  <span className="bg-gray-100 text-gray-600 text-sm font-medium px-2.5 py-0.5 rounded mr-3">Part 7</span>
                   Happy Dance (Not Included in Current Render)
                 </h3>
                 <div className="text-sm text-gray-600 p-4 bg-gray-50 rounded border-2 border-dashed border-gray-300">
