@@ -271,9 +271,23 @@ export default function LetterHuntRequest() {
         let shouldUseThisAsset = false;
         
         if (asset.type === 'video') {
-          // For videos, ONLY use if theme matches exactly
-          const currentTheme = asset.metadata?.theme?.toLowerCase();
-          const desiredTheme = themeToUse.toLowerCase();
+          // Special case for ending videos - they only need to match the target letter
+          if (assetKey === 'endingVideo') {
+            const assetTargetLetter = asset.metadata?.targetLetter;
+            const assetTheme = asset.theme;
+            
+            // Check if this ending video matches our target letter
+            if (assetTargetLetter === targetLetter || assetTheme === `Letter ${targetLetter}`) {
+              console.log(`✅ Found ending video for Letter ${targetLetter}: ${asset.id} (theme: ${assetTheme})`);
+              shouldUseThisAsset = true;
+            } else {
+              console.log(`⚠️ Skipping ending video - letter mismatch: asset(${assetTargetLetter}/${assetTheme}) !== target(${targetLetter})`);
+            }
+          } else {
+            // For all other videos, use the existing theme matching logic
+            // For videos, ONLY use if theme matches exactly
+            const currentTheme = asset.metadata?.theme?.toLowerCase();
+            const desiredTheme = themeToUse.toLowerCase();
           
           // Normalize theme names to handle plural/singular differences
           const normalizeTheme = (theme: string) => {
@@ -284,30 +298,29 @@ export default function LetterHuntRequest() {
             if (normalized === 'cats' || normalized === 'cat') return 'cat';
             if (normalized === 'adventures' || normalized === 'adventure') return 'adventure';
             return normalized;
-          };
-          
-          const normalizedCurrentTheme = normalizeTheme(currentTheme || '');
-          const normalizedDesiredTheme = normalizeTheme(desiredTheme);
-          
-          if (normalizedCurrentTheme === normalizedDesiredTheme) {
-            if (!existingAsset) {
-              // First matching theme video found
-              shouldUseThisAsset = true;
-              console.log(`✅ First ${assetKey} video with matching theme: ${currentTheme}`);
-            } else {
-              // Multiple videos with same theme - randomly select between them
-              const shouldReplace = Math.random() < 0.5; // 50% chance to replace
-              if (shouldReplace) {
+          };            const normalizedCurrentTheme = normalizeTheme(currentTheme || '');
+            const normalizedDesiredTheme = normalizeTheme(desiredTheme);
+            
+            if (normalizedCurrentTheme === normalizedDesiredTheme) {
+              if (!existingAsset) {
+                // First matching theme video found
                 shouldUseThisAsset = true;
-                console.log(`🎲 Randomly replacing ${assetKey}: ${existingAsset.theme} → ${currentTheme} (random selection)`);
+                console.log(`✅ First ${assetKey} video with matching theme: ${currentTheme}`);
               } else {
-                console.log(`🎲 Randomly keeping existing ${assetKey}: ${existingAsset.theme} (random selection)`);
+                // Multiple videos with same theme - randomly select between them
+                const shouldReplace = Math.random() < 0.5; // 50% chance to replace
+                if (shouldReplace) {
+                  shouldUseThisAsset = true;
+                  console.log(`🎲 Randomly replacing ${assetKey}: ${existingAsset.theme} → ${currentTheme} (random selection)`);
+                } else {
+                  console.log(`🎲 Randomly keeping existing ${assetKey}: ${existingAsset.theme} (random selection)`);
+                }
               }
+            } else {
+              // Theme doesn't match - skip this asset
+              shouldUseThisAsset = false;
+              console.log(`⚠️ Skipping video asset ${assetKey} - theme mismatch: ${currentTheme} !== ${desiredTheme}`);
             }
-          } else {
-            // Theme doesn't match - skip this asset
-            shouldUseThisAsset = false;
-            console.log(`⚠️ Skipping video asset ${assetKey} - theme mismatch: ${currentTheme} !== ${desiredTheme}`);
           }
         } else {
           // Non-video assets (images, audio) - use first one found, or random selection if multiple

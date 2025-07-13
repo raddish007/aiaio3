@@ -27,6 +27,7 @@ export interface LetterHuntAssets {
   bookImage: AssetItem;
   groceryImage: AssetItem;
   happyDanceVideo: AssetItem;
+  endingVideo: AssetItem;
   endingImage: AssetItem;
   titleAudio: AssetItem;
   introAudio: AssetItem;
@@ -86,6 +87,9 @@ export const LetterHunt: React.FC<LetterHuntProps> = ({
     }
     if (assets.happyDanceVideo?.url && assets.happyDanceVideo.status === 'ready') {
       preloadPromises.push(prefetch(assets.happyDanceVideo.url));
+    }
+    if (assets.endingVideo?.url && assets.endingVideo.status === 'ready') {
+      preloadPromises.push(prefetch(assets.endingVideo.url));
     }
     
     // Preload audio files
@@ -781,13 +785,40 @@ export const LetterHunt: React.FC<LetterHuntProps> = ({
 
       {/* SEGMENT 7: Ending */}
       <Sequence from={segments[7].start} durationInFrames={segments[7].duration}>
-        <AbsoluteFill style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
+        <AbsoluteFill style={{ 
           opacity: crossFade(segments[7].start, segments[7].start + segments[7].duration)
         }}>
-          {assets.endingImage.status === 'ready' && assets.endingImage.url ? (
+          {assets.endingVideo?.status === 'ready' && assets.endingVideo?.url ? (
+            <div style={{
+              position: 'relative',
+              width: '100%',
+              height: '100%',
+              transform: `scale(${videoScale(segments[7].start, 10)})`,
+              filter: 'brightness(1.05) contrast(1.05)', 
+            }}>
+              <Video 
+                src={assets.endingVideo.url}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover'
+                }}
+                volume={0.7}
+                playbackRate={1.0}
+              />
+              {/* Subtle overlay for ending consistency */}
+              <div style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                background: `radial-gradient(circle at center, transparent 60%, ${getThemeGradient(childTheme).split(',')[0].trim()} 90%)`,
+                opacity: 0.1,
+                pointerEvents: 'none'
+              }} />
+            </div>
+          ) : assets.endingImage?.status === 'ready' && assets.endingImage?.url ? (
             <Img 
               src={assets.endingImage.url} 
               style={{
@@ -798,22 +829,10 @@ export const LetterHunt: React.FC<LetterHuntProps> = ({
                 filter: 'brightness(1.05) contrast(1.05)'
               }}
             />
-          ) : (
-            <div style={{
-              fontSize: '80px',
-              fontWeight: 'bold',
-              color: 'white',
-              textAlign: 'center',
-              textShadow: '4px 4px 8px rgba(0,0,0,0.8)',
-              padding: '40px',
-              transform: `scale(${bounceIn(segments[7].start)})`
-            }}>
-              Have fun finding the letter {targetLetter}, {childName}!
-            </div>
-          )}
+          ) : null}
 
           {/* Ending Audio */}
-          {assets.endingAudio.status === 'ready' && assets.endingAudio.url && (
+          {assets.endingAudio?.status === 'ready' && assets.endingAudio?.url && (
             <Audio 
               src={assets.endingAudio.url} 
               volume={0.9}
