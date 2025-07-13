@@ -889,14 +889,16 @@ export default function LetterHuntRequest() {
       console.log('🎬 Submitting Letter Hunt video generation:', payload);
       
       // Clean asset objects to only include url and status (remove type, name, description, etc.)
-      // Send assets for the 6-part video (title, intro, search, signs, books, grocery)
+      // Send assets for the complete 8-segment video
       const allowedAssetKeys = [
         'titleCard', 'titleAudio',           // Part 1: Title (0-3s)
-        'introVideo', 'introAudio',          // Part 2: Letter + Theme (3-6s) 
-        'intro2Video', 'intro2Audio',        // Part 3: Search (6-9s)
-        'signImage', 'signAudio',            // Part 4: Signs (9-12s)
-        'bookImage', 'bookAudio',            // Part 5: Books (12-15s)
-        'groceryImage', 'groceryAudio',      // Part 6: Grocery (15-18s)
+        'introVideo', 'introAudio',          // Part 2: Letter + Theme (3-8.5s) 
+        'intro2Video', 'intro2Audio',        // Part 3: Search (8.5-14s)
+        'signImage', 'signAudio',            // Part 4: Signs (14-18s)
+        'bookImage', 'bookAudio',            // Part 5: Books (18-22s)
+        'groceryImage', 'groceryAudio',      // Part 6: Grocery (22-26s)
+        'happyDanceVideo', 'happyDanceAudio', // Part 7: Happy Dance (26-31.5s)
+        'endingVideo', 'endingAudio',        // Part 8: Ending (31.5-37s)
         'backgroundMusic'                    // Background music throughout
       ];
       
