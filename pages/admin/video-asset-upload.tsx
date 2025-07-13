@@ -50,7 +50,8 @@ export default function VideoAssetUpload() {
       sections: [
         { value: 'introVideo', label: 'Part 1 - Character pointing to giant letter' },
         { value: 'intro2Video', label: 'Part 2 - Theme + Letter combination' },
-        { value: 'happyDanceVideo', label: 'Happy Dance - Character doing joyful dance' }
+        { value: 'happyDanceVideo', label: 'Happy Dance - Character doing joyful dance' },
+        { value: 'endingVideo', label: 'Part 8 - Ending Letter Animation (Celebratory)' }
       ]
     }
     // Future templates can be added here
@@ -201,13 +202,53 @@ export default function VideoAssetUpload() {
 
       const publicUrl = urlData.publicUrl;
 
+      // Generate appropriate theme based on section and category
+      const generateTheme = () => {
+        // For ending videos with letter-specific category, use "Letter X" format
+        if (formData.section === 'endingVideo' && formData.category === 'letter-specific' && formData.targetLetter) {
+          return `Letter ${formData.targetLetter.toUpperCase()}`;
+        }
+        
+        return formData.theme || 'generic';
+      };
+
+      // Generate appropriate tags based on section
+      const generateTags = () => {
+        const tags = [formData.template]; // Always include template
+        
+        switch (formData.section) {
+          case 'endingVideo':
+            tags.push('ending', 'celebration');
+            break;
+          case 'happyDanceVideo':
+            tags.push('dance', 'celebration');
+            break;
+          case 'introVideo':
+            tags.push('intro', 'character');
+            break;
+          case 'intro2Video':
+            tags.push('intro', 'theme');
+            break;
+          default:
+            tags.push('video');
+        }
+        
+        // Add category-specific tags
+        if (formData.category === 'letter-specific' && formData.targetLetter) {
+          tags.push(`letter-${formData.targetLetter.toLowerCase()}`);
+        }
+        
+        return tags;
+      };
+
       // Create asset record
       const assetRecord = {
         type: 'video',
         title: formData.title,
-        theme: formData.theme || 'generic', // Required field - use 'generic' as default
+        theme: generateTheme(), // Use generated theme with proper format
         file_url: publicUrl,
         status: 'approved', // Auto-approved as requested
+        tags: generateTags(), // Add generated tags
         metadata: generateAssetMetadata()
         // Note: created_at defaults to NOW() in database, no need to specify
       };

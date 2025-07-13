@@ -275,7 +275,7 @@ Each prompt must include art style, theme description with species/breed/type, c
   }
 
   private static getNameShowInstructions(): string {
-    return `You are generating prompts for game show-style title cards featuring "THE [NAME] SHOW" in big, bold, readable letters for preschool children (ages 2-5). The text should be the main focus with themed decorative elements around it that don't block the letters. Content must be bright, exciting, and game show-like while remaining age-appropriate.
+    return `You are generating prompts for game show-style title cards featuring "THE [NAME] SHOW" in big, bold, readable letters for preschool children (ages 2-5). The text should be the main focus with ONE SINGLE theme-specific decorative item positioned to the side that doesn't block the letters. Content must be bright, exciting, and game show-like while remaining age-appropriate.
 
 🧒 CHILD SAFETY REQUIREMENTS (CRITICAL)
 Content must be 100% appropriate for ages 2-5 years old.
@@ -290,14 +290,14 @@ Themes must be interpreted in the most innocent, playful way possible.
 Large, bold, block letters spelling "THE [NAME] SHOW" prominently displayed in the center.
 Text must be highly readable for young children - use thick, rounded, child-friendly fonts.
 Bright, vibrant colors with strong contrast between text and background.
-Themed decorative elements scattered around the text but NOT blocking or overlapping the letters.
+ONE SINGLE theme-specific decorative item positioned to the side of the text, NOT blocking or overlapping the letters.
 Game show atmosphere - exciting, celebratory, fun energy.
 Background should complement but not compete with the text readability.
-Decorative elements should be small to medium sized and positioned around the edges or corners.
+The single decorative item should be positioned in a corner or edge area.
 Text should be the clear focal point of the entire composition.
 
 📝 PROMPT STRUCTURE
-Each prompt must include the text "THE [NAME] SHOW" prominently, art style, themed decorative elements, background description, and text positioning instructions.`;
+Each prompt must include the text "THE [NAME] SHOW" prominently, art style, ONE SINGLE theme-specific decorative item, background description, and text positioning instructions.`;
   }
 
   private static getLetterHuntInstructions(): string {
@@ -332,7 +332,7 @@ Each prompt must include the target letter prominently displayed, art style, sim
     
     switch (assetType) {
       case 'titleCard':
-        return `You are generating prompts for Letter Hunt title cards featuring "Letter Hunt for [NAME]" in big, bold, readable letters for preschool children (ages 2-5). The text should be the main focus with themed decorative elements around it that don't block the letters. Content must be bright, exciting, and game show-like while remaining age-appropriate.
+        return `You are generating prompts for Letter Hunt title cards featuring "Letter Hunt for [NAME]" in big, bold, readable letters for preschool children (ages 2-5). The text should be the main focus with ONE SINGLE theme-specific decorative item positioned to the side that doesn't block the letters. Content must be bright, exciting, and game show-like while remaining age-appropriate.
 
 🧒 CHILD SAFETY REQUIREMENTS (CRITICAL)
 Content must be 100% appropriate for ages 2-5 years old.
@@ -347,14 +347,14 @@ Themes must be interpreted in the most innocent, playful way possible.
 Large, bold, block letters spelling "Letter Hunt for [NAME]" prominently displayed in the center.
 Text must be highly readable for young children - use thick, rounded, child-friendly fonts.
 Bright, vibrant colors with strong contrast between text and background.
-Themed decorative elements scattered around the text but NOT blocking or overlapping the letters.
+ONE SINGLE theme-specific decorative item positioned to the side of the text, NOT blocking or overlapping the letters.
 Game show atmosphere - exciting, celebratory, fun energy.
 Background should complement but not compete with the text readability.
-Decorative elements should be small to medium sized and positioned around the edges or corners.
+The single decorative item should be positioned in a corner or edge area.
 Text should be the clear focal point of the entire composition.
 
 📝 PROMPT STRUCTURE
-Each prompt must include the text "Letter Hunt for [NAME]" prominently, art style, themed decorative elements, background description, and text positioning instructions.`;
+Each prompt must include the text "Letter Hunt for [NAME]" prominently, art style, ONE SINGLE theme-specific decorative item, background description, and text positioning instructions.`;
 
       case 'signImage':
         return `You are generating prompts for letter hunt educational content featuring a target letter displayed on signs for preschool children (ages 2-5). The letter should appear prominently on actual signs with themed decorative elements around them.
@@ -491,7 +491,7 @@ Each prompt must include the target letter prominently displayed in a celebrator
       
       if (imageType === 'titleCard') {
         const childNameText = context.childName || '[NAME]';
-        taskText = `Generate ${context.promptCount || 3} image prompts for "Letter Hunt for ${childNameText}" title cards with a ${context.theme}-themed background targeting ${context.ageRange} year olds. Each image should show the title text prominently with themed decorative elements around it.`;
+        taskText = `Generate ${context.promptCount || 3} image prompts for "Letter Hunt for ${childNameText}" title cards with a ${context.theme}-themed background targeting ${context.ageRange} year olds. Each image should show the title text prominently with ONE SINGLE theme-specific item positioned to the side.`;
       } else if (imageType === 'signImage') {
         taskText = `Generate ${context.promptCount || 3} image prompts for: A simple, colorful street sign that displays only the letter "${targetLetter}" in large, bold, clear text. The letter should be the ONLY text visible on the sign - no other words, numbers, or letters. The sign should be bright and cheerful with a clean, simple design in 2D Pixar animation style. Set against a simple background like a park or street scene. Focus entirely on making the letter "${targetLetter}" prominent and easy to read.`;
       } else if (imageType === 'bookImage') {

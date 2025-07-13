@@ -417,24 +417,53 @@ export default function AIGenerator() {
     }
 
     try {
-      const { error } = await supabase
-        .from('prompts')
-        .update({ prompt_text: editedPromptText.trim() })
-        .eq('id', selectedPrompt.id);
+      // Handle synthetic prompts from URL parameters (e.g., from Prompt Generator)
+      if (selectedPrompt.id === 'url-prompt') {
+        // For synthetic prompts, create a new prompt in the database
+        const { data: newPrompt, error } = await supabase
+          .from('prompts')
+          .insert({
+            asset_type: selectedPrompt.asset_type,
+            theme: selectedPrompt.theme,
+            style: selectedPrompt.style,
+            safe_zone: selectedPrompt.safe_zone,
+            prompt_text: editedPromptText.trim(),
+            status: 'pending',
+            metadata: selectedPrompt.metadata
+          })
+          .select()
+          .single();
 
-      if (error) {
-        console.error('Error updating prompt:', error);
-        alert('Failed to save prompt. Please try again.');
-        return;
+        if (error) {
+          console.error('Error creating prompt:', error);
+          alert('Failed to save prompt. Please try again.');
+          return;
+        }
+
+        // Update the selected prompt with the new database record
+        setSelectedPrompt(newPrompt);
+        alert('Prompt saved successfully as new prompt!');
+      } else {
+        // Handle existing prompts - update in database
+        const { error } = await supabase
+          .from('prompts')
+          .update({ prompt_text: editedPromptText.trim() })
+          .eq('id', selectedPrompt.id);
+
+        if (error) {
+          console.error('Error updating prompt:', error);
+          alert('Failed to save prompt. Please try again.');
+          return;
+        }
+
+        // Update the local prompt data
+        setSelectedPrompt({ ...selectedPrompt, prompt_text: editedPromptText.trim() });
+        alert('Prompt updated successfully!');
       }
-
-      // Update the local prompt data
-      setSelectedPrompt({ ...selectedPrompt, prompt_text: editedPromptText.trim() });
       
       // Refresh the prompts list
       fetchPrompts();
       
-      alert('Prompt saved successfully!');
     } catch (error) {
       console.error('Error saving prompt:', error);
       alert('Failed to save prompt. Please try again.');
@@ -866,14 +895,17 @@ export default function AIGenerator() {
                           </button>
                           <button
                             onClick={handleSavePrompt}
-                            disabled={editedPromptText === selectedPrompt.prompt_text}
+                            disabled={
+                              // For synthetic prompts, allow saving even if unchanged
+                              selectedPrompt.id !== 'url-prompt' && editedPromptText === selectedPrompt.prompt_text
+                            }
                             className={`text-xs px-2 py-1 rounded ${
-                              editedPromptText === selectedPrompt.prompt_text
+                              (selectedPrompt.id !== 'url-prompt' && editedPromptText === selectedPrompt.prompt_text)
                                 ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
                                 : 'bg-blue-600 text-white hover:bg-blue-700'
                             }`}
                           >
-                            Save Changes
+                            {selectedPrompt.id === 'url-prompt' ? 'Save as New Prompt' : 'Save Changes'}
                           </button>
                         </div>
                       </div>

@@ -33,6 +33,12 @@ export default function VideoModeration() {
   const [reviewNotes, setReviewNotes] = useState('');
   const [filter, setFilter] = useState<'all' | 'pending_review' | 'approved' | 'rejected'>('pending_review');
   const [user, setUser] = useState<any>(null);
+  
+  // Bulk moderation state
+  const [selectedVideos, setSelectedVideos] = useState<Set<string>>(new Set());
+  const [bulkAction, setBulkAction] = useState<'delete' | 'reject' | ''>('');
+  const [bulkNotes, setBulkNotes] = useState('');
+  const [showBulkModal, setShowBulkModal] = useState(false);
 
   useEffect(() => {
     checkAuth();
@@ -269,6 +275,122 @@ export default function VideoModeration() {
     }
   };
 
+  // Bulk moderation functions
+  const handleSelectVideo = (videoId: string, checked: boolean) => {
+    const newSelected = new Set(selectedVideos);
+    if (checked) {
+      newSelected.add(videoId);
+    } else {
+      newSelected.delete(videoId);
+    }
+    setSelectedVideos(newSelected);
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      const allVideoIds = new Set(videos.map(v => v.id));
+      setSelectedVideos(allVideoIds);
+    } else {
+      setSelectedVideos(new Set());
+    }
+  };
+
+  const handleBulkAction = (action: 'delete' | 'reject') => {
+    if (selectedVideos.size === 0) {
+      alert('Please select at least one video');
+      return;
+    }
+    setBulkAction(action);
+    setShowBulkModal(true);
+  };
+
+  const executeBulkAction = async () => {
+    if (!user || selectedVideos.size === 0) return;
+
+    try {
+      const videoIds = Array.from(selectedVideos);
+      
+      if (bulkAction === 'delete') {
+        // Delete videos from database
+        const { error } = await supabase
+          .from('child_approved_videos')
+          .delete()
+          .in('id', videoIds);
+
+        if (error) {
+          console.error('Error deleting videos:', error);
+          alert('Error deleting videos: ' + error.message);
+          return;
+        }
+
+        // Also delete from moderation queue
+        await supabase
+          .from('video_moderation_queue')
+          .delete()
+          .in('child_approved_video_id', videoIds);
+
+        console.log(`✅ Bulk deleted ${videoIds.length} videos`);
+      } else if (bulkAction === 'reject') {
+        if (!bulkNotes.trim()) {
+          alert('Please provide rejection reason');
+          return;
+        }
+
+        // Reject videos
+        const { error } = await supabase
+          .from('child_approved_videos')
+          .update({
+            approval_status: 'rejected',
+            reviewed_by: user.id,
+            reviewed_at: new Date().toISOString(),
+            rejection_reason: bulkNotes
+          })
+          .in('id', videoIds);
+
+        if (error) {
+          console.error('Error rejecting videos:', error);
+          alert('Error rejecting videos: ' + error.message);
+          return;
+        }
+
+        // Add to review history for each video
+        const reviewHistoryRecords = videoIds.map(id => ({
+          child_approved_video_id: id,
+          reviewer_id: user.id,
+          review_action: 'rejected',
+          review_notes: bulkNotes
+        }));
+
+        await supabase
+          .from('video_review_history')
+          .insert(reviewHistoryRecords);
+
+        // Update moderation queue
+        await supabase
+          .from('video_moderation_queue')
+          .update({
+            status: 'rejected',
+            review_notes: bulkNotes
+          })
+          .in('child_approved_video_id', videoIds);
+
+        console.log(`✅ Bulk rejected ${videoIds.length} videos`);
+      }
+
+      // Reset state and refresh
+      setSelectedVideos(new Set());
+      setBulkAction('');
+      setBulkNotes('');
+      setShowBulkModal(false);
+      fetchVideos();
+      
+      alert(`✅ Successfully ${bulkAction === 'delete' ? 'deleted' : 'rejected'} ${videoIds.length} videos`);
+    } catch (error) {
+      console.error('Error executing bulk action:', error);
+      alert('Error executing bulk action: ' + (error as Error).message);
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'pending_review': return 'bg-yellow-100 text-yellow-800';
@@ -324,9 +446,10 @@ export default function VideoModeration() {
           </div>
         </div>
 
-        {/* Filters */}
+        {/* Filters and Bulk Actions */}
         <div className="mb-6">
-          <div className="flex space-x-4">
+          {/* Filter buttons */}
+          <div className="flex space-x-4 mb-4">
             <button
               onClick={() => setFilter('all')}
               className={`px-4 py-2 rounded-md ${
@@ -360,6 +483,44 @@ export default function VideoModeration() {
               Rejected
             </button>
           </div>
+
+          {/* Bulk Actions */}
+          {videos.length > 0 && (
+            <div className="bg-gray-50 rounded-lg p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={selectedVideos.size === videos.length && videos.length > 0}
+                      onChange={(e) => handleSelectAll(e.target.checked)}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                    <span className="ml-2 text-sm text-gray-700">
+                      Select All ({selectedVideos.size} of {videos.length} selected)
+                    </span>
+                  </label>
+                </div>
+                
+                {selectedVideos.size > 0 && (
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => handleBulkAction('reject')}
+                      className="px-3 py-1 bg-orange-600 text-white text-sm rounded-md hover:bg-orange-700"
+                    >
+                      Bulk Reject ({selectedVideos.size})
+                    </button>
+                    <button
+                      onClick={() => handleBulkAction('delete')}
+                      className="px-3 py-1 bg-red-600 text-white text-sm rounded-md hover:bg-red-700"
+                    >
+                      Bulk Delete ({selectedVideos.size})
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Video List */}
@@ -367,54 +528,65 @@ export default function VideoModeration() {
           {videos.map((video) => (
             <div key={video.id} className="bg-white rounded-lg shadow-md p-6">
               <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center space-x-3 mb-3">
-                    <h3 className="text-lg font-semibold text-gray-900">{video.video_title}</h3>
-                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(video.approval_status)}`}>
-                      {video.approval_status.replace('_', ' ')}
-                    </span>
-                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${getPersonalizationBadge(video.personalization_level)}`}>
-                      {video.personalization_level.replace('_', ' ')}
-                    </span>
+                <div className="flex items-start space-x-4 flex-1">
+                  {/* Checkbox for selection */}
+                  <div className="pt-1">
+                    <input
+                      type="checkbox"
+                      checked={selectedVideos.has(video.id)}
+                      onChange={(e) => handleSelectVideo(video.id, e.target.checked)}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
                   </div>
                   
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-600 mb-4">
-                    <div>
-                      <span className="font-medium">Child:</span> {video.child_name} ({video.child_age})
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-3 mb-3">
+                      <h3 className="text-lg font-semibold text-gray-900">{video.video_title}</h3>
+                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(video.approval_status)}`}>
+                        {video.approval_status.replace('_', ' ')}
+                      </span>
+                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${getPersonalizationBadge(video.personalization_level)}`}>
+                        {video.personalization_level.replace('_', ' ')}
+                      </span>
+                    </div>                    
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-600 mb-4">
+                      <div>
+                        <span className="font-medium">Child:</span> {video.child_name} ({video.child_age})
+                      </div>
+                      <div>
+                        <span className="font-medium">Theme:</span> {video.child_theme}
+                      </div>
+                      <div>
+                        <span className="font-medium">Duration:</span> {video.duration_seconds}s
+                      </div>
+                      <div>
+                        <span className="font-medium">Created:</span> {new Date(video.created_at).toLocaleDateString()}
+                      </div>
                     </div>
-                    <div>
-                      <span className="font-medium">Theme:</span> {video.child_theme}
-                    </div>
-                    <div>
-                      <span className="font-medium">Duration:</span> {video.duration_seconds}s
-                    </div>
-                    <div>
-                      <span className="font-medium">Created:</span> {new Date(video.created_at).toLocaleDateString()}
-                    </div>
-                  </div>
 
-                  {/* Video Preview */}
-                  <div className="mb-4">
-                    <video
-                      controls
-                      className="w-full max-w-md rounded-lg"
-                      src={video.video_url}
-                    >
-                      Your browser does not support the video tag.
-                    </video>
-                  </div>
-
-                  {/* Action Buttons */}
-                  {video.approval_status === 'pending_review' && (
-                    <div className="flex space-x-3">
-                      <button
-                        onClick={() => setSelectedVideo(video)}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                    {/* Video Preview */}
+                    <div className="mb-4">
+                      <video
+                        controls
+                        className="w-full max-w-md rounded-lg"
+                        src={video.video_url}
                       >
-                        Review Video
-                      </button>
+                        Your browser does not support the video tag.
+                      </video>
                     </div>
-                  )}
+
+                    {/* Action Buttons */}
+                    {video.approval_status === 'pending_review' && (
+                      <div className="flex space-x-3">
+                        <button
+                          onClick={() => setSelectedVideo(video)}
+                          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                        >
+                          Review Video
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -491,6 +663,66 @@ export default function VideoModeration() {
           </div>
         </div>
       )}
+
+      {/* Bulk Action Modal */}
+      {showBulkModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-md w-full">
+            <div className="p-6">
+              <h2 className="text-xl font-bold mb-4">
+                Confirm Bulk {bulkAction === 'delete' ? 'Delete' : 'Reject'}
+              </h2>
+              
+              <p className="text-gray-600 mb-4">
+                {bulkAction === 'delete' 
+                  ? `Are you sure you want to permanently delete ${selectedVideos.size} selected videos? This action cannot be undone.`
+                  : `Are you sure you want to reject ${selectedVideos.size} selected videos?`
+                }
+              </p>
+
+              {bulkAction === 'reject' && (
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Rejection Reason *
+                  </label>
+                  <textarea
+                    value={bulkNotes}
+                    onChange={(e) => setBulkNotes(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    rows={3}
+                    placeholder="Provide reason for bulk rejection..."
+                    required
+                  />
+                </div>
+              )}
+
+              <div className="flex space-x-3">
+                <button
+                  onClick={executeBulkAction}
+                  className={`px-4 py-2 text-white rounded-md ${
+                    bulkAction === 'delete' 
+                      ? 'bg-red-600 hover:bg-red-700' 
+                      : 'bg-orange-600 hover:bg-orange-700'
+                  }`}
+                  disabled={bulkAction === 'reject' && !bulkNotes.trim()}
+                >
+                  Confirm {bulkAction === 'delete' ? 'Delete' : 'Reject'}
+                </button>
+                <button
+                  onClick={() => {
+                    setShowBulkModal(false);
+                    setBulkAction('');
+                    setBulkNotes('');
+                  }}
+                  className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
-} 
+}
