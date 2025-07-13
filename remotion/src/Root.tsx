@@ -145,7 +145,7 @@ export const RemotionRoot: React.FC = () => {
       <Composition
         id="LetterHunt"
         component={LetterHunt}
-        durationInFrames={960} // 32 seconds at 30fps (8 segments: 3+5.5+5.5+4+4+4+3+3 seconds)
+        durationInFrames={1110} // 37 seconds at 30fps (8 segments: 3+5.5+5.5+4+4+4+5.5+5.5 seconds)
         fps={30}
         width={1920}
         height={1080}
@@ -163,6 +163,7 @@ export const RemotionRoot: React.FC = () => {
             groceryImage: { url: '', status: 'missing' as const },
             happyDanceVideo: { url: '', status: 'missing' as const },
             endingImage: { url: '', status: 'missing' as const },
+            endingVideo: { url: '', status: 'missing' as const },
             titleAudio: { url: '', status: 'missing' as const },
             introAudio: { url: '', status: 'missing' as const },
             intro2Audio: { url: '', status: 'missing' as const },
@@ -178,21 +179,30 @@ export const RemotionRoot: React.FC = () => {
           }
         }}
         calculateMetadata={({ props }) => {
-          // 8 segments total: 6 standard segments * 3 seconds + 2 extended intro segments * 5.5 seconds = 29.5 seconds
-          // Segments: titleCard(3s), intro(5.5s), intro2(5.5s), sign(3s), book(3s), grocery(3s), happyDance(3s), ending(3s)
-          const standardSegmentDuration = 3;
-          const extendedIntroSegmentDuration = 5.5;
-          const standardSegments = 6; // titleCard, sign, book, grocery, happyDance, ending
-          const extendedSegments = 2; // intro, intro2
-          const totalDurationFrames = (standardSegments * standardSegmentDuration + extendedSegments * extendedIntroSegmentDuration) * 30; // 885 frames
+          // 8 segments total: titleCard(3s), intro(5.5s), intro2(5.5s), sign(4s), book(4s), grocery(4s), happyDance(5.5s), ending(5.5s) = 37 seconds
+          // Updated segment timings: intro/intro2 extended to 5.5s, sign/book/grocery extended to 4s, happyDance/ending extended to 5.5s
+          const titleCardDuration = 3;
+          const introDuration = 5.5;
+          const intro2Duration = 5.5;
+          const signDuration = 4;
+          const bookDuration = 4;
+          const groceryDuration = 4;
+          const happyDanceDuration = 5.5;
+          const endingDuration = 5.5;
+          const totalDurationSeconds = titleCardDuration + introDuration + intro2Duration + signDuration + bookDuration + groceryDuration + happyDanceDuration + endingDuration; // 37 seconds
+          const totalDurationFrames = totalDurationSeconds * 30; // 1110 frames
           
           console.log(`🎬 Letter Hunt duration calculation for "${props.childName}" (Letter ${props.targetLetter}):`, {
             totalSegments: 8,
-            standardSegments,
-            extendedSegments,
-            standardSegmentDurationSeconds: standardSegmentDuration,
-            extendedIntroSegmentDurationSeconds: extendedIntroSegmentDuration,
-            totalDurationSeconds: 29.5,
+            titleCardDuration,
+            introDuration,
+            intro2Duration,
+            signDuration,
+            bookDuration,
+            groceryDuration,
+            happyDanceDuration,
+            endingDuration,
+            totalDurationSeconds,
             totalDurationFrames,
             fps: 30
           });

@@ -109,10 +109,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(500).json({ error: 'Database admin client not available' });
     }
 
-    // Calculate video duration: 9 segments with different durations
-    // titleCard(3s) + intro(5.5s) + intro2(3s) + sign(3s) + book(3s) + grocery(3s) + happyDance(3s) + ending(3s) = 29.5 seconds
-    const durationInSeconds = 29.5;
-    const totalSegments = 9;
+    // Calculate video duration: 8 segments with extended durations
+    // titleCard(3s) + intro(5.5s) + intro2(5.5s) + sign(4s) + book(4s) + grocery(4s) + happyDance(5.5s) + ending(5.5s) = 37 seconds
+    const durationInSeconds = 37;
+    const totalSegments = 8;
 
     console.log(`🎬 Letter Hunt generation for "${childName}" (Letter ${targetLetter}):`, {
       childName,

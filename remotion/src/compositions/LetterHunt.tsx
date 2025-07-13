@@ -157,6 +157,7 @@ export const LetterHunt: React.FC<LetterHuntProps> = ({
   const standardDuration = 90; // 3 seconds * 30fps
   const introDuration = 165; // 5.5 seconds * 30fps (extended for intro audio)
   const extendedDuration = 120; // 4 seconds * 30fps (for segments with audio)
+  const happyDanceEndingDuration = 165; // 5.5 seconds * 30fps (for happy dance and ending)
   
   const segments = [
     { name: 'titleCard', start: 0, duration: standardDuration },
@@ -165,8 +166,8 @@ export const LetterHunt: React.FC<LetterHuntProps> = ({
     { name: 'sign', start: standardDuration + introDuration + introDuration, duration: extendedDuration },
     { name: 'book', start: standardDuration + introDuration + introDuration + extendedDuration, duration: extendedDuration },
     { name: 'grocery', start: standardDuration + introDuration + introDuration + extendedDuration * 2, duration: extendedDuration },
-    { name: 'happyDance', start: standardDuration + introDuration + introDuration + extendedDuration * 3, duration: standardDuration },
-    { name: 'ending', start: standardDuration + introDuration + introDuration + extendedDuration * 3 + standardDuration, duration: standardDuration }
+    { name: 'happyDance', start: standardDuration + introDuration + introDuration + extendedDuration * 3, duration: happyDanceEndingDuration },
+    { name: 'ending', start: standardDuration + introDuration + introDuration + extendedDuration * 3 + happyDanceEndingDuration, duration: happyDanceEndingDuration }
   ];
 
   // Find current segment
@@ -246,11 +247,21 @@ export const LetterHunt: React.FC<LetterHuntProps> = ({
   return (
     <AbsoluteFill style={backgroundStyle}>
       
-      {/* Background Music - plays throughout entire video */}
+      {/* Background Music - plays throughout entire video with fade out */}
       {assets.backgroundMusic?.status === 'ready' && assets.backgroundMusic?.url && (
         <Audio 
           src={assets.backgroundMusic.url} 
-          volume={0.3} 
+          volume={(frame) => {
+            // Fade out in the last 1 second (30 frames)
+            const fadeOutStart = durationInFrames - 30;
+            if (frame >= fadeOutStart) {
+              return interpolate(frame, [fadeOutStart, durationInFrames], [0.3, 0], {
+                extrapolateLeft: 'clamp',
+                extrapolateRight: 'clamp',
+              });
+            }
+            return 0.3;
+          }}
           startFrom={0}
           endAt={durationInFrames}
         />
@@ -874,6 +885,23 @@ export const LetterHunt: React.FC<LetterHuntProps> = ({
           )}
         </div>
       )}
+
+      {/* Fade to Black at the End */}
+      <AbsoluteFill style={{
+        backgroundColor: 'black',
+        opacity: (() => {
+          // Start fade to black in the last 30 frames (1 second)
+          const fadeStart = durationInFrames - 30;
+          if (frame >= fadeStart) {
+            return interpolate(frame, [fadeStart, durationInFrames], [0, 1], {
+              extrapolateLeft: 'clamp',
+              extrapolateRight: 'clamp',
+            });
+          }
+          return 0;
+        })(),
+        pointerEvents: 'none'
+      }} />
     </AbsoluteFill>
   );
 };

@@ -33,6 +33,7 @@ interface LetterHuntPayload {
     groceryImage: AssetStatus;
     happyDanceVideo: AssetStatus;
     endingImage: AssetStatus;
+    endingVideo: AssetStatus;
     // Audio assets
     titleAudio: AssetStatus;
     introAudio: AssetStatus;
@@ -520,6 +521,17 @@ export default function LetterHuntRequest() {
           description: `${themeToUse} character doing a joyful dance`,
           status: 'missing'
         },
+        endingVideo: existingByType.get('endingVideo') ? {
+          ...existingByType.get('endingVideo'),
+          type: 'video',
+          name: 'Ending Video',
+          description: `Letter ${targetLetter} ending video with colorful celebration`
+        } : {
+          type: 'video',
+          name: 'Ending Video',
+          description: `Letter ${targetLetter} ending video with colorful celebration`,
+          status: 'missing'
+        },
         // Audio assets
         titleAudio: existingByType.get('titleAudio') ? {
           ...existingByType.get('titleAudio'),
@@ -788,6 +800,9 @@ export default function LetterHuntRequest() {
             break;
           case 'happyDanceVideo':
             section = 'dance';
+            break;
+          case 'endingVideo':
+            section = 'ending';
             break;
           default:
             section = assetKey.replace('Video', '');
@@ -1716,22 +1731,177 @@ Your video will be available for review in the admin dashboard once complete.`);
                 </div>
               </div>
 
-              {/* Part 7: Happy Dance (Not Included in Current Render) */}
-              <div className="bg-white rounded-lg shadow-sm p-6 opacity-60">
+              {/* Part 7: Happy Dance (24-27 seconds) */}
+              <div className="bg-white rounded-lg shadow-sm p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                  <span className="bg-gray-100 text-gray-600 text-sm font-medium px-2.5 py-0.5 rounded mr-3">Part 7</span>
-                  Happy Dance (Not Included in Current Render)
+                  <span className="bg-purple-100 text-purple-800 text-sm font-medium px-2.5 py-0.5 rounded mr-3">Part 7</span>
+                  Happy Dance (24-27 seconds)
                 </h3>
-                <div className="text-sm text-gray-600 p-4 bg-gray-50 rounded border-2 border-dashed border-gray-300">
-                  <p className="mb-2">
-                    🚧 <strong>Development Note:</strong> Happy Dance segment is not included in the current 3-part video render.
-                  </p>
-                  <p className="mb-2">
-                    Current render includes: Title Card (0-3s) → Letter + Theme (3-6s) → Search (6-9s)
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    Happy Dance videos and audio assets are still created for future use but won't be sent to Remotion.
-                  </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Happy Dance Video */}
+                  <div className="border border-gray-200 rounded-lg p-4"
+                       style={{ background: payload.assets.happyDanceVideo.status === 'ready' ? '#f0f8f0' : 
+                                           payload.assets.happyDanceVideo.status === 'generating' ? '#fff8dc' : '#f9f9f9' }}>
+                    <h4 className="font-medium text-gray-900 mb-2 flex items-center">
+                      {payload.assets.happyDanceVideo.name}
+                      <span className={`ml-2 text-xs font-bold uppercase px-2 py-1 rounded ${
+                        payload.assets.happyDanceVideo.status === 'ready' ? 'bg-green-100 text-green-800' :
+                        payload.assets.happyDanceVideo.status === 'generating' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-red-100 text-red-800'
+                      }`}>
+                        {payload.assets.happyDanceVideo.status}
+                      </span>
+                    </h4>
+                    <p className="text-sm text-gray-600 mb-3">{payload.assets.happyDanceVideo.description}</p>
+                    
+                    {payload.assets.happyDanceVideo.status === 'ready' && payload.assets.happyDanceVideo.url && (
+                      <div className="mb-3">
+                        <video controls className="w-full h-auto rounded border">
+                          <source src={payload.assets.happyDanceVideo.url} type="video/mp4" />
+                        </video>
+                      </div>
+                    )}
+                    
+                    <button
+                      onClick={() => generateAsset('happyDanceVideo')}
+                      disabled={payload.assets.happyDanceVideo.status === 'generating'}
+                      className={`px-4 py-2 rounded text-sm font-medium ${
+                        payload.assets.happyDanceVideo.status === 'ready' ? 'bg-green-600 text-white' :
+                        payload.assets.happyDanceVideo.status === 'generating' ? 'bg-yellow-500 text-white cursor-not-allowed' :
+                        'bg-blue-600 text-white hover:bg-blue-700'
+                      }`}
+                    >
+                      {payload.assets.happyDanceVideo.status === 'ready' ? 'Regenerate' :
+                       payload.assets.happyDanceVideo.status === 'generating' ? 'Generating...' : 
+                       'Generate Video'}
+                    </button>
+                  </div>
+                  
+                  {/* Happy Dance Audio */}
+                  <div className="border border-gray-200 rounded-lg p-4"
+                       style={{ background: payload.assets.happyDanceAudio.status === 'ready' ? '#f0f8f0' : 
+                                           payload.assets.happyDanceAudio.status === 'generating' ? '#fff8dc' : '#f9f9f9' }}>
+                    <h4 className="font-medium text-gray-900 mb-2 flex items-center">
+                      {payload.assets.happyDanceAudio.name}
+                      <span className={`ml-2 text-xs font-bold uppercase px-2 py-1 rounded ${
+                        payload.assets.happyDanceAudio.status === 'ready' ? 'bg-green-100 text-green-800' :
+                        payload.assets.happyDanceAudio.status === 'generating' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-red-100 text-red-800'
+                      }`}>
+                        {payload.assets.happyDanceAudio.status}
+                      </span>
+                    </h4>
+                    <p className="text-sm text-gray-600 mb-3">{payload.assets.happyDanceAudio.description}</p>
+                    
+                    {payload.assets.happyDanceAudio.status === 'ready' && payload.assets.happyDanceAudio.url && (
+                      <div className="mb-3">
+                        <audio controls className="w-full">
+                          <source src={payload.assets.happyDanceAudio.url} type="audio/mpeg" />
+                        </audio>
+                      </div>
+                    )}
+                    
+                    <button
+                      onClick={() => generateAsset('happyDanceAudio')}
+                      disabled={payload.assets.happyDanceAudio.status === 'generating'}
+                      className={`px-4 py-2 rounded text-sm font-medium ${
+                        payload.assets.happyDanceAudio.status === 'ready' ? 'bg-green-600 text-white' :
+                        payload.assets.happyDanceAudio.status === 'generating' ? 'bg-yellow-500 text-white cursor-not-allowed' :
+                        'bg-blue-600 text-white hover:bg-blue-700'
+                      }`}
+                    >
+                      {payload.assets.happyDanceAudio.status === 'ready' ? 'Regenerate' :
+                       payload.assets.happyDanceAudio.status === 'generating' ? 'Generating...' : 
+                       'Generate Audio'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Part 8: Ending (29-32 seconds) */}
+              <div className="bg-white rounded-lg shadow-sm p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                  <span className="bg-orange-100 text-orange-800 text-sm font-medium px-2.5 py-0.5 rounded mr-3">Part 8</span>
+                  Ending (29-32 seconds)
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Ending Video */}
+                  <div className="border border-gray-200 rounded-lg p-4"
+                       style={{ background: payload.assets.endingVideo?.status === 'ready' ? '#f0f8f0' : 
+                                           payload.assets.endingVideo?.status === 'generating' ? '#fff8dc' : '#f9f9f9' }}>
+                    <h4 className="font-medium text-gray-900 mb-2 flex items-center">
+                      Ending Video
+                      <span className={`ml-2 text-xs font-bold uppercase px-2 py-1 rounded ${
+                        payload.assets.endingVideo?.status === 'ready' ? 'bg-green-100 text-green-800' :
+                        payload.assets.endingVideo?.status === 'generating' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-red-100 text-red-800'
+                      }`}>
+                        {payload.assets.endingVideo?.status || 'missing'}
+                      </span>
+                    </h4>
+                    <p className="text-sm text-gray-600 mb-3">Letter-specific ending video showing the letter {targetLetter}</p>
+                    
+                    {payload.assets.endingVideo?.status === 'ready' && payload.assets.endingVideo?.url && (
+                      <div className="mb-3">
+                        <video controls className="w-full h-auto rounded border">
+                          <source src={payload.assets.endingVideo.url} type="video/mp4" />
+                        </video>
+                      </div>
+                    )}
+                    
+                    <button
+                      onClick={() => generateAsset('endingVideo')}
+                      disabled={payload.assets.endingVideo?.status === 'generating'}
+                      className={`px-4 py-2 rounded text-sm font-medium ${
+                        payload.assets.endingVideo?.status === 'ready' ? 'bg-green-600 text-white' :
+                        payload.assets.endingVideo?.status === 'generating' ? 'bg-yellow-500 text-white cursor-not-allowed' :
+                        'bg-blue-600 text-white hover:bg-blue-700'
+                      }`}
+                    >
+                      {payload.assets.endingVideo?.status === 'ready' ? 'Regenerate' :
+                       payload.assets.endingVideo?.status === 'generating' ? 'Generating...' : 
+                       'Generate Video'}
+                    </button>
+                  </div>
+                  
+                  {/* Ending Audio */}
+                  <div className="border border-gray-200 rounded-lg p-4"
+                       style={{ background: payload.assets.endingAudio.status === 'ready' ? '#f0f8f0' : 
+                                           payload.assets.endingAudio.status === 'generating' ? '#fff8dc' : '#f9f9f9' }}>
+                    <h4 className="font-medium text-gray-900 mb-2 flex items-center">
+                      {payload.assets.endingAudio.name}
+                      <span className={`ml-2 text-xs font-bold uppercase px-2 py-1 rounded ${
+                        payload.assets.endingAudio.status === 'ready' ? 'bg-green-100 text-green-800' :
+                        payload.assets.endingAudio.status === 'generating' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-red-100 text-red-800'
+                      }`}>
+                        {payload.assets.endingAudio.status}
+                      </span>
+                    </h4>
+                    <p className="text-sm text-gray-600 mb-3">{payload.assets.endingAudio.description}</p>
+                    
+                    {payload.assets.endingAudio.status === 'ready' && payload.assets.endingAudio.url && (
+                      <div className="mb-3">
+                        <audio controls className="w-full">
+                          <source src={payload.assets.endingAudio.url} type="audio/mpeg" />
+                        </audio>
+                      </div>
+                    )}
+                    
+                    <button
+                      onClick={() => generateAsset('endingAudio')}
+                      disabled={payload.assets.endingAudio.status === 'generating'}
+                      className={`px-4 py-2 rounded text-sm font-medium ${
+                        payload.assets.endingAudio.status === 'ready' ? 'bg-green-600 text-white' :
+                        payload.assets.endingAudio.status === 'generating' ? 'bg-yellow-500 text-white cursor-not-allowed' :
+                        'bg-blue-600 text-white hover:bg-blue-700'
+                      }`}
+                    >
+                      {payload.assets.endingAudio.status === 'ready' ? 'Regenerate' :
+                       payload.assets.endingAudio.status === 'generating' ? 'Generating...' : 
+                       'Generate Audio'}
+                    </button>
+                  </div>
                 </div>
               </div>
 
