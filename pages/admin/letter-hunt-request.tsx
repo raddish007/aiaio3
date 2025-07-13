@@ -623,7 +623,12 @@ export default function LetterHuntRequest() {
           description: '"And when you find your letter, I want you to do a little happy dance!"',
           status: 'missing'
         },
-        endingAudio: {
+        endingAudio: existingByType.get('endingAudio') ? {
+          ...existingByType.get('endingAudio'),
+          type: 'audio',
+          name: 'Ending Audio',
+          description: `"Have fun finding the letter ${targetLetter}, ${nameToUse}!"`
+        } : {
           type: 'audio',
           name: 'Ending Audio',
           description: `"Have fun finding the letter ${targetLetter}, ${nameToUse}!"`,

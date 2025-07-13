@@ -831,12 +831,14 @@ export const LetterHunt: React.FC<LetterHuntProps> = ({
             />
           ) : null}
 
-          {/* Ending Audio */}
+          {/* Ending Audio - play 1 second (30 frames) after segment start */}
           {assets.endingAudio?.status === 'ready' && assets.endingAudio?.url && (
-            <Audio 
-              src={assets.endingAudio.url} 
-              volume={0.9}
-            />
+            <Sequence from={30}>
+              <Audio 
+                src={assets.endingAudio.url} 
+                volume={0.9}
+              />
+            </Sequence>
           )}
         </AbsoluteFill>
       </Sequence>

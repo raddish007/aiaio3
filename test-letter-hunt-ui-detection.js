@@ -71,13 +71,14 @@ async function testLetterHuntUI() {
     console.log('\n🎯 Asset mapping results:');
     console.log('   titleCard:', existingByType.get('titleCard') ? `✅ Ready (${existingByType.get('titleCard').assetId})` : '❌ Missing');
     console.log('   titleAudio:', existingByType.get('titleAudio') ? `✅ Ready (${existingByType.get('titleAudio').assetId})` : '❌ Missing');
+    console.log('   endingAudio:', existingByType.get('endingAudio') ? `✅ Ready (${existingByType.get('endingAudio').assetId})` : '❌ Missing');
 
     // Check if the specific asset we fixed is there
-    const titleAudioAsset = existingByType.get('titleAudio');
-    if (titleAudioAsset && titleAudioAsset.assetId === '1483713d-0dc0-4979-89a5-8a8ddc209b4c') {
-      console.log('\n🎉 SUCCESS: The fixed asset is now correctly detected as titleAudio!');
+    const endingAudioAsset = existingByType.get('endingAudio');
+    if (endingAudioAsset && endingAudioAsset.assetId === '213a927a-0a47-4312-9648-b95634e39f78') {
+      console.log('\n🎉 SUCCESS: The ending audio asset is now correctly detected!');
     } else {
-      console.log('\n❌ ISSUE: The fixed asset is still not being detected correctly.');
+      console.log('\n❌ ISSUE: The ending audio asset is not being detected correctly.');
     }
 
   } catch (error) {
