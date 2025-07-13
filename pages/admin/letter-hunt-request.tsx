@@ -12,6 +12,17 @@ interface Child {
   parent_id: string;
 }
 
+interface VideoAsset {
+  id: string;
+  name: string;
+  url: string;
+  theme: string;
+  tags: string[];
+  metadata?: any;
+  created_at: string;
+  type: string;
+}
+
 interface AssetStatus {
   type: 'image' | 'audio' | 'video';
   name: string;
@@ -54,6 +65,12 @@ export default function LetterHuntRequest() {
   const [selectedChild, setSelectedChild] = useState<Child | null>(null);
   const [payload, setPayload] = useState<LetterHuntPayload | null>(null);
   const [children, setChildren] = useState<Child[]>([]);
+
+  // Video selection modal state
+  const [videoModalOpen, setVideoModalOpen] = useState(false);
+  const [modalAssetKey, setModalAssetKey] = useState<string>('');
+  const [availableVideos, setAvailableVideos] = useState<VideoAsset[]>([]);
+  const [loadingVideos, setLoadingVideos] = useState(false);
 
   // Handle URL parameters (child_id, assignment_id)
   useEffect(() => {
@@ -886,6 +903,150 @@ export default function LetterHuntRequest() {
     }
   };
 
+  // Video selection functions
+  const openVideoSelectionModal = async (assetKey: string) => {
+    setModalAssetKey(assetKey);
+    setLoadingVideos(true);
+    setVideoModalOpen(true);
+    
+    try {
+      // Build the query based on asset type and filtering criteria
+      let query = supabase
+        .from('assets')
+        .select('*')
+        .in('status', ['approved', 'pending'])
+        .eq('type', 'video')
+        .eq('metadata->>template', 'letter-hunt')
+        .order('created_at', { ascending: false });
+
+      // Apply specific filtering based on asset type
+      if (assetKey === 'endingVideo') {
+        // For ending videos, filter ONLY by target letter (show all themes)
+        query = query.eq('metadata->>targetLetter', targetLetter);
+      } else if (assetKey === 'introVideo') {
+        const themeToUse = selectedChild?.primary_interest || 'adventure';
+        query = query.eq('metadata->>theme', themeToUse)
+                   .eq('metadata->>videoType', 'introVideo');
+      } else if (assetKey === 'intro2Video') {
+        const themeToUse = selectedChild?.primary_interest || 'adventure';
+        query = query.eq('metadata->>theme', themeToUse)
+                   .eq('metadata->>videoType', 'intro2Video');
+      } else if (assetKey === 'happyDanceVideo') {
+        const themeToUse = selectedChild?.primary_interest || 'adventure';
+        query = query.eq('metadata->>theme', themeToUse)
+                   .eq('metadata->>videoType', 'happyDanceVideo');
+      }
+
+      const { data: videos, error } = await query;
+
+      if (error) {
+        console.error('Error fetching videos:', error);
+        alert('Error loading videos');
+        return;
+      }
+
+      setAvailableVideos(videos || []);
+    } catch (error) {
+      console.error('Error in openVideoSelectionModal:', error);
+      alert('Error loading videos');
+    } finally {
+      setLoadingVideos(false);
+    }
+  };
+
+  const selectVideo = (video: VideoAsset) => {
+    if (!payload) return;
+    
+    // Update the payload with the selected video
+    setPayload(prev => prev ? {
+      ...prev,
+      assets: {
+        ...prev.assets,
+        [modalAssetKey]: {
+          ...prev.assets[modalAssetKey as keyof typeof prev.assets],
+          status: 'ready' as const,
+          url: video.url,
+          generatedAt: new Date().toISOString()
+        }
+      }
+    } : null);
+
+    // Close the modal
+    setVideoModalOpen(false);
+    setModalAssetKey('');
+    setAvailableVideos([]);
+  };
+
+  const uploadPayload = async () => {
+    if (!payload) {
+      alert('No payload to upload');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Create a complete payload for upload
+      const uploadData = {
+        child_name: payload.childName,
+        target_letter: payload.targetLetter,
+        child_theme: selectedChild?.primary_interest || 'adventure',
+        child_age: selectedChild?.age || 3,
+        child_id: selectedChild?.id || null,
+        submitted_by: '1cb80063-9b5f-4fff-84eb-309f12bd247d', // Replace with actual user ID
+        status: 'draft',
+        created_at: new Date().toISOString(),
+        assets: Object.fromEntries(
+          Object.entries(payload.assets).map(([key, asset]) => [
+            key,
+            {
+              url: asset.url || '',
+              status: asset.status,
+              type: asset.type,
+              name: asset.name,
+              description: asset.description
+            }
+          ])
+        )
+      };
+
+      // Try to upload to letter_hunt_requests table first, fallback to console log
+      try {
+        const { error } = await supabase
+          .from('letter_hunt_requests')
+          .insert([uploadData]);
+
+        if (error) {
+          throw error;
+        }
+
+        alert('Payload uploaded successfully to letter_hunt_requests table!');
+      } catch (dbError) {
+        console.warn('Could not upload to letter_hunt_requests table:', dbError);
+        
+        // Fallback: log the payload and show it to user for manual processing
+        console.log('Letter Hunt Payload for manual processing:', JSON.stringify(uploadData, null, 2));
+        
+        // Copy to clipboard if possible
+        if (navigator.clipboard) {
+          try {
+            await navigator.clipboard.writeText(JSON.stringify(uploadData, null, 2));
+            alert('Could not upload to database, but payload has been copied to your clipboard for manual processing.');
+          } catch (clipboardError) {
+            alert('Could not upload to database. Check the console for the payload data.');
+          }
+        } else {
+          alert('Could not upload to database. Check the console for the payload data.');
+        }
+      }
+
+    } catch (error) {
+      console.error('Error in uploadPayload:', error);
+      alert('Error uploading payload');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const canSubmitVideo = () => {
     if (!payload) return false;
     // For Letter Hunt, we don't require child selection in test mode
@@ -1341,19 +1502,29 @@ Your video will be available for review in the admin dashboard once complete.`);
                       </div>
                     )}
                     
-                    <button
-                      onClick={() => generateAsset('introVideo')}
-                      disabled={payload.assets.introVideo.status === 'generating'}
-                      className={`px-4 py-2 rounded text-sm font-medium ${
-                        payload.assets.introVideo.status === 'ready' ? 'bg-green-600 text-white' :
-                        payload.assets.introVideo.status === 'generating' ? 'bg-yellow-500 text-white cursor-not-allowed' :
-                        'bg-blue-600 text-white hover:bg-blue-700'
-                      }`}
-                    >
-                      {payload.assets.introVideo.status === 'ready' ? 'Regenerate' :
-                       payload.assets.introVideo.status === 'generating' ? 'Generating...' : 
-                       'Generate Video'}
-                    </button>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => generateAsset('introVideo')}
+                        disabled={payload.assets.introVideo.status === 'generating'}
+                        className={`px-4 py-2 rounded text-sm font-medium ${
+                          payload.assets.introVideo.status === 'ready' ? 'bg-green-600 text-white' :
+                          payload.assets.introVideo.status === 'generating' ? 'bg-yellow-500 text-white cursor-not-allowed' :
+                          'bg-blue-600 text-white hover:bg-blue-700'
+                        }`}
+                      >
+                        {payload.assets.introVideo.status === 'ready' ? 'Regenerate' :
+                         payload.assets.introVideo.status === 'generating' ? 'Generating...' : 
+                         'Generate Video'}
+                      </button>
+                      
+                      <button
+                        onClick={() => openVideoSelectionModal('introVideo')}
+                        disabled={payload.assets.introVideo.status === 'generating'}
+                        className="px-4 py-2 rounded text-sm font-medium bg-purple-600 text-white hover:bg-purple-700 disabled:bg-gray-400"
+                      >
+                        Select
+                      </button>
+                    </div>
                   </div>
                   
                   {/* Intro Audio */}
@@ -1428,19 +1599,29 @@ Your video will be available for review in the admin dashboard once complete.`);
                       </div>
                     )}
                     
-                    <button
-                      onClick={() => generateAsset('intro2Video')}
-                      disabled={payload.assets.intro2Video.status === 'generating'}
-                      className={`px-4 py-2 rounded text-sm font-medium ${
-                        payload.assets.intro2Video.status === 'ready' ? 'bg-green-600 text-white' :
-                        payload.assets.intro2Video.status === 'generating' ? 'bg-yellow-500 text-white cursor-not-allowed' :
-                        'bg-blue-600 text-white hover:bg-blue-700'
-                      }`}
-                    >
-                      {payload.assets.intro2Video.status === 'ready' ? 'Regenerate' :
-                       payload.assets.intro2Video.status === 'generating' ? 'Generating...' : 
-                       'Generate Video'}
-                    </button>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => generateAsset('intro2Video')}
+                        disabled={payload.assets.intro2Video.status === 'generating'}
+                        className={`px-4 py-2 rounded text-sm font-medium ${
+                          payload.assets.intro2Video.status === 'ready' ? 'bg-green-600 text-white' :
+                          payload.assets.intro2Video.status === 'generating' ? 'bg-yellow-500 text-white cursor-not-allowed' :
+                          'bg-blue-600 text-white hover:bg-blue-700'
+                        }`}
+                      >
+                        {payload.assets.intro2Video.status === 'ready' ? 'Regenerate' :
+                         payload.assets.intro2Video.status === 'generating' ? 'Generating...' : 
+                         'Generate Video'}
+                      </button>
+                      
+                      <button
+                        onClick={() => openVideoSelectionModal('intro2Video')}
+                        disabled={payload.assets.intro2Video.status === 'generating'}
+                        className="px-4 py-2 rounded text-sm font-medium bg-purple-600 text-white hover:bg-purple-700 disabled:bg-gray-400"
+                      >
+                        Select
+                      </button>
+                    </div>
                   </div>
                   
                   {/* Intro2 Audio (Search) */}
@@ -1782,19 +1963,29 @@ Your video will be available for review in the admin dashboard once complete.`);
                       </div>
                     )}
                     
-                    <button
-                      onClick={() => generateAsset('happyDanceVideo')}
-                      disabled={payload.assets.happyDanceVideo.status === 'generating'}
-                      className={`px-4 py-2 rounded text-sm font-medium ${
-                        payload.assets.happyDanceVideo.status === 'ready' ? 'bg-green-600 text-white' :
-                        payload.assets.happyDanceVideo.status === 'generating' ? 'bg-yellow-500 text-white cursor-not-allowed' :
-                        'bg-blue-600 text-white hover:bg-blue-700'
-                      }`}
-                    >
-                      {payload.assets.happyDanceVideo.status === 'ready' ? 'Regenerate' :
-                       payload.assets.happyDanceVideo.status === 'generating' ? 'Generating...' : 
-                       'Generate Video'}
-                    </button>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => generateAsset('happyDanceVideo')}
+                        disabled={payload.assets.happyDanceVideo.status === 'generating'}
+                        className={`px-4 py-2 rounded text-sm font-medium ${
+                          payload.assets.happyDanceVideo.status === 'ready' ? 'bg-green-600 text-white' :
+                          payload.assets.happyDanceVideo.status === 'generating' ? 'bg-yellow-500 text-white cursor-not-allowed' :
+                          'bg-blue-600 text-white hover:bg-blue-700'
+                        }`}
+                      >
+                        {payload.assets.happyDanceVideo.status === 'ready' ? 'Regenerate' :
+                         payload.assets.happyDanceVideo.status === 'generating' ? 'Generating...' : 
+                         'Generate Video'}
+                      </button>
+                      
+                      <button
+                        onClick={() => openVideoSelectionModal('happyDanceVideo')}
+                        disabled={payload.assets.happyDanceVideo.status === 'generating'}
+                        className="px-4 py-2 rounded text-sm font-medium bg-purple-600 text-white hover:bg-purple-700 disabled:bg-gray-400"
+                      >
+                        Select
+                      </button>
+                    </div>
                   </div>
                   
                   {/* Happy Dance Audio */}
@@ -1869,19 +2060,29 @@ Your video will be available for review in the admin dashboard once complete.`);
                       </div>
                     )}
                     
-                    <button
-                      onClick={() => generateAsset('endingVideo')}
-                      disabled={payload.assets.endingVideo?.status === 'generating'}
-                      className={`px-4 py-2 rounded text-sm font-medium ${
-                        payload.assets.endingVideo?.status === 'ready' ? 'bg-green-600 text-white' :
-                        payload.assets.endingVideo?.status === 'generating' ? 'bg-yellow-500 text-white cursor-not-allowed' :
-                        'bg-blue-600 text-white hover:bg-blue-700'
-                      }`}
-                    >
-                      {payload.assets.endingVideo?.status === 'ready' ? 'Regenerate' :
-                       payload.assets.endingVideo?.status === 'generating' ? 'Generating...' : 
-                       'Generate Video'}
-                    </button>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => generateAsset('endingVideo')}
+                        disabled={payload.assets.endingVideo?.status === 'generating'}
+                        className={`px-4 py-2 rounded text-sm font-medium ${
+                          payload.assets.endingVideo?.status === 'ready' ? 'bg-green-600 text-white' :
+                          payload.assets.endingVideo?.status === 'generating' ? 'bg-yellow-500 text-white cursor-not-allowed' :
+                          'bg-blue-600 text-white hover:bg-blue-700'
+                        }`}
+                      >
+                        {payload.assets.endingVideo?.status === 'ready' ? 'Regenerate' :
+                         payload.assets.endingVideo?.status === 'generating' ? 'Generating...' : 
+                         'Generate Video'}
+                      </button>
+                      
+                      <button
+                        onClick={() => openVideoSelectionModal('endingVideo')}
+                        disabled={payload.assets.endingVideo?.status === 'generating'}
+                        className="px-4 py-2 rounded text-sm font-medium bg-purple-600 text-white hover:bg-purple-700 disabled:bg-gray-400"
+                      >
+                        Select
+                      </button>
+                    </div>
                   </div>
                   
                   {/* Ending Audio */}
@@ -2055,6 +2256,17 @@ Your video will be available for review in the admin dashboard once complete.`);
               ))}
             </div>
 
+            {/* Upload Payload Button */}
+            <div className="mt-6 text-center">
+              <button
+                onClick={uploadPayload}
+                disabled={loading || !payload}
+                className="px-6 py-3 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+              >
+                {loading ? 'Uploading...' : 'Upload Payload'}
+              </button>
+            </div>
+
             {/* JSON Payload Preview */}
             <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
               <h4 className="font-medium text-blue-900 mb-2">JSON Payload Preview:</h4>
@@ -2128,6 +2340,72 @@ Your video will be available for review in the admin dashboard once complete.`);
         )}
         </div>
       </div>
+
+      {/* Video Selection Modal */}
+      {videoModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[80vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold text-gray-900">
+                  Select Video for {modalAssetKey}
+                </h2>
+                <button
+                  onClick={() => {
+                    setVideoModalOpen(false);
+                    setModalAssetKey('');
+                    setAvailableVideos([]);
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {loadingVideos ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                  <p className="mt-2 text-gray-600">Loading videos...</p>
+                </div>
+              ) : availableVideos.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-gray-600">No matching videos found for the current filtering criteria.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {availableVideos.map((video) => (
+                    <div key={video.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                      <div className="mb-3">
+                        <video controls className="w-full h-auto rounded border">
+                          <source src={video.url} type="video/mp4" />
+                        </video>
+                      </div>
+                      
+                      <h4 className="font-medium text-gray-900 mb-1">{video.name}</h4>
+                      <p className="text-sm text-gray-600 mb-2">Theme: {video.theme}</p>
+                      <p className="text-xs text-gray-500 mb-2">
+                        Tags: {video.tags?.join(', ') || 'None'}
+                      </p>
+                      <p className="text-xs text-gray-400 mb-3">
+                        Created: {new Date(video.created_at).toLocaleDateString()}
+                      </p>
+                      
+                      <button
+                        onClick={() => selectVideo(video)}
+                        className="w-full px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm font-medium"
+                      >
+                        Select This Video
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
