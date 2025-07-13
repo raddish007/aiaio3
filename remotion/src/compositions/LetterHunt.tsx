@@ -156,16 +156,17 @@ export const LetterHunt: React.FC<LetterHuntProps> = ({
   // Define segment durations 
   const standardDuration = 90; // 3 seconds * 30fps
   const introDuration = 165; // 5.5 seconds * 30fps (extended for intro audio)
+  const extendedDuration = 120; // 4 seconds * 30fps (for segments with audio)
   
   const segments = [
     { name: 'titleCard', start: 0, duration: standardDuration },
     { name: 'intro', start: standardDuration, duration: introDuration },
     { name: 'intro2', start: standardDuration + introDuration, duration: introDuration },
-    { name: 'sign', start: standardDuration + introDuration + introDuration, duration: standardDuration },
-    { name: 'book', start: standardDuration + introDuration + introDuration + standardDuration, duration: standardDuration },
-    { name: 'grocery', start: standardDuration + introDuration + introDuration + standardDuration * 2, duration: standardDuration },
-    { name: 'happyDance', start: standardDuration + introDuration + introDuration + standardDuration * 3, duration: standardDuration },
-    { name: 'ending', start: standardDuration + introDuration + introDuration + standardDuration * 4, duration: standardDuration }
+    { name: 'sign', start: standardDuration + introDuration + introDuration, duration: extendedDuration },
+    { name: 'book', start: standardDuration + introDuration + introDuration + extendedDuration, duration: extendedDuration },
+    { name: 'grocery', start: standardDuration + introDuration + introDuration + extendedDuration * 2, duration: extendedDuration },
+    { name: 'happyDance', start: standardDuration + introDuration + introDuration + extendedDuration * 3, duration: standardDuration },
+    { name: 'ending', start: standardDuration + introDuration + introDuration + extendedDuration * 3 + standardDuration, duration: standardDuration }
   ];
 
   // Find current segment
@@ -534,12 +535,33 @@ export const LetterHunt: React.FC<LetterHuntProps> = ({
             </div>
           )}
 
-          {/* Sign Audio */}
+          {/* Sign Audio - starts 1 second into sign segment */}
           {assets.signAudio.status === 'ready' && assets.signAudio.url && (
-            <Audio 
-              src={assets.signAudio.url} 
-              volume={0.9}
-            />
+            <Sequence 
+              from={fps} // Start 1 second into the sign segment
+              durationInFrames={Math.min(extendedDuration - fps, 3 * fps)} // Play for remaining duration or 3 seconds max
+            >
+              <Audio 
+                src={assets.signAudio.url} 
+                volume={(frame) => {
+                  const fadeFrames = fps * 0.2; // 0.2 second fade
+                  const sequenceDuration = Math.min(extendedDuration - fps, 3 * fps);
+                  
+                  // Fade in at start
+                  if (frame < fadeFrames) {
+                    return 0.9 * (frame / fadeFrames);
+                  }
+                  
+                  // Fade out at end
+                  if (frame > sequenceDuration - fadeFrames) {
+                    return 0.9 * ((sequenceDuration - frame) / fadeFrames);
+                  }
+                  
+                  // Normal volume in between
+                  return 0.9;
+                }}
+              />
+            </Sequence>
           )}
         </AbsoluteFill>
       </Sequence>
@@ -581,12 +603,33 @@ export const LetterHunt: React.FC<LetterHuntProps> = ({
             </div>
           )}
 
-          {/* Book Audio */}
+          {/* Book Audio - starts 1 second into book segment */}
           {assets.bookAudio.status === 'ready' && assets.bookAudio.url && (
-            <Audio 
-              src={assets.bookAudio.url} 
-              volume={0.9}
-            />
+            <Sequence 
+              from={fps} // Start 1 second into the book segment
+              durationInFrames={Math.min(extendedDuration - fps, 3 * fps)} // Play for remaining duration or 3 seconds max
+            >
+              <Audio 
+                src={assets.bookAudio.url} 
+                volume={(frame) => {
+                  const fadeFrames = fps * 0.2; // 0.2 second fade
+                  const sequenceDuration = Math.min(extendedDuration - fps, 3 * fps);
+                  
+                  // Fade in at start
+                  if (frame < fadeFrames) {
+                    return 0.9 * (frame / fadeFrames);
+                  }
+                  
+                  // Fade out at end
+                  if (frame > sequenceDuration - fadeFrames) {
+                    return 0.9 * ((sequenceDuration - frame) / fadeFrames);
+                  }
+                  
+                  // Normal volume in between
+                  return 0.9;
+                }}
+              />
+            </Sequence>
           )}
         </AbsoluteFill>
       </Sequence>
@@ -628,12 +671,33 @@ export const LetterHunt: React.FC<LetterHuntProps> = ({
             </div>
           )}
 
-          {/* Grocery Audio */}
+          {/* Grocery Audio - starts 1 second into grocery segment */}
           {assets.groceryAudio.status === 'ready' && assets.groceryAudio.url && (
-            <Audio 
-              src={assets.groceryAudio.url} 
-              volume={0.9}
-            />
+            <Sequence 
+              from={fps} // Start 1 second into the grocery segment
+              durationInFrames={Math.min(extendedDuration - fps, 3 * fps)} // Play for remaining duration or 3 seconds max
+            >
+              <Audio 
+                src={assets.groceryAudio.url} 
+                volume={(frame) => {
+                  const fadeFrames = fps * 0.2; // 0.2 second fade
+                  const sequenceDuration = Math.min(extendedDuration - fps, 3 * fps);
+                  
+                  // Fade in at start
+                  if (frame < fadeFrames) {
+                    return 0.9 * (frame / fadeFrames);
+                  }
+                  
+                  // Fade out at end
+                  if (frame > sequenceDuration - fadeFrames) {
+                    return 0.9 * ((sequenceDuration - frame) / fadeFrames);
+                  }
+                  
+                  // Normal volume in between
+                  return 0.9;
+                }}
+              />
+            </Sequence>
           )}
         </AbsoluteFill>
       </Sequence>

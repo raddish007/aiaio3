@@ -158,7 +158,17 @@ export default function LetterHuntRequest() {
       .or('metadata->>child_name.is.null,metadata->>child_name.eq.')
       .is('metadata->>targetLetter', null);
 
-    // 5. Letter Hunt image assets that match the target letter (not tied to specific child)
+    // 5. Generic Letter Hunt audio assets (not tied to specific child/letter)
+    const { data: genericAudioAssets, error: genericAudioError } = await supabase
+      .from('assets')
+      .select('*')
+      .in('status', ['approved', 'pending'])
+      .eq('metadata->>template', 'letter-hunt')
+      .eq('type', 'audio')
+      .or('metadata->>child_name.is.null,metadata->>child_name.eq.')
+      .is('metadata->>targetLetter', null);
+
+    // 6. Letter Hunt image assets that match the target letter (not tied to specific child)
     const { data: letterSpecificImageAssets, error: letterImageError } = await supabase
       .from('assets')
       .select('*')
@@ -174,9 +184,10 @@ export default function LetterHuntRequest() {
       ...(letterSpecificAssets || []),
       ...(letterSpecificAudioAssets || []),
       ...(genericVideoAssets || []),
+      ...(genericAudioAssets || []),
       ...(letterSpecificImageAssets || [])
     ];
-    const error = specificError || letterError || letterAudioError || genericError || letterImageError;
+    const error = specificError || letterError || letterAudioError || genericError || genericAudioError || letterImageError;
 
     if (error) {
       console.error('Error checking for existing assets:', error);
