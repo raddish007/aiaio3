@@ -69,6 +69,9 @@ export default function VideoMetadata() {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [showAssetSelector, setShowAssetSelector] = useState(false);
   const [templateDefaults, setTemplateDefaults] = useState<TemplateDefault[]>([]);
+  const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState<string>('');
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   useEffect(() => {
     checkAuth();
@@ -438,6 +441,85 @@ export default function VideoMetadata() {
       ...editingVideo,
       [field === 'title' ? 'consumer_title' : field === 'description' ? 'consumer_description' : 'parent_tip']: processedText
     });
+  };
+
+  const handleImageSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file');
+      return;
+    }
+
+    setSelectedImageFile(file);
+    
+    // Create preview URL
+    const url = URL.createObjectURL(file);
+    setImagePreviewUrl(url);
+  };
+
+  const uploadDisplayImage = async () => {
+    if (!selectedImageFile || !editingVideo) {
+      alert('Please select an image file');
+      return;
+    }
+
+    setUploadingImage(true);
+    try {
+      // Upload file to Supabase Storage
+      const fileExt = selectedImageFile.name.split('.').pop();
+      const fileName = `${Date.now()}_display_image_${editingVideo.id}.${fileExt}`;
+      const filePath = `assets/image/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('assets')
+        .upload(filePath, selectedImageFile);
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('assets')
+        .getPublicUrl(filePath);
+
+      // Create asset record in database
+      const { error: dbError } = await supabase
+        .from('assets')
+        .insert({
+          theme: `Display image for: ${editingVideo.video_title}`,
+          type: 'image',
+          file_url: publicUrl,
+          tags: ['display-image', 'video-thumbnail'],
+          status: 'approved',
+          metadata: {
+            description: `Display image for video: ${editingVideo.video_title}`,
+            personalization: 'general',
+            template: editingVideo.template_type
+          }
+        });
+
+      if (dbError) throw dbError;
+
+      // Update the editing video with the new image URL
+      setEditingVideo({
+        ...editingVideo,
+        display_image_url: publicUrl,
+        display_image_source: 'custom'
+      });
+      
+      alert('Display image uploaded successfully!');
+      
+      // Clear the selected file but keep the preview
+      setSelectedImageFile(null);
+      
+    } catch (error) {
+      console.error('Error uploading display image:', error);
+      alert('Error uploading display image. Please try again.');
+    } finally {
+      setUploadingImage(false);
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -887,7 +969,7 @@ export default function VideoMetadata() {
                           {editingVideo.display_image_source === 'custom' && (
                             <div className="bg-green-50 border border-green-200 rounded-md p-3">
                               <div className="text-sm text-green-800">
-                                <strong>Using custom URL:</strong> {editingVideo.display_image_url || 'No URL entered'}
+                                <strong>Using custom image:</strong> {editingVideo.display_image_url ? 'Image uploaded' : 'No image uploaded'}
                               </div>
                               {editingVideo.display_image_url && (
                                 <div className="mt-2">
@@ -901,13 +983,64 @@ export default function VideoMetadata() {
                     })()}
 
                     {editingVideo.display_image_source === 'custom' && (
-                      <input
-                        type="url"
-                        value={editingVideo.display_image_url || ''}
-                        onChange={(e) => setEditingVideo({ ...editingVideo, display_image_url: e.target.value })}
-                        className="w-full border border-gray-300 rounded-md px-3 py-2"
-                        placeholder="Enter image URL"
-                      />
+                      <div className="space-y-3">
+                        {/* URL input (for existing URLs) */}
+                        <input
+                          type="url"
+                          value={editingVideo.display_image_url || ''}
+                          onChange={(e) => setEditingVideo({ ...editingVideo, display_image_url: e.target.value })}
+                          className="w-full border border-gray-300 rounded-md px-3 py-2"
+                          placeholder="Enter image URL (or upload a file below)"
+                        />
+                        
+                        {/* File upload section */}
+                        <div className="border-t pt-3">
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Or upload a new image file:
+                          </label>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleImageSelect}
+                            className="w-full border border-gray-300 rounded-md px-3 py-2"
+                          />
+                          
+                          {selectedImageFile && (
+                            <div className="mt-3 space-y-3">
+                              <div className="flex items-center space-x-3">
+                                <img
+                                  src={imagePreviewUrl}
+                                  alt="Preview"
+                                  className="w-16 h-16 object-cover rounded"
+                                />
+                                <div className="flex-1">
+                                  <p className="text-sm font-medium text-gray-900">{selectedImageFile.name}</p>
+                                  <p className="text-xs text-gray-500">
+                                    {(selectedImageFile.size / 1024 / 1024).toFixed(2)} MB
+                                  </p>
+                                </div>
+                                <button
+                                  onClick={() => {
+                                    setSelectedImageFile(null);
+                                    setImagePreviewUrl('');
+                                  }}
+                                  className="text-red-600 hover:text-red-800 text-sm"
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                              
+                              <button
+                                onClick={uploadDisplayImage}
+                                disabled={uploadingImage}
+                                className="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                              >
+                                {uploadingImage ? 'Uploading...' : 'Upload Display Image'}
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     )}
                   </div>
                 </div>

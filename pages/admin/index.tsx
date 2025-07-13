@@ -290,6 +290,19 @@ export default function AdminDashboard() {
                 <p className="text-sm text-gray-600">Upload video assets for templates</p>
               </div>
             </button>
+
+            <button
+              onClick={() => router.push('/admin/general-video-upload')}
+              className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-200 border border-gray-200 hover:border-green-300 group"
+            >
+              <div className="text-center">
+                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-green-200 transition-colors">
+                  <span className="text-3xl">🎬</span>
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">General Video Upload</h3>
+                <p className="text-sm text-gray-600">Upload complete videos for publishing</p>
+              </div>
+            </button>
           </div>
         </div>
 
