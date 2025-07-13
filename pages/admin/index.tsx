@@ -315,6 +315,45 @@ export default function AdminDashboard() {
             </button>
 
             <button
+              onClick={() => router.push('/admin/video-metadata')}
+              className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-200 border border-gray-200 hover:border-green-300 group"
+            >
+              <div className="text-center">
+                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-green-200 transition-colors">
+                  <span className="text-3xl">📝</span>
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Video Metadata</h3>
+                <p className="text-sm text-gray-600">Manage consumer-facing video information</p>
+              </div>
+            </button>
+
+            <button
+              onClick={() => router.push('/admin/template-defaults')}
+              className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-200 border border-gray-200 hover:border-purple-300 group"
+            >
+              <div className="text-center">
+                <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-purple-200 transition-colors">
+                  <span className="text-3xl">⚙️</span>
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Template Defaults</h3>
+                <p className="text-sm text-gray-600">Manage default metadata for video types</p>
+              </div>
+            </button>
+
+            <button
+              onClick={() => router.push('/admin/video-publishing')}
+              className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-200 border border-gray-200 hover:border-orange-300 group"
+            >
+              <div className="text-center">
+                <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-orange-200 transition-colors">
+                  <span className="text-3xl">📤</span>
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Video Publishing</h3>
+                <p className="text-sm text-gray-600">Publish approved videos to children</p>
+              </div>
+            </button>
+
+            <button
               onClick={() => router.push('/admin/video-storage')}
               className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-200 border border-gray-200 hover:border-indigo-300 group"
             >

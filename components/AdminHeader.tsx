@@ -37,6 +37,9 @@ export default function AdminHeader({ title, subtitle }: AdminHeaderProps) {
     { path: '/admin/jobs', label: 'Monitor Jobs', icon: '⚙️' },
     { path: '/admin/video-moderation', label: 'Video Moderation', icon: '🔍' },
     { path: '/admin/video-storage', label: 'Video Storage', icon: '💾' },
+    { path: '/admin/video-metadata', label: 'Video Metadata', icon: '📊' },
+    { path: '/admin/template-defaults', label: 'Template Defaults', icon: '⚙️' },
+    { path: '/admin/video-publishing', label: 'Video Publishing', icon: '📤' },
   ];
 
   return (

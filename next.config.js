@@ -26,7 +26,8 @@ const nextConfig = {
       'localhost',
       'supabase.co',
       's3.amazonaws.com',
-      'your-supabase-project.supabase.co',
+      'etshvxrgbssginmzsczo.supabase.co',
+      'remotionlambda-useast1-3pwoq46nsa.s3.us-east-1.amazonaws.com',
     ],
   },
 };

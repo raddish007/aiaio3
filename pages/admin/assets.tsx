@@ -5,6 +5,7 @@ import AudioPlayer from '@/components/admin/AudioPlayer';
 
 interface Asset {
   id: string;
+  title?: string; // Add title field at top level
   theme: string;
   type: 'image' | 'audio' | 'video' | 'prompt';
   status: 'pending' | 'approved' | 'rejected';
@@ -86,6 +87,7 @@ export default function AssetManagement() {
     rejection_reason: ''
   });
   const [editForm, setEditForm] = useState({
+    title: '',
     theme: '',
     description: '',
     tags: '',
@@ -359,6 +361,7 @@ export default function AssetManagement() {
       .from('assets')
       .update({ 
         status: 'approved',
+        title: editForm.title,
         prompt: editForm.prompt,
         metadata: {
           ...currentAsset?.metadata,
@@ -466,7 +469,7 @@ export default function AssetManagement() {
         .from('assets')
         .update({ 
           status: 'approved',
-          theme: editForm.theme,
+          title: editForm.title,
           prompt: editForm.prompt,
           tags: editForm.tags ? editForm.tags.split(',').map(tag => tag.trim()) : [],
           metadata: {
@@ -527,7 +530,7 @@ export default function AssetManagement() {
         .from('assets')
         .update({ 
           status: 'rejected',
-          theme: editForm.theme,
+          title: editForm.title,
           prompt: editForm.prompt,
           tags: editForm.tags ? editForm.tags.split(',').map(tag => tag.trim()) : [],
           metadata: {
@@ -624,6 +627,7 @@ export default function AssetManagement() {
 
   const initializeEditForm = (asset: Asset) => {
     setEditForm({
+      title: asset.title || '',
       theme: asset.theme || '',
       description: asset.metadata?.description || '',
       tags: asset.tags ? asset.tags.join(', ') : '',
@@ -708,6 +712,7 @@ export default function AssetManagement() {
       setSelectedAsset(null);
       setReviewForm({ safe_zone: [], approval_notes: '', rejection_reason: '' });
       setEditForm({ 
+        title: '',
         theme: '', 
         description: '', 
         tags: '', 
@@ -1271,8 +1276,30 @@ export default function AssetManagement() {
                           </span>
                         </div>
                         
-                        <h3 className="font-medium text-gray-900 mb-2">{asset.theme}</h3>
+                        <h3 className="font-medium text-gray-900 mb-2">
+                          {asset.title || asset.theme}
+                        </h3>
+                        {asset.title && asset.title !== asset.theme && (
+                          <p className="text-sm text-gray-600 mb-1">Theme: {asset.theme}</p>
+                        )}
                         <p className="text-sm text-gray-600 mb-2">Type: {asset.type}</p>
+                        
+                        {/* Show letter assignment if available */}
+                        {asset.metadata?.targetLetter && (
+                          <p className="text-sm text-gray-600 mb-1">
+                            Letter: <span className="font-semibold">{asset.metadata.targetLetter}</span>
+                          </p>
+                        )}
+                        
+                        {/* Show template if available */}
+                        {asset.metadata?.template && (
+                          <p className="text-sm text-gray-600 mb-1">Template: {asset.metadata.template}</p>
+                        )}
+                        
+                        {/* Show child name if available */}
+                        {asset.metadata?.child_name && (
+                          <p className="text-sm text-gray-600 mb-1">Child: {asset.metadata.child_name}</p>
+                        )}
                         
                         {asset.tags && asset.tags.length > 0 && (
                           <div className="mb-2">
@@ -1290,14 +1317,18 @@ export default function AssetManagement() {
                           Created: {new Date(asset.created_at).toLocaleDateString()}
                         </p>
                         
+
                         {asset.metadata?.description && (
                           <p className="text-sm text-gray-600 mb-4 line-clamp-2">{asset.metadata.description}</p>
                         )}
-                        
-                        {asset.prompt && (
+
+                        {/* Show the prompt (generation prompt) on the preview card */}
+                        {(asset.prompt || asset.metadata?.prompt) && (
                           <div className="mb-4">
-                            <h4 className="text-xs font-semibold text-gray-700 mb-1">Generation Prompt:</h4>
-                            <p className="text-xs text-gray-600 bg-gray-50 p-2 rounded line-clamp-3">{asset.prompt}</p>
+                            <h4 className="text-xs font-semibold text-gray-700 mb-1">Prompt:</h4>
+                            <p className="text-xs text-gray-600 bg-gray-50 p-2 rounded line-clamp-3">
+                              {asset.prompt || asset.metadata?.prompt}
+                            </p>
                           </div>
                         )}
                         
@@ -1826,7 +1857,6 @@ export default function AssetManagement() {
                             <a 
                               href={selectedAsset.file_url} 
                               target="_blank" 
-                              rel="noopener noreferrer"
                               className="text-blue-600 hover:text-blue-800 underline"
                             >
                               View Prompt File
@@ -1853,7 +1883,16 @@ export default function AssetManagement() {
                   />
                 </div>
 
-
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Title</label>
+                  <input
+                    type="text"
+                    value={editForm.title}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, title: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Enter title"
+                  />
+                </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Type</label>
