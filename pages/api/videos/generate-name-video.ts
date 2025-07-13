@@ -293,7 +293,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           personalization_level: 'child_specific',
           approval_status: 'pending_review',
           submitted_by: userId,
-          duration_seconds: durationInSeconds,
+          duration_seconds: Math.round(durationInSeconds),
           template_type: 'name-video',
           template_data: {
             composition: 'NameVideo',

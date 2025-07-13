@@ -50,7 +50,6 @@ export default function VideoAssetUpload() {
       sections: [
         { value: 'introVideo', label: 'Part 1 - Character pointing to giant letter' },
         { value: 'intro2Video', label: 'Part 2 - Theme + Letter combination' },
-        { value: 'intro3Video', label: 'Part 3 - Character searching playfully' },
         { value: 'happyDanceVideo', label: 'Happy Dance - Character doing joyful dance' }
       ]
     }

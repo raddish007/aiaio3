@@ -110,7 +110,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // Calculate video duration: 9 segments with different durations
-    // titleCard(3s) + intro(5.5s) + intro2(3s) + intro3(3s) + sign(3s) + book(3s) + grocery(3s) + happyDance(3s) + ending(3s) = 29.5 seconds
+    // titleCard(3s) + intro(5.5s) + intro2(3s) + sign(3s) + book(3s) + grocery(3s) + happyDance(3s) + ending(3s) = 29.5 seconds
     const durationInSeconds = 29.5;
     const totalSegments = 9;
 
@@ -128,7 +128,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       'titleCard', 'titleAudio',           // Part 1: Title (0-3s)
       'introVideo', 'introAudio',          // Part 2: Letter + Theme (3-6s)
       'intro2Video', 'intro2Audio',        // Part 3: Search (6-9s)
-      'intro3Video', 'intro3Audio',        // Part 4: Intro 3 (9-12s)
       'signImage', 'signAudio',            // Part 5: Sign (12-15s)
       'bookImage', 'bookAudio',            // Part 6: Book (15-18s)
       'groceryImage', 'groceryAudio',      // Part 7: Grocery (18-21s)
@@ -255,7 +254,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           personalization_level: 'child_specific',
           approval_status: 'pending_review',
           submitted_by: validSubmittedBy,
-          duration_seconds: durationInSeconds,
+          duration_seconds: Math.round(durationInSeconds),
           template_type: 'letter-hunt',
           template_data: {
             composition: 'LetterHunt',
@@ -304,7 +303,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         output_url: outputUrl,
         job_tracking_url: `/admin/jobs?job_id=${jobRecord.id}`,
         payload: inputProps,
-        duration_seconds: durationInSeconds,
+        duration_seconds: Math.round(durationInSeconds),
         asset_summary: {
           ready_assets: readyAssetCount,
           total_assets: allAssetKeys.length,
@@ -319,12 +318,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             { name: 'titleCard', duration: 3, order: 1 },
             { name: 'intro', duration: 5.5, order: 2 },
             { name: 'intro2', duration: 3, order: 3 },
-            { name: 'intro3', duration: 3, order: 4 },
-            { name: 'sign', duration: 3, order: 5 },
-            { name: 'book', duration: 3, order: 6 },
-            { name: 'grocery', duration: 3, order: 7 },
-            { name: 'happyDance', duration: 3, order: 8 },
-            { name: 'ending', duration: 3, order: 9 }
+            { name: 'sign', duration: 3, order: 4 },
+            { name: 'book', duration: 3, order: 5 },
+            { name: 'grocery', duration: 3, order: 6 },
+            { name: 'happyDance', duration: 3, order: 7 },
+            { name: 'ending', duration: 3, order: 8 }
           ]
         }
       });

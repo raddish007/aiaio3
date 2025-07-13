@@ -153,7 +153,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           personalization_level: 'child_specific', // Since it's personalized with child name
           approval_status: 'pending_review',
           submitted_by: userId,
-          duration_seconds: dreamDripDuration,
+          duration_seconds: Math.round(dreamDripDuration),
           template_type: 'lullaby',
           template_data: {
             composition: 'Lullaby',

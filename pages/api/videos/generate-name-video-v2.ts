@@ -217,7 +217,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           personalization_level: 'child_specific', // Since it's personalized with child name
           approval_status: 'pending_review',
           submitted_by: userId,
-          duration_seconds: durationInSeconds,
+          duration_seconds: Math.round(durationInSeconds),
           template_type: 'name-video-v2',
           template_data: {
             composition: 'NameVideov2',
@@ -268,7 +268,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         output_url: outputUrl,
         job_tracking_url: `/admin/jobs?job_id=${jobRecord.id}`,
         payload: inputProps, // Return the payload for verification
-        duration_seconds: durationInSeconds,
+        duration_seconds: Math.round(durationInSeconds),
         segments: {
           total: totalSegments,
           intro: { duration: 4, safeZone: 'center' },

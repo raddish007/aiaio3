@@ -28,7 +28,6 @@ interface LetterHuntPayload {
     titleCard: AssetStatus;
     introVideo: AssetStatus;
     intro2Video: AssetStatus;
-    intro3Video: AssetStatus;
     signImage: AssetStatus;
     bookImage: AssetStatus;
     groceryImage: AssetStatus;
@@ -38,7 +37,6 @@ interface LetterHuntPayload {
     titleAudio: AssetStatus;
     introAudio: AssetStatus;
     intro2Audio: AssetStatus;
-    intro3Audio: AssetStatus;
     signAudio: AssetStatus;
     bookAudio: AssetStatus;
     groceryAudio: AssetStatus;
@@ -226,8 +224,6 @@ export default function LetterHuntRequest() {
           assetKey = 'introVideo';
         } else if (section === 'intro2Video') {
           assetKey = 'intro2Video';
-        } else if (section === 'intro3Video') {
-          assetKey = 'intro3Video';
         } else if (section === 'happyDanceVideo' || section === 'dance') {
           assetKey = 'happyDanceVideo';
         }
@@ -365,8 +361,6 @@ export default function LetterHuntRequest() {
               assetKey = 'introVideo';
             } else if (section === 'intro2Video') {
               assetKey = 'intro2Video';
-            } else if (section === 'intro3Video') {
-              assetKey = 'intro3Video';
             } else if (section === 'happyDanceVideo' || section === 'dance') {
               assetKey = 'happyDanceVideo';
             } else if (category === 'letter AND theme' || category === 'letter-and-theme' || section === 'intro') {
@@ -493,17 +487,6 @@ export default function LetterHuntRequest() {
           description: `${themeToUse} character searching around playfully`,
           status: 'missing'
         },
-        intro3Video: existingByType.get('intro3Video') ? {
-          ...existingByType.get('intro3Video'),
-          type: 'video',
-          name: 'Adventure Video',
-          description: `${themeToUse} character ready for adventure`
-        } : {
-          type: 'video',
-          name: 'Adventure Video',
-          description: `${themeToUse} character ready for adventure`,
-          status: 'missing'
-        },
         happyDanceVideo: existingByType.get('happyDanceVideo') ? {
           ...existingByType.get('happyDanceVideo'),
           type: 'video',
@@ -547,17 +530,6 @@ export default function LetterHuntRequest() {
           type: 'audio',
           name: 'Search Audio',
           description: `"Everywhere you go, look for the letter ${targetLetter}!"`,
-          status: 'missing'
-        },
-        intro3Audio: existingByType.get('intro3Audio') ? {
-          ...existingByType.get('intro3Audio'),
-          type: 'audio',
-          name: 'Adventure Audio',
-          description: `"Can you find the letter ${targetLetter}?"`
-        } : {
-          type: 'audio',
-          name: 'Adventure Audio',
-          description: `"Can you find the letter ${targetLetter}?"`,
           status: 'missing'
         },
         signAudio: existingByType.get('signAudio') ? {
@@ -688,9 +660,6 @@ export default function LetterHuntRequest() {
           case 'intro2Audio':
             script = `Everywhere you go, look for the letter ${targetLetter}!`;
             break;
-          case 'intro3Audio':
-            script = `Can you find the letter ${targetLetter}?`;
-            break;
           case 'signAudio':
             script = "On signs";
             break;
@@ -718,11 +687,12 @@ export default function LetterHuntRequest() {
           script: script,
           voiceId: '248nvfaZe8BXhKntjmpp', // Murph voice
           speed: '1.0',
-          assetKey: assetKey // So we know which asset to update when returning
+          assetKey: assetKey, // So we know which asset to update when returning
+          returnUrl: window.location.href // Return to this page after audio generation
         });
 
         // For letter-specific audio (not personalized), don't include childName
-        const isLetterSpecificAudio = ['introAudio', 'intro2Audio', 'intro3Audio', 'signAudio', 'bookAudio', 'groceryAudio', 'happyDanceAudio'].includes(assetKey);
+        const isLetterSpecificAudio = ['introAudio', 'intro2Audio', 'signAudio', 'bookAudio', 'groceryAudio', 'happyDanceAudio'].includes(assetKey);
         if (!isLetterSpecificAudio) {
           audioParams.append('childName', childName);
         }
@@ -748,9 +718,6 @@ export default function LetterHuntRequest() {
             break;
           case 'intro2Video':
             section = 'search';
-            break;
-          case 'intro3Video':
-            section = 'adventure';
             break;
           case 'happyDanceVideo':
             section = 'dance';

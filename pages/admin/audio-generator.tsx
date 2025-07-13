@@ -265,7 +265,12 @@ export default function AudioGenerator() {
           templateContext: prev.templateContext, // Keep template context
         }));
         
-        alert('Audio generated successfully! You can listen to it below and navigate back when ready.');
+        // Show success message with return link if coming from Letter Hunt
+        if (router.query.returnUrl && router.query.returnUrl.includes('letter-hunt')) {
+          alert('Audio generated successfully! Click "Return to Letter Hunt" to go back and see your new audio asset.');
+        } else {
+          alert('Audio generated successfully! You can listen to it below and navigate back when ready.');
+        }
       } else {
         if (result.error === 'ELEVENLABS_API_KEY not configured') {
           setConfigError('ELEVENLABS_API_KEY not configured. Please add your ElevenLabs API key to your .env.local file.');
@@ -387,6 +392,22 @@ export default function AudioGenerator() {
           <div className="flex justify-between items-center py-4">
             <h1 className="text-2xl font-bold text-gray-900">Audio Generator</h1>
             <div className="flex space-x-3">
+              {/* Return to Letter Hunt button - show when coming from Letter Hunt */}
+              {router.query.returnUrl && router.query.returnUrl.includes('letter-hunt') && (
+                <button
+                  onClick={() => {
+                    const returnUrl = router.query.returnUrl as string;
+                    if (returnUrl) {
+                      router.push(returnUrl);
+                    } else {
+                      router.push('/admin/letter-hunt-request');
+                    }
+                  }}
+                  className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 text-sm"
+                >
+                  Return to Letter Hunt
+                </button>
+              )}
               <button
                 onClick={() => router.push('/admin/template-audio')}
                 className="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 text-sm"

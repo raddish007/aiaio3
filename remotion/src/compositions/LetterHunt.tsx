@@ -23,7 +23,6 @@ export interface LetterHuntAssets {
   titleCard: AssetItem;
   introVideo: AssetItem;
   intro2Video: AssetItem;
-  intro3Video: AssetItem;
   signImage: AssetItem;
   bookImage: AssetItem;
   groceryImage: AssetItem;
@@ -32,7 +31,6 @@ export interface LetterHuntAssets {
   titleAudio: AssetItem;
   introAudio: AssetItem;
   intro2Audio: AssetItem;
-  intro3Audio: AssetItem;
   signAudio: AssetItem;
   bookAudio: AssetItem;
   groceryAudio: AssetItem;
@@ -86,9 +84,6 @@ export const LetterHunt: React.FC<LetterHuntProps> = ({
     if (assets.intro2Video?.url && assets.intro2Video.status === 'ready') {
       preloadPromises.push(prefetch(assets.intro2Video.url));
     }
-    if (assets.intro3Video?.url && assets.intro3Video.status === 'ready') {
-      preloadPromises.push(prefetch(assets.intro3Video.url));
-    }
     if (assets.happyDanceVideo?.url && assets.happyDanceVideo.status === 'ready') {
       preloadPromises.push(prefetch(assets.happyDanceVideo.url));
     }
@@ -105,9 +100,6 @@ export const LetterHunt: React.FC<LetterHuntProps> = ({
     }
     if (assets.intro2Audio?.url && assets.intro2Audio.status === 'ready') {
       preloadPromises.push(prefetch(assets.intro2Audio.url));
-    }
-    if (assets.intro3Audio?.url && assets.intro3Audio.status === 'ready') {
-      preloadPromises.push(prefetch(assets.intro3Audio.url));
     }
     if (assets.signAudio?.url && assets.signAudio.status === 'ready') {
       preloadPromises.push(prefetch(assets.signAudio.url));
@@ -168,13 +160,12 @@ export const LetterHunt: React.FC<LetterHuntProps> = ({
   const segments = [
     { name: 'titleCard', start: 0, duration: standardDuration },
     { name: 'intro', start: standardDuration, duration: introDuration },
-    { name: 'intro2', start: standardDuration + introDuration, duration: standardDuration },
-    { name: 'intro3', start: standardDuration + introDuration + standardDuration, duration: standardDuration },
-    { name: 'sign', start: standardDuration + introDuration + standardDuration * 2, duration: standardDuration },
-    { name: 'book', start: standardDuration + introDuration + standardDuration * 3, duration: standardDuration },
-    { name: 'grocery', start: standardDuration + introDuration + standardDuration * 4, duration: standardDuration },
-    { name: 'happyDance', start: standardDuration + introDuration + standardDuration * 5, duration: standardDuration },
-    { name: 'ending', start: standardDuration + introDuration + standardDuration * 6, duration: standardDuration }
+    { name: 'intro2', start: standardDuration + introDuration, duration: introDuration },
+    { name: 'sign', start: standardDuration + introDuration + introDuration, duration: standardDuration },
+    { name: 'book', start: standardDuration + introDuration + introDuration + standardDuration, duration: standardDuration },
+    { name: 'grocery', start: standardDuration + introDuration + introDuration + standardDuration * 2, duration: standardDuration },
+    { name: 'happyDance', start: standardDuration + introDuration + introDuration + standardDuration * 3, duration: standardDuration },
+    { name: 'ending', start: standardDuration + introDuration + introDuration + standardDuration * 4, duration: standardDuration }
   ];
 
   // Find current segment
@@ -473,88 +464,46 @@ export const LetterHunt: React.FC<LetterHuntProps> = ({
             </div>
           )}
 
-          {/* Intro 2 Audio */}
-          {assets.intro2Audio.status === 'ready' && assets.intro2Audio.url && (
-            <Audio 
-              src={assets.intro2Audio.url} 
-              volume={0.9}
-            />
-          )}
-        </AbsoluteFill>
-      </Sequence>
-
-      {/* SEGMENT 4: Intro 3 Video */}
-      <Sequence from={segments[3].start} durationInFrames={segments[3].duration}>
-        <AbsoluteFill style={{ 
-          opacity: crossFade(segments[3].start, segments[3].start + segments[3].duration)
-        }}>
-          {assets.intro3Video.status === 'ready' && assets.intro3Video.url ? (
-            <div style={{
-              position: 'relative',
-              width: '100%',
-              height: '100%',
-              transform: `scale(${videoScale(segments[3].start, 10)})`,
-              filter: 'brightness(1.05) contrast(1.1)',
-            }}>
-              <Video 
-                src={assets.intro3Video.url}
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'cover'
+          {/* Intro 2 Audio - starts 1 second into intro2 section, plays for up to 4.5 seconds */}
+          {assets.intro2Audio?.status === 'ready' && assets.intro2Audio?.url && (
+            <Sequence 
+              from={fps} // Start 1 second into the intro2 segment
+              durationInFrames={Math.min(segments[2].duration - fps, 4.5 * fps)} // Play for remaining duration or 4.5 seconds max
+            >
+              <Audio 
+                src={assets.intro2Audio.url} 
+                volume={(frame) => {
+                  const fadeFrames = fps * 0.3; // 0.3 second fade
+                  const sequenceDuration = Math.min(segments[2].duration - fps, 4.5 * fps);
+                  
+                  // Fade in at start
+                  if (frame < fadeFrames) {
+                    return 0.9 * (frame / fadeFrames);
+                  }
+                  
+                  // Fade out at end
+                  if (frame > sequenceDuration - fadeFrames) {
+                    return 0.9 * ((sequenceDuration - frame) / fadeFrames);
+                  }
+                  
+                  // Normal volume in between
+                  return 0.9;
                 }}
-                volume={0.85}
-                playbackRate={1.0}
               />
-              {/* Subtle theme overlay */}
-              <div style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                width: '100%',
-                height: '100%',
-                background: `linear-gradient(45deg, ${getThemeGradient(childTheme).split(',')[0]} 0%, transparent 30%, transparent 70%, ${getThemeGradient(childTheme).split(',')[2]} 100%)`,
-                opacity: 0.1,
-                pointerEvents: 'none'
-              }} />
-            </div>
-          ) : (
-            <div style={{
-              ...backgroundStyle,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}>
-              <div style={{
-                fontSize: '80px',
-                fontWeight: 'bold',
-                color: 'white',
-                textAlign: 'center',
-                textShadow: '4px 4px 8px rgba(0,0,0,0.8)',
-                padding: '40px'
-              }}>
-                Can you find the letter {targetLetter}?
-              </div>
-            </div>
-          )}
-
-          {/* Intro 3 Audio */}
-          {assets.intro3Audio.status === 'ready' && assets.intro3Audio.url && (
-            <Audio 
-              src={assets.intro3Audio.url} 
-              volume={0.9}
-            />
+            </Sequence>
           )}
         </AbsoluteFill>
       </Sequence>
 
-      {/* SEGMENT 5: On Signs */}
-      <Sequence from={segments[4].start} durationInFrames={segments[4].duration}>
+
+
+      {/* SEGMENT 3: On Signs */}
+      <Sequence from={segments[3].start} durationInFrames={segments[3].duration}>
         <AbsoluteFill style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          opacity: crossFade(segments[4].start, segments[4].start + segments[4].duration)
+          opacity: crossFade(segments[3].start, segments[3].start + segments[3].duration)
         }}>
           {assets.signImage.status === 'ready' && assets.signImage.url ? (
             <Img 
@@ -563,7 +512,7 @@ export const LetterHunt: React.FC<LetterHuntProps> = ({
                 width: '80%',
                 height: '80%',
                 objectFit: 'contain',
-                transform: `scale(${bounceIn(segments[4].start)})`,
+                transform: `scale(${bounceIn(segments[3].start)})`,
                 filter: 'brightness(1.05) contrast(1.05)'
               }}
             />
@@ -575,7 +524,7 @@ export const LetterHunt: React.FC<LetterHuntProps> = ({
               textAlign: 'center',
               textShadow: '4px 4px 8px rgba(0,0,0,0.8)',
               padding: '40px',
-              transform: `scale(${bounceIn(segments[4].start)})`
+              transform: `scale(${bounceIn(segments[3].start)})`
             }}>
               On signs
             </div>
@@ -591,8 +540,8 @@ export const LetterHunt: React.FC<LetterHuntProps> = ({
         </AbsoluteFill>
       </Sequence>
 
-      {/* SEGMENT 6: On Books */}
-      <Sequence from={segments[5].start} durationInFrames={segments[5].duration}>
+      {/* SEGMENT 4: On Books */}
+      <Sequence from={segments[4].start} durationInFrames={segments[4].duration}>
         <AbsoluteFill style={{
           display: 'flex',
           alignItems: 'center',
@@ -634,8 +583,8 @@ export const LetterHunt: React.FC<LetterHuntProps> = ({
         </AbsoluteFill>
       </Sequence>
 
-      {/* SEGMENT 7: Grocery Store */}
-      <Sequence from={segments[6].start} durationInFrames={segments[6].duration}>
+      {/* SEGMENT 5: Grocery Store */}
+      <Sequence from={segments[5].start} durationInFrames={segments[5].duration}>
         <AbsoluteFill style={{
           display: 'flex',
           alignItems: 'center',
@@ -677,17 +626,17 @@ export const LetterHunt: React.FC<LetterHuntProps> = ({
         </AbsoluteFill>
       </Sequence>
 
-      {/* SEGMENT 8: Happy Dance */}
-      <Sequence from={segments[7].start} durationInFrames={segments[7].duration}>
+      {/* SEGMENT 6: Happy Dance */}
+      <Sequence from={segments[6].start} durationInFrames={segments[6].duration}>
         <AbsoluteFill style={{ 
-          opacity: crossFade(segments[7].start, segments[7].start + segments[7].duration)
+          opacity: crossFade(segments[6].start, segments[6].start + segments[6].duration)
         }}>
           {assets.happyDanceVideo.status === 'ready' && assets.happyDanceVideo.url ? (
             <div style={{
               position: 'relative',
               width: '100%',
               height: '100%',
-              transform: `scale(${videoScale(segments[7].start, 10)})`,
+              transform: `scale(${videoScale(segments[6].start, 10)})`,
               filter: 'brightness(1.1) contrast(1.15) saturate(1.1)', // More vibrant for happy dance
             }}>
               <Video 
@@ -726,7 +675,7 @@ export const LetterHunt: React.FC<LetterHuntProps> = ({
                 textAlign: 'center',
                 textShadow: '4px 4px 8px rgba(0,0,0,0.8)',
                 padding: '40px',
-                transform: `scale(${bounceIn(segments[7].start)})`
+                transform: `scale(${bounceIn(segments[6].start)})`
               }}>
                 And when you find your letter, I want you to do a little happy dance!
               </div>
@@ -743,13 +692,13 @@ export const LetterHunt: React.FC<LetterHuntProps> = ({
         </AbsoluteFill>
       </Sequence>
 
-      {/* SEGMENT 9: Ending */}
-      <Sequence from={segments[8].start} durationInFrames={segments[8].duration}>
+      {/* SEGMENT 7: Ending */}
+      <Sequence from={segments[7].start} durationInFrames={segments[7].duration}>
         <AbsoluteFill style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          opacity: crossFade(segments[8].start, segments[8].start + segments[8].duration)
+          opacity: crossFade(segments[7].start, segments[7].start + segments[7].duration)
         }}>
           {assets.endingImage.status === 'ready' && assets.endingImage.url ? (
             <Img 
@@ -758,7 +707,7 @@ export const LetterHunt: React.FC<LetterHuntProps> = ({
                 width: '100%',
                 height: '100%',
                 objectFit: 'cover',
-                transform: `scale(${bounceIn(segments[8].start)})`,
+                transform: `scale(${bounceIn(segments[7].start)})`,
                 filter: 'brightness(1.05) contrast(1.05)'
               }}
             />
@@ -770,7 +719,7 @@ export const LetterHunt: React.FC<LetterHuntProps> = ({
               textAlign: 'center',
               textShadow: '4px 4px 8px rgba(0,0,0,0.8)',
               padding: '40px',
-              transform: `scale(${bounceIn(segments[8].start)})`
+              transform: `scale(${bounceIn(segments[7].start)})`
             }}>
               Have fun finding the letter {targetLetter}, {childName}!
             </div>
