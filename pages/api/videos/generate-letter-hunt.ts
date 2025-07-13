@@ -60,6 +60,7 @@ interface LetterHuntAssets {
   happyDanceAudio: { url: string; status: 'missing' | 'generating' | 'ready' };
   
   // Part 9: Ending (24-27s)
+  endingVideo: { url: string; status: 'missing' | 'generating' | 'ready' };
   endingImage: { url: string; status: 'missing' | 'generating' | 'ready' };
   endingAudio: { url: string; status: 'missing' | 'generating' | 'ready' };
   
@@ -123,7 +124,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       durationInSeconds
     });
 
-    // Define all 19 assets that the Remotion template expects
+    // Define all 20 assets that the Remotion template expects
     const allAssetKeys = [
       'titleCard', 'titleAudio',           // Part 1: Title (0-3s)
       'introVideo', 'introAudio',          // Part 2: Letter + Theme (3-6s)
@@ -132,7 +133,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       'bookImage', 'bookAudio',            // Part 6: Book (15-18s)
       'groceryImage', 'groceryAudio',      // Part 7: Grocery (18-21s)
       'happyDanceVideo', 'happyDanceAudio', // Part 8: Happy Dance (21-24s)
-      'endingImage', 'endingAudio',        // Part 9: Ending (24-27s)
+      'endingVideo', 'endingImage', 'endingAudio', // Part 9: Ending (24-27s)
       'backgroundMusic'                    // Background music throughout
     ];
 

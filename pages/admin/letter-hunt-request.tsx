@@ -32,8 +32,8 @@ interface LetterHuntPayload {
     bookImage: AssetStatus;
     groceryImage: AssetStatus;
     happyDanceVideo: AssetStatus;
-    endingImage: AssetStatus;
     endingVideo: AssetStatus;
+    endingImage: AssetStatus;
     // Audio assets
     titleAudio: AssetStatus;
     introAudio: AssetStatus;
@@ -489,17 +489,6 @@ export default function LetterHuntRequest() {
           description: `Letter ${targetLetter} on grocery store sign/cereal box with ${themeToUse} theme`,
           status: 'missing'
         },
-        endingImage: existingByType.get('endingImage') ? {
-          ...existingByType.get('endingImage'),
-          type: 'image',
-          name: 'Ending Image',
-          description: `Letter ${targetLetter} with ${themeToUse} characters waving goodbye`
-        } : {
-          type: 'image',
-          name: 'Ending Image',
-          description: `Letter ${targetLetter} with ${themeToUse} characters waving goodbye`,
-          status: 'missing'
-        },
         // Videos
         introVideo: existingByType.get('introVideo') ? {
           ...existingByType.get('introVideo'),
@@ -543,6 +532,17 @@ export default function LetterHuntRequest() {
           type: 'video',
           name: 'Ending Video',
           description: `Letter ${targetLetter} ending video with colorful celebration`,
+          status: 'missing'
+        },
+        endingImage: existingByType.get('endingImage') ? {
+          ...existingByType.get('endingImage'),
+          type: 'image',
+          name: 'Ending Image',
+          description: `Letter ${targetLetter} with ${themeToUse} characters waving goodbye`
+        } : {
+          type: 'image',
+          name: 'Ending Image',
+          description: `Letter ${targetLetter} with ${themeToUse} characters waving goodbye`,
           status: 'missing'
         },
         // Audio assets

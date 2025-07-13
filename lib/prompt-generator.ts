@@ -28,7 +28,7 @@ export interface PromptContext {
   promptCount?: number;
   additionalContext?: string;
   assetType?: string; // Keep for backward compatibility
-  imageType?: 'titleCard' | 'signImage' | 'bookImage' | 'groceryImage' | 'endingImage' | 'characterImage' | 'sceneImage'; // New structured approach
+  imageType?: 'titleCard' | 'signImage' | 'bookImage' | 'groceryImage' | 'endingVideo' | 'characterImage' | 'sceneImage'; // New structured approach
   targetLetter?: string; // Add target letter for letter hunt
 }
 
@@ -425,8 +425,8 @@ Focus on clean, simple product designs that make the letter stand out clearly.
 📝 PROMPT STRUCTURE
 Each prompt must include the target letter prominently displayed on grocery items, art style, simple background description. The letter should be the sole focus - no additional objects or decorative elements needed.`;
 
-      case 'endingImage':
-        return `You are generating prompts for letter hunt educational content featuring a celebratory target letter for preschool children (ages 2-5). This is the concluding image showing the letter in a triumphant way.
+      case 'endingVideo':
+        return `You are generating prompts for letter hunt educational content featuring a celebratory target letter for preschool children (ages 2-5). This is the concluding video showing the letter in a triumphant way.
 
 🧒 CHILD SAFETY REQUIREMENTS (CRITICAL)
 Content must be 100% appropriate for ages 2-5 years old.
@@ -437,8 +437,8 @@ Colors must be bright, warm, and inviting.
 All imagery must be gentle and non-startling.
 Themes must be interpreted in the most innocent, playful way possible.
 
-🎯 ENDING IMAGE SPECIFIC:
-This is the concluding image for the Letter Hunt video.
+🎯 ENDING VIDEO SPECIFIC:
+This is the concluding video for the Letter Hunt video.
 Show a large, bold, uppercase letter prominently displayed in a celebratory, "mission accomplished" way.
 The letter should be highly readable for young children - use thick, rounded, child-friendly fonts.
 Include happy, congratulatory themed elements around the letter but NOT blocking it.

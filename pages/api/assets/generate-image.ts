@@ -59,7 +59,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           customSafeZone = 'slideshow';
           break;
         
-        case 'endingImage':
+        case 'endingVideo':
           generatedPrompt = `A bright, cartoon-style image of the letter ${targetLetter} with friendly monster characters waving and smiling around it, flat pastel background, no additional text.`;
           customSafeZone = 'slideshow';
           break;
