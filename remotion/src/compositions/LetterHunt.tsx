@@ -500,33 +500,37 @@ export const LetterHunt: React.FC<LetterHuntProps> = ({
       {/* SEGMENT 3: On Signs */}
       <Sequence from={segments[3].start} durationInFrames={segments[3].duration}>
         <AbsoluteFill style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
           opacity: crossFade(segments[3].start, segments[3].start + segments[3].duration)
         }}>
           {assets.signImage.status === 'ready' && assets.signImage.url ? (
             <Img 
               src={assets.signImage.url} 
               style={{
-                width: '80%',
-                height: '80%',
-                objectFit: 'contain',
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
                 transform: `scale(${bounceIn(segments[3].start)})`,
                 filter: 'brightness(1.05) contrast(1.05)'
               }}
             />
           ) : (
             <div style={{
-              fontSize: '80px',
-              fontWeight: 'bold',
-              color: 'white',
-              textAlign: 'center',
-              textShadow: '4px 4px 8px rgba(0,0,0,0.8)',
-              padding: '40px',
-              transform: `scale(${bounceIn(segments[3].start)})`
+              ...backgroundStyle,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
             }}>
-              On signs
+              <div style={{
+                fontSize: '80px',
+                fontWeight: 'bold',
+                color: 'white',
+                textAlign: 'center',
+                textShadow: '4px 4px 8px rgba(0,0,0,0.8)',
+                padding: '40px',
+                transform: `scale(${bounceIn(segments[3].start)})`
+              }}>
+                On signs
+              </div>
             </div>
           )}
 
@@ -543,33 +547,37 @@ export const LetterHunt: React.FC<LetterHuntProps> = ({
       {/* SEGMENT 4: On Books */}
       <Sequence from={segments[4].start} durationInFrames={segments[4].duration}>
         <AbsoluteFill style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
           opacity: crossFade(segments[4].start, segments[4].start + segments[4].duration)
         }}>
           {assets.bookImage.status === 'ready' && assets.bookImage.url ? (
             <Img 
               src={assets.bookImage.url} 
               style={{
-                width: '80%',
-                height: '80%',
-                objectFit: 'contain',
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
                 transform: `scale(${bounceIn(segments[4].start)})`,
                 filter: 'brightness(1.05) contrast(1.05)'
               }}
             />
           ) : (
             <div style={{
-              fontSize: '80px',
-              fontWeight: 'bold',
-              color: 'white',
-              textAlign: 'center',
-              textShadow: '4px 4px 8px rgba(0,0,0,0.8)',
-              padding: '40px',
-              transform: `scale(${bounceIn(segments[4].start)})`
+              ...backgroundStyle,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
             }}>
-              On books
+              <div style={{
+                fontSize: '80px',
+                fontWeight: 'bold',
+                color: 'white',
+                textAlign: 'center',
+                textShadow: '4px 4px 8px rgba(0,0,0,0.8)',
+                padding: '40px',
+                transform: `scale(${bounceIn(segments[4].start)})`
+              }}>
+                On books
+              </div>
             </div>
           )}
 
@@ -586,33 +594,37 @@ export const LetterHunt: React.FC<LetterHuntProps> = ({
       {/* SEGMENT 5: Grocery Store */}
       <Sequence from={segments[5].start} durationInFrames={segments[5].duration}>
         <AbsoluteFill style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
           opacity: crossFade(segments[5].start, segments[5].start + segments[5].duration)
         }}>
           {assets.groceryImage.status === 'ready' && assets.groceryImage.url ? (
             <Img 
               src={assets.groceryImage.url} 
               style={{
-                width: '80%',
-                height: '80%',
-                objectFit: 'contain',
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
                 transform: `scale(${bounceIn(segments[5].start)})`,
                 filter: 'brightness(1.05) contrast(1.05)'
               }}
             />
           ) : (
             <div style={{
-              fontSize: '80px',
-              fontWeight: 'bold',
-              color: 'white',
-              textAlign: 'center',
-              textShadow: '4px 4px 8px rgba(0,0,0,0.8)',
-              padding: '40px',
-              transform: `scale(${bounceIn(segments[6].start)})`
+              ...backgroundStyle,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
             }}>
-              Even in the grocery store!
+              <div style={{
+                fontSize: '80px',
+                fontWeight: 'bold',
+                color: 'white',
+                textAlign: 'center',
+                textShadow: '4px 4px 8px rgba(0,0,0,0.8)',
+                padding: '40px',
+                transform: `scale(${bounceIn(segments[5].start)})`
+              }}>
+                Even in the grocery store!
+              </div>
             </div>
           )}
 
