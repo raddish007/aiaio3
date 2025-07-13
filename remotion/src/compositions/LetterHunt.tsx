@@ -843,69 +843,7 @@ export const LetterHunt: React.FC<LetterHuntProps> = ({
         </AbsoluteFill>
       </Sequence>
 
-      {/* Debug Info (bottom right corner) - Enhanced */}
-      <div style={{
-        position: 'absolute',
-        bottom: '20px',
-        right: '20px',
-        backgroundColor: 'rgba(0,0,0,0.8)',
-        color: 'white',
-        padding: '12px',
-        borderRadius: '8px',
-        fontSize: '14px',
-        fontFamily: 'monospace',
-        maxWidth: '400px',
-        lineHeight: '1.4'
-      }}>
-        <div style={{ fontWeight: 'bold', marginBottom: '8px', color: '#4CAF50' }}>
-          🎬 Letter Hunt Debug Info
-        </div>
-        <div>Frame: {frame} / {durationInFrames}</div>
-        <div>Segment: {currentSegment?.name || 'none'} ({Math.ceil((frame % (currentSegment?.duration || standardDuration)) / fps * 10) / 10}s)</div>
-        <div>Child: {childName} | Letter: {targetLetter} | Theme: {childTheme}</div>
-        <div style={{ marginTop: '6px', fontSize: '12px', color: '#FFD700' }}>
-          Videos: {[assets.introVideo, assets.intro2Video, assets.happyDanceVideo]
-            .filter(v => v.status === 'ready').length}/3 ready
-        </div>
-        <div style={{ fontSize: '12px', color: '#FFD700' }}>
-          Audio: {Object.values(assets)
-            .filter(a => a.url && a.url.includes('audio')).length}/9 ready
-        </div>
-      </div>
 
-      {/* Performance overlay for video loading status */}
-      {(frame < 30) && (
-        <div style={{
-          position: 'absolute',
-          top: '20px',
-          left: '20px',
-          backgroundColor: 'rgba(0,0,0,0.8)',
-          color: 'white',
-          padding: '12px',
-          borderRadius: '8px',
-          fontSize: '12px',
-          fontFamily: 'monospace'
-        }}>
-          <div style={{ color: '#4CAF50', fontWeight: 'bold', marginBottom: '6px' }}>
-            📊 Asset Preload Status
-          </div>
-          {assets.introVideo.status === 'ready' && (
-            <div style={{ color: '#4CAF50' }}>✅ Intro Video: Ready</div>
-          )}
-          {assets.intro2Video.status === 'ready' && (
-            <div style={{ color: '#4CAF50' }}>✅ Search Video: Ready</div>
-          )}
-          {assets.happyDanceVideo.status === 'ready' && (
-            <div style={{ color: '#4CAF50' }}>✅ Dance Video: Ready</div>
-          )}
-          {assets.backgroundMusic.status === 'ready' && (
-            <div style={{ color: '#4CAF50' }}>✅ Background Music: Ready</div>
-          )}
-          {assets.titleAudio.status === 'ready' && (
-            <div style={{ color: '#4CAF50' }}>✅ Title Audio: Ready</div>
-          )}
-        </div>
-      )}
 
       {/* Fade to Black at the End */}
       <AbsoluteFill style={{
