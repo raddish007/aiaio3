@@ -363,6 +363,7 @@ export default function AssetManagement() {
       .update({ 
         status: 'approved',
         title: editForm.title,
+        theme: editForm.theme,
         prompt: editForm.prompt,
         metadata: {
           ...currentAsset?.metadata,
@@ -471,6 +472,7 @@ export default function AssetManagement() {
         .update({ 
           status: 'approved',
           title: editForm.title,
+          theme: editForm.theme,
           prompt: editForm.prompt,
           tags: editForm.tags ? editForm.tags.split(',').map(tag => tag.trim()) : [],
           metadata: {
@@ -532,6 +534,7 @@ export default function AssetManagement() {
         .update({ 
           status: 'rejected',
           title: editForm.title,
+          theme: editForm.theme,
           prompt: editForm.prompt,
           tags: editForm.tags ? editForm.tags.split(',').map(tag => tag.trim()) : [],
           metadata: {
@@ -1724,6 +1727,9 @@ export default function AssetManagement() {
                       <option value="outro_audio">Outro Audio</option>
                       <option value="letter_audio">Letter Audio</option>
                       <option value="name_audio">Name Audio</option>
+                      <option value="name_encouragement">Name Encouragement</option>
+                      <option value="bedtime_greeting">Bedtime Greeting</option>
+                      <option value="goodnight_message">Goodnight Message</option>
                       <option value="voice_narration">Voice Narration</option>
                       <option value="sound_effect">Sound Effect</option>
                     </select>
@@ -2001,6 +2007,9 @@ export default function AssetManagement() {
                       <option value="outro_audio">Outro Audio</option>
                       <option value="letter_audio">Letter Audio</option>
                       <option value="name_audio">Name Audio</option>
+                      <option value="name_encouragement">Name Encouragement</option>
+                      <option value="bedtime_greeting">Bedtime Greeting</option>
+                      <option value="goodnight_message">Goodnight Message</option>
                       <option value="voice_narration">Voice Narration</option>
                       <option value="sound_effect">Sound Effect</option>
                     </select>

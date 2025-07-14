@@ -73,11 +73,37 @@ export default function AudioGenerator() {
   const router = useRouter();
 
   useEffect(() => {
-    checkAdminAccess();
-    fetchChildren();
-    fetchProjects();
-    fetchGeneratedAudios();
-    fetchTemplateScripts();
+    const initializeApp = async () => {
+      try {
+        console.log('🚀 Initializing audio generator...');
+        
+        // Set a timeout to prevent infinite loading
+        const timeoutId = setTimeout(() => {
+          console.warn('⚠️ Initialization taking too long, setting loading to false');
+          setLoading(false);
+        }, 10000); // 10 second timeout
+        
+        await checkAdminAccess();
+        console.log('✅ Admin access confirmed');
+        
+        // Run data fetching in parallel
+        await Promise.all([
+          fetchChildren(),
+          fetchProjects(), 
+          fetchGeneratedAudios(),
+          fetchTemplateScripts()
+        ]);
+        console.log('✅ All data fetched successfully');
+        
+        clearTimeout(timeoutId);
+        setLoading(false);
+      } catch (error) {
+        console.error('❌ Error initializing audio generator:', error);
+        setLoading(false); // Still set loading to false to prevent infinite loading
+      }
+    };
+    
+    initializeApp();
   }, []);
 
   // Handle URL parameters from Letter Hunt page
@@ -103,48 +129,85 @@ export default function AudioGenerator() {
   }, [router.query]);
 
   const checkAdminAccess = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      router.push('/login');
-      return;
-    }
+    try {
+      console.log('🔐 Checking admin access...');
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      
+      if (authError) {
+        console.error('Auth error:', authError);
+        throw authError;
+      }
+      
+      if (!user) {
+        console.log('❌ No user found, redirecting to login');
+        router.push('/login');
+        throw new Error('No user found');
+      }
 
-    const { data: userData } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .single();
+      console.log('👤 User found:', user.email);
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('role')
+        .eq('id', user.id)
+        .single();
 
-    if (!userData || !['content_manager', 'asset_creator', 'video_ops'].includes(userData.role)) {
-      router.push('/dashboard');
-      return;
+      if (userError) {
+        console.error('User data error:', userError);
+        throw userError;
+      }
+
+      if (!userData || !['content_manager', 'asset_creator', 'video_ops', 'admin', 'super_admin'].includes(userData.role)) {
+        console.error('Access denied - user role:', userData?.role);
+        alert(`Access denied. Your role (${userData?.role || 'unknown'}) does not have permission to access the audio generator.`);
+        router.push('/admin');
+        throw new Error('Access denied');
+      }
+      console.log('✅ User has valid role:', userData.role);
+    } catch (error) {
+      console.error('❌ Admin access check failed:', error);
+      throw error;
     }
-    setLoading(false);
   };
 
   const fetchChildren = async () => {
-    const { data, error } = await supabase
-      .from('children')
-      .select('*')
-      .order('name');
+    try {
+      console.log('📝 Fetching children...');
+      const { data, error } = await supabase
+        .from('children')
+        .select('*')
+        .order('name');
 
-    if (error) {
-      console.error('Error fetching children:', error);
-    } else {
-      setChildren(data || []);
+      if (error) {
+        console.error('Error fetching children:', error);
+        throw error;
+      } else {
+        setChildren(data || []);
+        console.log(`✅ Fetched ${data?.length || 0} children`);
+      }
+    } catch (error) {
+      console.error('❌ Failed to fetch children:', error);
+      // Don't throw, just log and continue
     }
   };
 
   const fetchProjects = async () => {
-    const { data, error } = await supabase
-      .from('content_projects')
-      .select('*')
-      .order('created_at', { ascending: false });
+    try {
+      console.log('📋 Fetching projects...');
+      const { data, error } = await supabase
+        .from('content_projects')
+        .select('*')
+        .order('created_at', { ascending: false });
 
-    if (error) {
-      console.error('Error fetching projects:', error);
-    } else {
-      setProjects(data || []);
+      if (error) {
+        console.error('Error fetching projects:', error);
+        throw error;
+      } else {
+        setProjects(data || []);
+        console.log(`✅ Fetched ${data?.length || 0} projects`);
+      }
+    } catch (error) {
+      console.error('❌ Failed to fetch projects:', error);
+      // Don't throw, just log and continue
     }
   };
 
@@ -501,51 +564,40 @@ export default function AudioGenerator() {
                   </select>
                 </div>
 
-                {/* Template Scripts */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">🎬 Template Script</label>
-                  <select
-                    value=""
-                    onChange={(e) => handleTemplateScriptSelect(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">Select a template script...</option>
-                    
-                    {/* Group templates by type for better organization */}
-                    {Object.entries(
-                      templateScripts.reduce((groups, script) => {
-                        const type = script.template_type;
-                        if (!groups[type]) groups[type] = [];
-                        groups[type].push(script);
-                        return groups;
-                      }, {} as Record<string, TemplateAudio[]>)
-                    ).map(([templateType, scripts]) => (
-                      <optgroup key={templateType} label={`${templateType.toUpperCase()} Templates`}>
-                        {scripts.map((script) => (
-                          <option key={script.id} value={script.id}>
-                            {script.name} - "{script.script}"
-                          </option>
-                        ))}
-                      </optgroup>
-                    ))}
-                  </select>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Select a template script to auto-fill with personalized content ({audioForm.templateContext?.childName || '[NAME]'}, letter {audioForm.templateContext?.targetLetter || '[LETTER]'})
-                  </p>
-                  
-                  {/* Show current template context if available */}
-                  {audioForm.templateContext && (
-                    <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-sm">
-                      <div className="font-medium text-blue-800">Current Template Context:</div>
-                      <div className="text-blue-700">
-                        Template: {audioForm.templateContext.templateType} | 
-                        Purpose: {audioForm.templateContext.assetPurpose} | 
-                        Child: {audioForm.templateContext.childName}
-                        {audioForm.templateContext.targetLetter && ` | Letter: ${audioForm.templateContext.targetLetter}`}
-                      </div>
-                    </div>
-                  )}
-                </div>
+                {/* Template Scripts - Only show if no pre-filled context */}
+                {!audioForm.templateContext && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">🎬 Template Script</label>
+                    <select
+                      value=""
+                      onChange={(e) => handleTemplateScriptSelect(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Select a template script...</option>
+                      
+                      {/* Group templates by type for better organization */}
+                      {Object.entries(
+                        templateScripts.reduce((groups, script) => {
+                          const type = script.template_type;
+                          if (!groups[type]) groups[type] = [];
+                          groups[type].push(script);
+                          return groups;
+                        }, {} as Record<string, TemplateAudio[]>)
+                      ).map(([templateType, scripts]) => (
+                        <optgroup key={templateType} label={`${templateType.toUpperCase()} Templates`}>
+                          {scripts.map((script) => (
+                            <option key={script.id} value={script.id}>
+                              {script.name} - "{script.script}"
+                            </option>
+                          ))}
+                        </optgroup>
+                      ))}
+                    </select>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Select a template script to auto-fill with personalized content
+                    </p>
+                  </div>
+                )}
 
                 {/* Voice Selection */}
                 <div>

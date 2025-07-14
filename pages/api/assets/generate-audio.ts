@@ -196,6 +196,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           targetLetter: templateContext.targetLetter,
           assetPurpose: templateContext.assetPurpose, // Save as assetPurpose for audio assets
           imageType: templateContext.assetPurpose // Also save as imageType for consistency with existing logic
+        } : {}),
+        // Lullaby and NameVideo specific metadata (flat format for easy querying)
+        ...(templateContext?.templateType === 'lullaby' ? {
+          template: 'lullaby',
+          child_name: templateContext.childName,
+          asset_class: templateContext.assetPurpose // Store asset_purpose as asset_class for consistency
+        } : {}),
+        ...(templateContext?.templateType === 'namevideo' ? {
+          template: 'namevideo', 
+          child_name: templateContext.childName,
+          asset_class: templateContext.assetPurpose // Store asset_purpose as asset_class for consistency
         } : {})
       },
     };

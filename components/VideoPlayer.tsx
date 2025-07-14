@@ -15,9 +15,10 @@ interface Video {
 interface VideoPlayerProps {
   video: Video;
   className?: string;
+  autoPlay?: boolean;
 }
 
-export default function VideoPlayer({ video, className = "" }: VideoPlayerProps) {
+export default function VideoPlayer({ video, className = "", autoPlay = false }: VideoPlayerProps) {
   const optimizedVideoUrl = useOptimizedVideoUrl(video.video_url); // 🚀 CDN optimization
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -38,6 +39,9 @@ export default function VideoPlayer({ video, className = "" }: VideoPlayerProps)
 
     const handleLoadedMetadata = () => {
       setDuration(videoElement.duration);
+      if (autoPlay) {
+        videoElement.play().catch(console.error);
+      }
     };
 
     const handlePlay = () => setIsPlaying(true);
@@ -141,9 +145,11 @@ export default function VideoPlayer({ video, className = "" }: VideoPlayerProps)
         <div className="absolute inset-0 flex items-center justify-center">
           <button
             onClick={togglePlay}
-            className="bg-black bg-opacity-60 rounded-full p-6 hover:bg-opacity-80 transition-all transform hover:scale-110"
+            className="group bg-white/90 backdrop-blur-sm rounded-full p-8 hover:bg-white transition-all duration-300 transform hover:scale-105 shadow-2xl"
           >
-            <div className="text-white text-6xl">▶️</div>
+            <svg className="w-12 h-12 text-black ml-1 group-hover:scale-110 transition-transform duration-200" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M8 5v14l11-7z"/>
+            </svg>
           </button>
         </div>
       )}
@@ -155,41 +161,53 @@ export default function VideoPlayer({ video, className = "" }: VideoPlayerProps)
         }`}
       >
         {/* Progress Bar */}
-        <div className="mb-6">
+        <div className="mb-8">
           <input
             type="range"
             min="0"
             max={duration || 0}
             value={currentTime}
             onChange={handleSeek}
-            className="w-full h-4 bg-gray-600 rounded-full appearance-none cursor-pointer slider"
+            className="w-full h-2 bg-white/20 rounded-full appearance-none cursor-pointer slider"
             style={{
-              background: `linear-gradient(to right, #60a5fa 0%, #60a5fa ${(currentTime / (duration || 1)) * 100}%, #6b7280 ${(currentTime / (duration || 1)) * 100}%, #6b7280 100%)`
+              background: `linear-gradient(to right, white 0%, white ${(currentTime / (duration || 1)) * 100}%, rgba(255,255,255,0.2) ${(currentTime / (duration || 1)) * 100}%, rgba(255,255,255,0.2) 100%)`
             }}
           />
         </div>
 
         {/* Control Buttons */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-6">
+          <div className="flex items-center space-x-8">
             {/* Play/Pause Button */}
             <button
               onClick={togglePlay}
-              className="text-white hover:text-blue-300 transition-colors transform hover:scale-110"
+              className="group bg-white/10 backdrop-blur-sm hover:bg-white/20 rounded-full p-3 transition-all duration-200 transform hover:scale-105"
             >
-              <span className="text-3xl">{isPlaying ? '⏸️' : '▶️'}</span>
+              {isPlaying ? (
+                <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/>
+                </svg>
+              ) : (
+                <svg className="w-6 h-6 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M8 5v14l11-7z"/>
+                </svg>
+              )}
             </button>
 
             {/* Time Display */}
-            <span className="text-white text-lg font-semibold">
-              {formatTime(currentTime)} / {formatTime(duration)}
-            </span>
+            <div className="bg-black/30 backdrop-blur-sm rounded-lg px-3 py-1">
+              <span className="text-white text-sm font-medium tabular-nums">
+                {formatTime(currentTime)} / {formatTime(duration)}
+              </span>
+            </div>
           </div>
 
           <div className="flex items-center space-x-6">
             {/* Volume Control */}
-            <div className="flex items-center space-x-3">
-              <span className="text-white text-2xl">🔊</span>
+            <div className="flex items-center space-x-3 bg-black/30 backdrop-blur-sm rounded-lg px-3 py-2">
+              <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+              </svg>
               <input
                 type="range"
                 min="0"
@@ -197,23 +215,33 @@ export default function VideoPlayer({ video, className = "" }: VideoPlayerProps)
                 step="0.1"
                 value={volume}
                 onChange={handleVolumeChange}
-                className="w-24 h-3 bg-gray-600 rounded-full appearance-none cursor-pointer"
+                className="w-20 h-1 bg-white/20 rounded-full appearance-none cursor-pointer volume-slider"
               />
             </div>
 
             {/* Fullscreen Button */}
             <button
               onClick={toggleFullscreen}
-              className="text-white hover:text-blue-300 transition-colors transform hover:scale-110"
+              className="group bg-white/10 backdrop-blur-sm hover:bg-white/20 rounded-full p-3 transition-all duration-200 transform hover:scale-105"
             >
-              <span className="text-2xl">{isFullscreen ? '⏹️' : '⛶'}</span>
+              {isFullscreen ? (
+                <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"/>
+                </svg>
+              ) : (
+                <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>
+                </svg>
+              )}
             </button>
           </div>
         </div>
       </div>
 
-      {/* Video Title */}
-      <div className="absolute top-6 left-6">
+      {/* Video Title - Only show on hover */}
+      <div className={`absolute top-6 left-6 transition-opacity ${
+        showControls ? 'opacity-100' : 'opacity-0'
+      }`}>
         <h3 className="text-white text-xl font-bold drop-shadow-lg bg-black/50 px-4 py-2 rounded-lg">
           {video.title}
         </h3>
@@ -223,23 +251,50 @@ export default function VideoPlayer({ video, className = "" }: VideoPlayerProps)
       <style jsx>{`
         .slider::-webkit-slider-thumb {
           appearance: none;
-          height: 20px;
-          width: 20px;
+          height: 16px;
+          width: 16px;
           border-radius: 50%;
-          background: #60a5fa;
+          background: white;
           cursor: pointer;
-          border: 2px solid white;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+          border: none;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+          transition: all 0.2s ease;
+        }
+        
+        .slider::-webkit-slider-thumb:hover {
+          transform: scale(1.2);
+          box-shadow: 0 4px 12px rgba(0,0,0,0.4);
         }
         
         .slider::-moz-range-thumb {
-          height: 20px;
-          width: 20px;
+          height: 16px;
+          width: 16px;
           border-radius: 50%;
-          background: #60a5fa;
+          background: white;
           cursor: pointer;
-          border: 2px solid white;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+          border: none;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+
+        .volume-slider::-webkit-slider-thumb {
+          appearance: none;
+          height: 12px;
+          width: 12px;
+          border-radius: 50%;
+          background: white;
+          cursor: pointer;
+          border: none;
+          box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+        }
+        
+        .volume-slider::-moz-range-thumb {
+          height: 12px;
+          width: 12px;
+          border-radius: 50%;
+          background: white;
+          cursor: pointer;
+          border: none;
+          box-shadow: 0 1px 4px rgba(0,0,0,0.3);
         }
       `}</style>
     </div>

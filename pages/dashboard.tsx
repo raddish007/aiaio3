@@ -97,15 +97,18 @@ export default function Dashboard() {
       if (!session) {
         throw new Error('No active session');
       }
-      // Fetch the playlist for this child
+      
+      // Fetch the playlist for this child (approved videos only)
       const { data, error } = await supabase
         .from('child_playlists')
         .select('videos')
         .eq('child_id', childId)
         .single();
+      
       if (error) {
         throw error;
       }
+      
       setVideos(data?.videos || []);
     } catch (error) {
       console.error('Error fetching child videos:', error);
@@ -139,15 +142,6 @@ export default function Dashboard() {
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-  };
-
-  const getPersonalizationBadge = (level: string) => {
-    const badges = {
-      child_specific: { text: 'Personal', color: 'bg-blue-100 text-blue-800' },
-      theme_specific: { text: 'Theme', color: 'bg-green-100 text-green-800' },
-      generic: { text: 'General', color: 'bg-gray-100 text-gray-800' }
-    };
-    return badges[level as keyof typeof badges] || badges.generic;
   };
 
   if (loading) {
@@ -245,37 +239,49 @@ export default function Dashboard() {
                 <h3 className="text-xl font-bold text-black">Video Gallery</h3>
               </div>
               {videos.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                   {videos.map((video) => {
-                    const badge = getPersonalizationBadge(video.personalization_level);
                     return (
                       <div
                         key={video.id}
-                        className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200 flex flex-col cursor-pointer hover:shadow-2xl transition-shadow"
+                        className="group bg-white rounded-2xl overflow-hidden border-0 shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer transform hover:-translate-y-1"
                         onClick={() => router.push({
                           pathname: '/video-playback',
                           query: { videoId: video.id, childId: selectedChild?.id }
                         })}
                       >
-                        <div className="relative" style={{ aspectRatio: '16/9' }}>
+                        <div className="relative overflow-hidden" style={{ aspectRatio: '16/9' }}>
                           <img
                             src={video.display_image}
                             alt={video.title}
-                            className="object-cover w-full h-full"
+                            className="object-cover w-full h-full transition-transform duration-300 group-hover:scale-105"
                           />
-                          <div className="absolute top-2 left-2">
-                            <span className="px-2 py-1 bg-gray-200 text-gray-800 text-xs rounded-full">
-                              {badge.text}
-                            </span>
+                          
+                          {/* Play overlay */}
+                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-300 flex items-center justify-center">
+                            <div className="w-16 h-16 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 transform scale-75 group-hover:scale-100">
+                              <svg className="w-6 h-6 text-black ml-1" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M8 5v14l11-7z"/>
+                              </svg>
+                            </div>
                           </div>
-                          <div className="absolute bottom-2 right-2 bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded">
-                            {video.duration_seconds ? formatDuration(video.duration_seconds) : ''}
-                          </div>
+
+                          {/* Duration badge */}
+                          {video.duration_seconds && (
+                            <div className="absolute bottom-3 right-3 bg-black/70 backdrop-blur-sm text-white text-xs px-2 py-1 rounded-lg font-medium">
+                              {formatDuration(video.duration_seconds)}
+                            </div>
+                          )}
                         </div>
-                        <div className="p-4 flex-1 flex flex-col">
-                          <h4 className="font-semibold text-black mb-2 line-clamp-2">{video.title}</h4>
+                        
+                        <div className="p-5">
+                          <h4 className="font-bold text-gray-900 text-lg mb-2 line-clamp-2 group-hover:text-black transition-colors">
+                            {video.title}
+                          </h4>
                           {video.description && (
-                            <p className="text-sm text-gray-600 mb-2 line-clamp-2">{video.description}</p>
+                            <p className="text-gray-600 text-sm leading-relaxed line-clamp-2">
+                              {video.description}
+                            </p>
                           )}
                         </div>
                       </div>
@@ -308,4 +314,4 @@ export default function Dashboard() {
       </div>
     </>
   );
-} 
+}

@@ -70,10 +70,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       video.child_theme === child.primary_interest
     );
 
-    console.log('Child-specific videos:', childSpecificVideos.length);
-    console.log('General videos:', generalVideos.length);
-    console.log('Theme videos:', themeVideos.length);
-    console.log('Child:', child);
+
 
     // Combine and deduplicate videos
     const allVideos = [
@@ -132,4 +129,4 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       details: error instanceof Error ? error.message : 'Unknown error'
     });
   }
-} 
+}
