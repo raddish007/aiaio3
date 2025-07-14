@@ -19,19 +19,8 @@ const nextConfig = {
       },
     });
 
-    // Exclude admin files from build in production
-    if (process.env.DEPLOY_TARGET === 'public') {
-      config.module.rules.push({
-        test: /pages\/admin\/.*\.(js|jsx|ts|tsx)$/,
-        use: 'ignore-loader'
-      });
-      
-      // Also exclude admin API routes
-      config.module.rules.push({
-        test: /pages\/api\/admin\/.*\.(js|jsx|ts|tsx)$/,
-        use: 'ignore-loader'
-      });
-    }
+    // Note: Admin files are blocked via rewrites below
+    // TypeScript errors are skipped for production builds
 
     return config;
   },
