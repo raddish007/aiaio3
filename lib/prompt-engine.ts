@@ -198,6 +198,13 @@ export class PromptEngine {
       negativeInstructions: 'Avoid empty spaces or incomplete compositions. No embedded text or elements that assume overlay content.',
       templateCompatibility: ['lullaby', 'educational', 'name-show', 'letter-hunt']
     },
+    frame: {
+      id: 'frame',
+      description: 'Frame composition with center area empty for title text',
+      compositionInstructions: 'Create a beautiful decorative frame or border design around the outer edges of the image with the center area completely empty for title text overlay. The frame should be thematic and peaceful, perfectly suited for bedtime or lullaby content (e.g., stars and moons, soft clouds, gentle flowers, sleepy animals as border elements). The entire center area must remain completely clear and empty for text placement. Focus on creating an elegant, soothing frame design around the edges only.',
+      negativeInstructions: 'Absolutely NO characters, animals, people, or main subject elements anywhere in the image center. NO visual elements, objects, or decorative details in the center area where title text will be placed. The image should consist ONLY of a decorative border/frame around the outer edges. The center must be completely empty with solid background color.',
+      templateCompatibility: ['lullaby']
+    },
     all_ok: {
       id: 'all_ok',
       description: 'General composition without specific restrictions',
@@ -212,6 +219,26 @@ export class PromptEngine {
       id: 'name-video',
       name: 'Name Video',
       baseInstructions: `You are creating prompts for educational children's videos featuring single characters or objects. Content must be 100% appropriate for ages 2-5 years old with bright, warm, inviting colors. Characters must always appear happy, calm, and friendly. All imagery must be gentle and non-startling.`,
+      supportedSafeZones: ['left_safe', 'right_safe', 'center_safe', 'intro_safe', 'outro_safe', 'all_ok'],
+      contentRules: [
+        'Single character or object only (no groups or busy scenes)',
+        'Simple, clear pose (sitting, standing, smiling calmly)',
+        'Light colored background suitable for black text overlay - use bright whites, soft creams, or pale solid colors that ensure excellent readability',
+        'No props, toys, or additional decorations unless explicitly requested',
+        'ABSOLUTELY NO TEXT, LETTERS, WORDS, NUMBERS, OR WRITTEN CONTENT anywhere in the image',
+        'NO books, signs, labels, papers, or any objects with text or writing on them',
+        'NO alphabet letters, numbers, symbols, or readable characters of any kind'
+      ],
+      artStyleModifiers: {
+        '2D Pixar Style': 'Rendered in vibrant 2D Pixar animation style with smooth, rounded features and expressive but gentle character design',
+        'Watercolor': 'Created in soft watercolor technique with gentle color bleeds and organic, flowing brushstrokes',
+        'Crayon Drawing': 'Illustrated in child-like crayon drawing style with vibrant, waxy textures and simple, endearing forms'
+      }
+    },
+    namevideo: {
+      id: 'namevideo',
+      name: 'NameVideo',
+      baseInstructions: `You are creating prompts for personalized children's name videos featuring single characters or objects. Content must be 100% appropriate for ages 2-5 years old with bright, warm, inviting colors. Characters must always appear happy, calm, and friendly. All imagery must be gentle and non-startling.`,
       supportedSafeZones: ['left_safe', 'right_safe', 'center_safe', 'intro_safe', 'outro_safe', 'all_ok'],
       contentRules: [
         'Single character or object only (no groups or busy scenes)',
@@ -253,7 +280,7 @@ export class PromptEngine {
       id: 'lullaby',
       name: 'Lullaby Video',
       baseInstructions: `You are creating prompts for calming bedtime lullaby videos. Content must convey peaceful, sleepy themes suitable for ages 2-5 years old. All imagery must be gentle, soothing, and sleep-inducing with darker, rich colors that will make white text clearly visible. Characters must appear calm, peaceful, and ready for sleep.`,
-      supportedSafeZones: ['slideshow', 'center_safe', 'intro_safe', 'outro_safe'],
+      supportedSafeZones: ['slideshow', 'center_safe', 'intro_safe', 'outro_safe', 'frame'],
       contentRules: [
         'Calm, bedtime poses or states (lying down asleep, curled up peacefully)',
         'Eyes closed in calm rest or sitting sleepily',

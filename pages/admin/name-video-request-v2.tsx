@@ -235,17 +235,17 @@ export default function NameVideoRequestV2() {
           .from('assets')
           .select('*')
           .in('status', ['approved', 'pending'])
-          .or(`metadata->>template.eq.namevideo,metadata->>template.eq.name-video`)
+          .or(`metadata->>template.eq.name-video`)
           .eq('metadata->>child_name', nameToUse),
         
-        // Letter background images for theme (with safe zones)
+        // Letter background images for theme (with safe zones) - check both new and old format
         supabase
           .from('assets')
           .select('*')
           .in('status', ['approved', 'pending'])
           .eq('type', 'image')
-          .eq('metadata->>asset_class', 'letter_background')
-          .eq('metadata->>child_theme', themeToUse),
+          .or(`metadata->>asset_class.eq.letter_image,metadata->>imageType.in.(letterImageLeftSafe,letterImageRightSafe)`)
+          .or(`metadata->>child_theme.eq.${themeToUse},theme.ilike.%${themeToUse}%`),
         
         // Background music - using DreamDrip asset like Lullaby
         supabase
@@ -254,14 +254,14 @@ export default function NameVideoRequestV2() {
           .eq('id', '2095fd08-1cb1-4373-bafa-f6115dd7dad2')
           .single(),
         
-        // Theme-specific intro/outro images
+        // Theme-specific intro/outro images (check both new and old format)
         supabase
           .from('assets')
           .select('*')
           .in('status', ['approved', 'pending'])
           .eq('type', 'image')
-          .in('metadata->>asset_class', ['name_intro', 'name_outro'])
-          .eq('metadata->>child_theme', themeToUse),
+          .or(`metadata->>asset_class.in.(name_intro,name_outro),metadata->>imageType.in.(introScene,outroScene)`)
+          .or(`metadata->>child_theme.eq.${themeToUse},theme.ilike.%${themeToUse}%`),
 
         // Letter audio assets (generic, not child-specific)
         supabase
@@ -346,38 +346,37 @@ export default function NameVideoRequestV2() {
       if (specificAssets.data) {
         specificAssets.data.forEach(asset => {
           const assetClass = asset.metadata?.asset_class || asset.metadata?.audio_class;
+          const imageType = asset.metadata?.imageType;
           const status = asset.status === 'approved' ? 'ready' : 'generating';
           
-          switch (assetClass) {
-            case 'name_audio':
-              console.log('  → Assigning to introAudio (will be used for both intro and outro)');
-              assets.introAudio = {
-                ...assets.introAudio,
-                status,
-                url: asset.file_url || '',
-                generatedAt: asset.created_at
-              };
-              break;
-            case 'name_encouragement':
-              console.log('  → Skipping name_encouragement (NameVideo uses same audio for intro/outro)');
-              // Skip - NameVideo always uses the name audio for both intro and outro
-              break;
-            case 'name_intro':
-              assets.introImage = {
-                ...assets.introImage,
-                status,
-                url: asset.file_url || '',
-                generatedAt: asset.created_at
-              };
-              break;
-            case 'name_outro':
-              assets.outroImage = {
-                ...assets.outroImage,
-                status,
-                url: asset.file_url || '',
-                generatedAt: asset.created_at
-              };
-              break;
+          // Handle both old asset_class and new imageType
+          if (imageType === 'introScene' || assetClass === 'name_intro') {
+            console.log('  → Assigning to introImage');
+            assets.introImage = {
+              ...assets.introImage,
+              status,
+              url: asset.file_url || '',
+              generatedAt: asset.created_at
+            };
+          } else if (imageType === 'outroScene' || assetClass === 'name_outro') {
+            console.log('  → Assigning to outroImage');
+            assets.outroImage = {
+              ...assets.outroImage,
+              status,
+              url: asset.file_url || '',
+              generatedAt: asset.created_at
+            };
+          } else if (assetClass === 'name_audio') {
+            console.log('  → Assigning to introAudio (will be used for both intro and outro)');
+            assets.introAudio = {
+              ...assets.introAudio,
+              status,
+              url: asset.file_url || '',
+              generatedAt: asset.created_at
+            };
+          } else if (assetClass === 'name_encouragement') {
+            console.log('  → Skipping name_encouragement (NameVideo uses same audio for intro/outro)');
+            // Skip - NameVideo always uses the name audio for both intro and outro
           }
         });
       }
@@ -395,15 +394,22 @@ export default function NameVideoRequestV2() {
 
       // Process letter background images with safe zones
       if (letterImages.data) {
-        assets.letterImages = letterImages.data.map(asset => ({
-          type: 'image' as const,
-          name: `Letter Background ${asset.id.slice(-4)}`,
-          description: `Background image for letter display (${asset.metadata?.safe_zone || 'unknown'} safe zone)`,
-          status: asset.status === 'approved' ? 'ready' : 'generating',
-          url: asset.file_url || '',
-          safeZone: asset.metadata?.safe_zone as 'left' | 'right' || 'left',
-          generatedAt: asset.created_at
-        }));
+        assets.letterImages = letterImages.data.map(asset => {
+          const imageType = asset.metadata?.imageType;
+          const safeZone = imageType === 'letterImageLeftSafe' ? 'left' : 
+                          imageType === 'letterImageRightSafe' ? 'right' : 
+                          asset.metadata?.safe_zone || 'left';
+          
+          return {
+            type: 'image' as const,
+            name: `Letter Background ${asset.id.slice(-4)}`,
+            description: `Background image for letter display (${safeZone} safe zone)`,
+            status: asset.status === 'approved' ? 'ready' : 'generating',
+            url: asset.file_url || '',
+            safeZone: safeZone as 'left' | 'right',
+            generatedAt: asset.created_at
+          };
+        });
       }
 
       // Process letter audio assets
@@ -489,8 +495,11 @@ export default function NameVideoRequestV2() {
 
       // Add fallback intro/outro images if needed
       if (assets.introImage.status === 'missing' && themeImages.data) {
-        const introAsset = themeImages.data.find(a => a.metadata?.asset_class === 'name_intro');
+        const introAsset = themeImages.data.find(a => 
+          a.metadata?.asset_class === 'name_intro' || a.metadata?.imageType === 'name_intro' || a.metadata?.imageType === 'introScene'
+        );
         if (introAsset) {
+          console.log('  → Found intro image in theme-specific assets');
           assets.introImage = {
             ...assets.introImage,
             status: introAsset.status === 'approved' ? 'ready' : 'generating',
@@ -507,6 +516,7 @@ export default function NameVideoRequestV2() {
           return safeZones.includes('intro_safe');
         });
         if (oldStyleIntroAsset) {
+          console.log('  → Found intro image in old-style theme assets');
           assets.introImage = {
             ...assets.introImage,
             status: 'ready',
@@ -517,8 +527,11 @@ export default function NameVideoRequestV2() {
       }
 
       if (assets.outroImage.status === 'missing' && themeImages.data) {
-        const outroAsset = themeImages.data.find(a => a.metadata?.asset_class === 'name_outro');
+        const outroAsset = themeImages.data.find(a => 
+          a.metadata?.asset_class === 'name_outro' || a.metadata?.imageType === 'name_outro' || a.metadata?.imageType === 'outroScene'
+        );
         if (outroAsset) {
+          console.log('  → Found outro image in theme-specific assets');
           assets.outroImage = {
             ...assets.outroImage,
             status: outroAsset.status === 'approved' ? 'ready' : 'generating',
@@ -535,6 +548,7 @@ export default function NameVideoRequestV2() {
           return safeZones.includes('outro_safe');
         });
         if (oldStyleOutroAsset) {
+          console.log('  → Found outro image in old-style theme assets');
           assets.outroImage = {
             ...assets.outroImage,
             status: 'ready',
@@ -604,16 +618,23 @@ export default function NameVideoRequestV2() {
       // Handle image generation 
       if (asset.type === 'image') {
         let assetClass = '';
+        let imageType = '';
         
-        if (assetKey === 'introImage') assetClass = 'name_intro';
-        else if (assetKey === 'outroImage') assetClass = 'name_outro';
+        if (assetKey === 'introImage') {
+          assetClass = 'name_intro';  // Keep for backward compatibility
+          imageType = 'introScene';   // Use new name-video asset type
+        } else if (assetKey === 'outroImage') {
+          assetClass = 'name_outro';  // Keep for backward compatibility
+          imageType = 'outroScene';   // Use new name-video asset type
+        }
 
         const promptParams = new URLSearchParams({
-          templateType: 'namevideo',
+          templateType: 'name-video',
           childName: payload.childName,
           childTheme: payload.childTheme,
           assetType: assetKey,
           assetClass: assetClass,
+          imageType: imageType,      // Add new imageType parameter
           artStyle: '2D Pixar Style',
           ageRange: '3-5',
           aspectRatio: '16:9',
@@ -651,7 +672,7 @@ export default function NameVideoRequestV2() {
         }
 
         const audioParams = new URLSearchParams({
-          templateType: 'namevideo',
+          templateType: 'name-video',
           assetPurpose: assetClass,
           childName: childName,
           script: script,
@@ -678,21 +699,27 @@ export default function NameVideoRequestV2() {
   const generateLetterImage = async (safeZone: 'left' | 'right') => {
     if (!payload) return;
 
+    // Map safe zone to proper imageType and safeZone format
+    const imageType = safeZone === 'left' ? 'letterImageLeftSafe' : 'letterImageRightSafe';
+    const mappedSafeZone = safeZone === 'left' ? 'left_safe' : 'right_safe';
+
     const promptParams = new URLSearchParams({
-      templateType: 'namevideo',
+      templateType: 'name-video',
+      childName: payload.childName,
       childTheme: payload.childTheme,
       assetType: 'letterImages',
       assetClass: 'letter_background',
+      imageType: imageType,      // Use proper imageType mapping
       artStyle: '2D Pixar Style',
       ageRange: '3-5',
       aspectRatio: '16:9',
       personalization: 'themed',
-      safeZone: safeZone,
+      safeZone: mappedSafeZone,  // Use proper safe zone format
       returnUrl: window.location.href,
       assetKey: 'letterImages'
     });
     
-    console.log(`🎨 Redirecting to prompt generator for ${safeZone} letter background image...`);
+    console.log(`🎨 Redirecting to prompt generator for ${safeZone} letter background image (${imageType})...`);
     await router.push(`/admin/prompt-generator?${promptParams.toString()}`);
   };
 
@@ -705,7 +732,7 @@ export default function NameVideoRequestV2() {
     const script = letter;
 
     const audioParams = new URLSearchParams({
-      templateType: 'namevideo',
+      templateType: 'name-video',
       assetPurpose: 'letter_audio',
       childName: payload.childName,
       script: script,
@@ -860,7 +887,7 @@ export default function NameVideoRequestV2() {
         
           {/* Missing Video Tracker */}
           <MissingVideoTracker
-            videoType="namevideo"
+            videoType="name-video"
             templateName="NameVideo"
             className="mb-6"
             onChildSelect={handleChildSelect}

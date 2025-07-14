@@ -191,28 +191,28 @@ export default function AdminDashboard() {
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <button
-              onClick={() => router.push('/admin/lullaby-video-request')}
+              onClick={() => router.push('/admin/lullaby-request-v2')}
               className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-200 border border-gray-200 hover:border-purple-300 group"
             >
               <div className="text-center">
                 <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-purple-200 transition-colors">
                   <span className="text-3xl">🌙</span>
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Lullaby</h3>
-                <p className="text-sm text-gray-600">Create personalized lullaby videos</p>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Lullaby V2</h3>
+                <p className="text-sm text-gray-600">Create personalized lullaby videos (Enhanced)</p>
               </div>
             </button>
 
             <button
-              onClick={() => router.push('/admin/name-video-request')}
+              onClick={() => router.push('/admin/name-video-request-v2')}
               className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-200 border border-gray-200 hover:border-blue-300 group"
             >
               <div className="text-center">
                 <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-blue-200 transition-colors">
                   <span className="text-3xl">📝</span>
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Name</h3>
-                <p className="text-sm text-gray-600">Create personalized name spelling videos</p>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Name Video V2</h3>
+                <p className="text-sm text-gray-600">Create personalized name spelling videos (Enhanced)</p>
               </div>
             </button>
 
@@ -449,9 +449,35 @@ export default function AdminDashboard() {
         <div className="bg-gradient-to-r from-gray-50 to-slate-50 rounded-xl p-8 mb-8 border border-gray-200">
           <div className="text-center mb-6">
             <h2 className="text-3xl font-bold text-gray-900 mb-2">Archive</h2>
-            <p className="text-gray-600">Template and asset archives</p>
+            <p className="text-gray-600">Legacy tools and archived templates</p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <button
+              onClick={() => router.push('/admin/lullaby-video-request')}
+              className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-200 border border-gray-200 hover:border-purple-300 group opacity-75"
+            >
+              <div className="text-center">
+                <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-purple-200 transition-colors">
+                  <span className="text-3xl">🌙</span>
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Lullaby (Legacy)</h3>
+                <p className="text-sm text-gray-600">Original lullaby video creation tool</p>
+              </div>
+            </button>
+
+            <button
+              onClick={() => router.push('/admin/name-video-request')}
+              className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-200 border border-gray-200 hover:border-blue-300 group opacity-75"
+            >
+              <div className="text-center">
+                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-blue-200 transition-colors">
+                  <span className="text-3xl">📝</span>
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Name Video (Legacy)</h3>
+                <p className="text-sm text-gray-600">Original name spelling video tool</p>
+              </div>
+            </button>
+
             <button
               onClick={() => router.push('/admin/template-audio')}
               className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-200 border border-gray-200 hover:border-purple-300 group"
@@ -464,6 +490,7 @@ export default function AdminDashboard() {
                 <p className="text-sm text-gray-600">Manage reusable audio templates</p>
               </div>
             </button>
+            
             <button
               onClick={() => router.push('/admin/template-images')}
               className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-200 border border-gray-200 hover:border-green-300 group"

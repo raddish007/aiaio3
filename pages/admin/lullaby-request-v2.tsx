@@ -203,7 +203,7 @@ export default function LullabyRequestV2() {
           .select('*')
           .in('status', ['approved', 'pending'])
           .eq('type', 'image')
-          .eq('metadata->>asset_class', 'bedtime_scene')
+          .or(`metadata->>asset_class.eq.bedtime_scene,metadata->>imageType.eq.bedtime_scene`)
           .eq('metadata->>child_theme', themeToUse),
         
         // Background music (DreamDrip asset)
@@ -213,14 +213,14 @@ export default function LullabyRequestV2() {
           .eq('id', '2095fd08-1cb1-4373-bafa-f6115dd7dad2')
           .single(),
         
-        // Theme-specific intro/outro images
+        // Theme-specific intro/outro images (new asset_class system and fallback to imageType)
         supabase
           .from('assets')
           .select('*')
           .in('status', ['approved', 'pending'])
           .eq('type', 'image')
-          .in('metadata->>asset_class', ['bedtime_intro', 'bedtime_outro'])
-          .eq('metadata->>child_theme', themeToUse),
+          .or(`metadata->>asset_class.in.(bedtime_intro,bedtime_outro),metadata->>imageType.in.(bedtime_intro,bedtime_outro)`)
+          .eq('metadata->>template', 'lullaby'),
         
         // Fallback: Old-style theme-matching images with safe_zone (for backwards compatibility)
         supabase
@@ -390,7 +390,9 @@ export default function LullabyRequestV2() {
 
       // Add fallback intro/outro images if needed
       if (assets.introImage.status === 'missing' && themeImages.data) {
-        const introAsset = themeImages.data.find(a => a.metadata?.asset_class === 'bedtime_intro');
+        const introAsset = themeImages.data.find(a => 
+          a.metadata?.asset_class === 'bedtime_intro' || a.metadata?.imageType === 'bedtime_intro'
+        );
         if (introAsset) {
           assets.introImage = {
             ...assets.introImage,
@@ -418,7 +420,9 @@ export default function LullabyRequestV2() {
       }
 
       if (assets.outroImage.status === 'missing' && themeImages.data) {
-        const outroAsset = themeImages.data.find(a => a.metadata?.asset_class === 'bedtime_outro');
+        const outroAsset = themeImages.data.find(a => 
+          a.metadata?.asset_class === 'bedtime_outro' || a.metadata?.imageType === 'bedtime_outro'
+        );
         if (outroAsset) {
           assets.outroImage = {
             ...assets.outroImage,
@@ -502,25 +506,30 @@ export default function LullabyRequestV2() {
       // Handle image generation 
       if (asset.type === 'image') {
         let assetClass = '';
+        let safeZone = '';
         
-        if (assetKey === 'introImage') assetClass = 'bedtime_intro';
-        else if (assetKey === 'outroImage') assetClass = 'bedtime_outro';
+        if (assetKey === 'introImage') {
+          assetClass = 'bedtime_intro';
+          safeZone = 'frame'; // Frame composition with center area empty for title text
+        } else if (assetKey === 'outroImage') {
+          assetClass = 'bedtime_outro';
+          safeZone = 'outro_safe'; // Closing frame with decorative border
+        }
 
         const promptParams = new URLSearchParams({
           templateType: 'lullaby',
           childName: payload.childName,
           childTheme: payload.childTheme,
-          assetType: assetKey,
           assetClass: assetClass,
+          safeZone: safeZone,
           artStyle: '2D Pixar Style',
           ageRange: '3-5',
           aspectRatio: '16:9',
           personalization: 'themed',
-          returnUrl: window.location.href,
           assetKey: assetKey
         });
         
-        console.log(`🎨 Redirecting to prompt generator for ${asset.name}...`);
+        console.log(`🎨 Redirecting to prompt generator for ${asset.name} with safe zone: ${safeZone}...`);
         await router.push(`/admin/prompt-generator?${promptParams.toString()}`);
         return;
       } 
@@ -579,13 +588,11 @@ export default function LullabyRequestV2() {
     const promptParams = new URLSearchParams({
       templateType: 'lullaby',
       childTheme: payload.childTheme,
-      assetType: 'bedtimeImages',
       assetClass: 'bedtime_scene',
       artStyle: '2D Pixar Style',
       ageRange: '3-5',
       aspectRatio: '16:9',
       personalization: 'themed',
-      returnUrl: window.location.href,
       assetKey: 'bedtimeImages'
     });
     

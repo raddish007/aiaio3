@@ -28,7 +28,7 @@ export interface PromptContext {
   promptCount?: number;
   additionalContext?: string;
   assetType?: string; // Keep for backward compatibility
-  imageType?: 'titleCard' | 'signImage' | 'bookImage' | 'groceryImage' | 'endingVideo' | 'characterImage' | 'sceneImage'; // New structured approach
+  imageType?: 'titleCard' | 'signImage' | 'bookImage' | 'groceryImage' | 'endingVideo' | 'characterImage' | 'sceneImage' | 'bedtime_intro' | 'bedtime_outro' | 'bedtime_scene' | 'letterImageLeftSafe' | 'letterImageRightSafe' | 'introScene' | 'outroScene' | 'nameVideoTitleCard'; // New structured approach
   targetLetter?: string; // Add target letter for letter hunt
 }
 
@@ -56,8 +56,20 @@ export class PromptGenerator {
       return this.legacyGeneratePrompts(context);
     }
 
+    // Force legacy generation for lullaby with imageType to use asset-specific instructions
+    if (context.template === 'lullaby' && context.imageType) {
+      console.log('Using legacy generation for lullaby template with imageType to preserve asset-specific context');
+      return this.legacyGeneratePrompts(context);
+    }
+
+    // Force legacy generation for name-video to ensure proper safe zone context
+    if (context.template === 'name-video') {
+      console.log('Using legacy generation for name-video template to preserve safe zone context');
+      return this.legacyGeneratePrompts(context);
+    }
+
     // Map legacy safe zone names to new system
-    const safeZone = this.mapLegacySafeZone(context.safeZone, context.template);
+    const safeZone = this.mapLegacySafeZone(context.safeZone, context.template, context.imageType);
     
     // Convert to new engine context
     const aspectRatio = context.aspectRatio === '9:16' ? '9:16' : '16:9'; // Default to landscape
@@ -103,9 +115,9 @@ export class PromptGenerator {
     }
   }
 
-  private static mapLegacySafeZone(safeZone: string | undefined, template: string): string {
+  private static mapLegacySafeZone(safeZone: string | undefined, template: string, imageType?: string): string {
     if (!safeZone) {
-      return this.getDefaultSafeZone(template);
+      return this.getDefaultSafeZone(template, imageType);
     }
 
     // Map legacy safe zone names
@@ -117,7 +129,24 @@ export class PromptGenerator {
     return mappings[safeZone] || safeZone;
   }
 
-  private static getDefaultSafeZone(template: string): string {
+  private static getDefaultSafeZone(template: string, imageType?: string): string {
+    // Handle specific image types that override template defaults
+    if (imageType === 'letterImageLeftSafe') {
+      return 'left_safe'; // Character on right, text safe on left
+    }
+    if (imageType === 'letterImageRightSafe') {
+      return 'right_safe'; // Character on left, text safe on right
+    }
+    if (imageType === 'introScene') {
+      return 'frame'; // Frame safe zone for intro
+    }
+    if (imageType === 'outroScene') {
+      return 'frame'; // Frame safe zone for outro
+    }
+    if (imageType === 'nameVideoTitleCard') {
+      return 'all_ok'; // No safe zone restrictions for title card
+    }
+
     switch (template) {
       case 'lullaby':
         return 'slideshow';
@@ -163,6 +192,10 @@ The letter should be the clear focal point.
 
 📝 PROMPT STRUCTURE
 Each prompt must include art style, the specific visual requirements from the task description, and appropriate background as specified.`;
+    } else if (context.template === 'name-video' && context.imageType && 
+        ['letterImageLeftSafe', 'letterImageRightSafe', 'introScene', 'outroScene', 'nameVideoTitleCard'].includes(context.imageType)) {
+      // Handle name-video with specific image types
+      instructions = this.getNameVideoAssetInstructions(context.imageType);
     } else if (context.template === 'lullaby') {
       instructions = this.getLullabyInstructions();
     } else if (context.template === 'name-show') {
@@ -175,7 +208,7 @@ Each prompt must include art style, the specific visual requirements from the ta
       instructions = this.getNameVideoInstructions();
     }
 
-    const safeZone = context.safeZone || this.getDefaultSafeZone(context.template);
+    const safeZone = context.safeZone || this.getDefaultSafeZone(context.template, context.imageType);
     
     const systemPrompt = `You are an expert content creator for children's educational videos. You must follow the provided instructions EXACTLY and return ONLY valid JSON.`;
 
@@ -231,16 +264,20 @@ NO scary, frightening, or intense imagery whatsoever.
 NO violence, conflict, or aggressive behavior (even cartoon style).
 NO dark themes, shadows, or ominous elements.
 Characters and imagery must ALWAYS appear calm, peaceful, and friendly.
-Colors must be soft, warm, and inviting (avoid dark, overly saturated, or harsh tones).
+All imagery must be gentle, soothing, and sleep-inducing with darker, rich colors that will make white text clearly visible. Characters must appear calm, peaceful, and ready for sleep.
 All imagery must be gentle, non-startling, and soothing.
 Themes must be interpreted in the most innocent, cozy, sleepy way possible.
 
 🎨 IMAGE REQUIREMENTS
 May include more than one character or object, but keep compositions simple, uncluttered, and clear.
-Calm, bedtime poses or states such as lying down asleep, curled up peacefully, eyes closed in calm rest.
-Light, soft solid color backgrounds only.
-Bedtime props are allowed if calming and simple (blanket, pillow, teddy bear, moon, stars).
-No text or letters included in the image itself.
+Calm, bedtime poses or states (lying down asleep, curled up peacefully).
+Eyes closed in calm rest or sitting sleepily.
+Darker, rich color backgrounds only (deep blues, purples, forest greens, warm browns) - NO pastel or light colors.
+Background must provide strong contrast for white text overlay.
+Bedtime props allowed if calming (blanket, pillow, teddy bear, moon, stars).
+Entire image must convey peaceful bedtime concept.
+ABSOLUTELY NO TEXT, LETTERS, WORDS, NUMBERS, OR WRITTEN CONTENT anywhere in the image.
+NO books with visible text, signs with words, or any readable content.
 
 🛌 BEDTIME THEME REQUIREMENTS
 The entire image must convey a peaceful bedtime or sleeping concept.
@@ -266,12 +303,149 @@ Themes must be interpreted in the most innocent, playful way possible.
 🎨 IMAGE REQUIREMENTS
 SINGLE character or object only (no groups, pairs, or busy scenes).
 Simple, clear pose (sitting, standing, smiling calmly).
-Light, solid color background only.
+Light colored background suitable for black text overlay - use bright whites, soft creams, or pale solid colors that ensure excellent readability.
 No props, toys, or additional decorations unless explicitly requested.
-No text or letters included in the image itself.
+ABSOLUTELY NO TEXT, LETTERS, WORDS, NUMBERS, OR WRITTEN CONTENT anywhere in the image.
+NO books, signs, labels, papers, or any objects with text or writing on them.
+NO alphabet letters, numbers, symbols, or readable characters of any kind.
+
+� POSITIONING REQUIREMENTS
+Follow the safe zone positioning instructions provided in the context exactly.
+Pay careful attention to character placement relative to text overlay areas.
+
+�📝 PROMPT STRUCTURE
+Each prompt must include art style, theme description with species/breed/type, color details, expression, pose, background description, positioning instructions, and negative instructions.`;
+  }
+
+  private static getNameVideoAssetInstructions(imageType: string): string {
+    const baseInstructions = this.getNameVideoInstructions();
+    
+    switch (imageType) {
+      case 'letterImageLeftSafe':
+        return `You are generating prompts for preschool educational videos with left-side text placement. Follow these rules carefully.
+
+🧒 CHILD SAFETY REQUIREMENTS (CRITICAL)
+Content must be 100% appropriate for ages 2-5 years old.
+NO scary, frightening, or intense imagery whatsoever.
+NO violence, conflict, or aggressive behavior (even cartoon style).
+Characters must ALWAYS appear happy, calm, and friendly.
+Colors must be bright, warm, and inviting (avoid dark or muted tones).
+All imagery must be gentle and non-startling.
+Themes must be interpreted in the most innocent, playful way possible.
+
+🎨 LETTER IMAGE LEFT SAFE REQUIREMENTS
+SINGLE character or object only (no groups, pairs, or busy scenes).
+Character positioned confidently in the RIGHT HALF of the frame.
+Character should face forward or slightly toward the left side.
+The LEFT HALF of the image must remain clean and uncluttered for text overlay.
+Simple, clear pose (sitting, standing, smiling calmly).
+Light colored background suitable for black text overlay - use bright whites, soft creams, or pale solid colors.
+No props, toys, or additional decorations in the left text area.
+ABSOLUTELY NO TEXT, LETTERS, WORDS, NUMBERS, OR WRITTEN CONTENT anywhere in the image.
 
 📝 PROMPT STRUCTURE
-Each prompt must include art style, theme description with species/breed/type, color details, expression, pose, background description, and negative instructions.`;
+Each prompt must include art style, theme description with species/breed/type, color details, expression, pose, RIGHT-SIDE positioning, background description, and negative instructions.`;
+
+      case 'letterImageRightSafe':
+        return `You are generating prompts for preschool educational videos with right-side text placement. Follow these rules carefully.
+
+🧒 CHILD SAFETY REQUIREMENTS (CRITICAL)
+Content must be 100% appropriate for ages 2-5 years old.
+NO scary, frightening, or intense imagery whatsoever.
+NO violence, conflict, or aggressive behavior (even cartoon style).
+Characters must ALWAYS appear happy, calm, and friendly.
+Colors must be bright, warm, and inviting (avoid dark or muted tones).
+All imagery must be gentle and non-startling.
+Themes must be interpreted in the most innocent, playful way possible.
+
+🎨 LETTER IMAGE RIGHT SAFE REQUIREMENTS
+SINGLE character or object only (no groups, pairs, or busy scenes).
+Character positioned dynamically in the LEFT HALF of the frame.
+Character should face forward or slightly toward the right side.
+The RIGHT HALF of the image must remain clean and uncluttered for text overlay.
+Simple, clear pose (sitting, standing, smiling calmly).
+Light colored background suitable for black text overlay - use bright whites, soft creams, or pale solid colors.
+No props, toys, or additional decorations in the right text area.
+ABSOLUTELY NO TEXT, LETTERS, WORDS, NUMBERS, OR WRITTEN CONTENT anywhere in the image.
+
+📝 PROMPT STRUCTURE
+Each prompt must include art style, theme description with species/breed/type, color details, expression, pose, LEFT-SIDE positioning, background description, and negative instructions.`;
+
+      case 'introScene':
+        return `You are generating prompts for name-video intro scenes with frame-safe design for preschool children. Follow these rules carefully.
+
+🧒 CHILD SAFETY REQUIREMENTS (CRITICAL)
+Content must be 100% appropriate for ages 2-5 years old.
+NO scary, frightening, or intense imagery whatsoever.
+NO violence, conflict, or aggressive behavior (even cartoon style).
+Characters must ALWAYS appear happy, calm, and friendly.
+Colors must be bright, warm, and inviting (avoid dark or muted tones).
+All imagery must be gentle and non-startling.
+Themes must be interpreted in the most innocent, playful way possible.
+
+🎨 INTRO SCENE REQUIREMENTS
+Create ONLY a decorative border or frame design around the outer edges of the image.
+The frame should be thematic and welcoming, setting an engaging tone for the video.
+The entire center area must remain completely empty and clear for title text placement.
+Frame elements should be inviting and introduce the theme effectively.
+Use bright, cheerful colors that complement the theme.
+Focus exclusively on border design - NO characters, animals, or objects in the center area.
+ABSOLUTELY NO TEXT, LETTERS, WORDS, NUMBERS, OR WRITTEN CONTENT anywhere in the image.
+
+📝 PROMPT STRUCTURE
+Each prompt must include art style, thematic frame design description, color details, welcoming atmosphere, and negative instructions emphasizing the empty center area.`;
+
+      case 'outroScene':
+        return `You are generating prompts for name-video outro scenes with frame-safe design for preschool children. Follow these rules carefully.
+
+🧒 CHILD SAFETY REQUIREMENTS (CRITICAL)
+Content must be 100% appropriate for ages 2-5 years old.
+NO scary, frightening, or intense imagery whatsoever.
+NO violence, conflict, or aggressive behavior (even cartoon style).
+Characters must ALWAYS appear happy, calm, and friendly.
+Colors must be bright, warm, and inviting (avoid dark or muted tones).
+All imagery must be gentle and non-startling.
+Themes must be interpreted in the most innocent, playful way possible.
+
+🎨 OUTRO SCENE REQUIREMENTS
+Create ONLY a decorative border or frame design around the outer edges of the image.
+The frame should be thematic and provide a sense of closure and accomplishment.
+The entire center area must remain completely empty and clear for farewell text placement.
+Frame elements should convey completion and encourage the child.
+Use warm, satisfying colors that complement the theme.
+Focus exclusively on border design - NO characters, animals, or objects in the center area.
+ABSOLUTELY NO TEXT, LETTERS, WORDS, NUMBERS, OR WRITTEN CONTENT anywhere in the image.
+
+📝 PROMPT STRUCTURE
+Each prompt must include art style, thematic frame design description, color details, closing atmosphere, and negative instructions emphasizing the empty center area.`;
+
+      case 'nameVideoTitleCard':
+        return `You are generating prompts for name-video title cards featuring the child's name prominently for preschool children (ages 2-5). Follow these rules carefully.
+
+🧒 CHILD SAFETY REQUIREMENTS (CRITICAL)
+Content must be 100% appropriate for ages 2-5 years old.
+NO scary, frightening, or intense imagery whatsoever.
+NO violence, conflict, or aggressive behavior (even cartoon style).
+Characters must ALWAYS appear happy, calm, and friendly.
+Colors must be bright, warm, and inviting.
+All imagery must be gentle and non-startling.
+Themes must be interpreted in the most innocent, playful way possible.
+
+🎨 TITLE CARD REQUIREMENTS
+The child's name should be the main focus, displayed prominently in the center.
+Text must be highly readable for young children - use thick, rounded, child-friendly fonts.
+Bright, vibrant colors with strong contrast between text and background.
+Include theme-specific decorative elements that complement but don't compete with the name.
+Celebratory, welcoming atmosphere that makes the child feel special.
+Background should enhance readability while being visually engaging.
+Full composition allowed - no safe zone restrictions.
+
+📝 PROMPT STRUCTURE
+Each prompt must include the child's name prominently, art style, theme-specific decorative elements, background description, and celebratory atmosphere.`;
+
+      default:
+        return baseInstructions;
+    }
   }
 
   private static getNameShowInstructions(): string {
@@ -501,12 +675,79 @@ Each prompt must include the target letter prominently displayed in a celebrator
       } else {
         taskText = `Generate ${context.promptCount || 3} image prompts featuring the target letter prominently for a letter hunt targeting ${context.ageRange} year olds. Each image should show the letter as the main focus with clean, simple design.`;
       }
+    } else if (context.template === 'name-video' && context.imageType) {
+      // Handle specific name-video image types with automatic safe zone handling
+      switch (context.imageType) {
+        case 'letterImageLeftSafe':
+          taskText = `Generate ${context.promptCount || 3} image prompts for a single ${context.theme} character positioned in the right half of the frame, with the left half kept clear for text overlay. The character should be facing forward or slightly toward the left side of the image.`;
+          break;
+        case 'letterImageRightSafe':
+          taskText = `Generate ${context.promptCount || 3} image prompts for a single ${context.theme} character positioned in the left half of the frame, with the right half kept clear for text overlay. The character should be facing forward or slightly toward the right side of the image.`;
+          break;
+        case 'introScene':
+          taskText = `Generate ${context.promptCount || 3} image prompts for intro frame designs with ${context.theme} theme. Create decorative borders around the edges with the center area completely empty for title text. The frame should be welcoming and set an engaging tone.`;
+          break;
+        case 'outroScene':
+          taskText = `Generate ${context.promptCount || 3} image prompts for outro frame designs with ${context.theme} theme. Create decorative borders around the edges with the center area completely empty for farewell text. The frame should convey completion and accomplishment.`;
+          break;
+        case 'nameVideoTitleCard':
+          const childNameText = context.childName || '[CHILD NAME]';
+          taskText = `Generate ${context.promptCount || 3} image prompts for title cards featuring "${childNameText}" prominently with ${context.theme} theme. Include theme-specific decorative elements that make the child feel special and celebrated.`;
+          break;
+        default:
+          taskText = `Generate ${context.promptCount || 3} image prompts for a ${context.theme} video targeting ${context.ageRange} year olds.`;
+      }
+    } else if (context.template === 'lullaby' && context.imageType) {
+      // Use asset-specific context for lullaby images to match v2 generator
+      let specificContext = '';
+      switch (context.imageType) {
+        case 'bedtime_intro':
+          specificContext = `Create a peaceful nighttime intro scene for a lullaby video with ${context.theme} theme. The scene should be calming and set the mood for bedtime. Include gentle, dreamy elements that would help a child feel relaxed and ready for sleep.`;
+          break;
+        case 'bedtime_outro':
+          specificContext = `Create a serene goodnight conclusion scene for a lullaby video with ${context.theme} theme. The scene should convey a sense of peaceful ending and sweet dreams. Include elements that suggest rest, comfort, and gentle closure to the bedtime story.`;
+          break;
+        case 'bedtime_scene':
+          specificContext = `Create soothing bedtime imagery for a lullaby slideshow with ${context.theme} theme. The scene should be calming and dreamlike, perfect for helping a child drift off to sleep. Include soft, comforting elements that create a peaceful atmosphere.`;
+          break;
+        default:
+          specificContext = `Create peaceful bedtime imagery with ${context.theme} theme suitable for a lullaby video.`;
+      }
+      taskText = `Generate ${context.promptCount || 3} image prompts with this specific context: ${specificContext} Content must be appropriate for ages ${context.ageRange} with soothing, sleep-inducing colors that will make white text clearly visible.`;
     } else {
       taskText = `Generate ${context.promptCount || 3} image prompts for a ${context.theme} video targeting ${context.ageRange} year olds.`;
     }
 
     // Only include safe zone in context if it's not 'all_ok' (which means no restrictions)
     const safeZoneText = safeZone !== 'all_ok' ? `\nSafe Zone: ${safeZone}` : '';
+    
+    // Add safe zone descriptions for proper positioning context
+    let safeZoneDescription = '';
+    if (safeZone !== 'all_ok') {
+      switch (safeZone) {
+        case 'left_safe':
+          safeZoneDescription = '\nCharacter positioned confidently in the right half of the frame, creating a natural visual flow from left to right. The left half of the image maintains clean, uncluttered space with subtle background elements that won\'t compete with overlaid content.';
+          break;
+        case 'right_safe':
+          safeZoneDescription = '\nCharacter positioned dynamically in the left half of the frame, with the character facing toward or engaging with the right side of the composition. The right half maintains open, clean space suitable for content overlay.';
+          break;
+        case 'center_safe':
+          safeZoneDescription = '\nCreate ONLY a decorative border or frame design around the outer edges of the image. The frame should be thematic and ornamental. The entire center area must remain completely empty and clear for text placement. Focus exclusively on the border design - NO characters, animals, or objects should be placed anywhere in the image.';
+          break;
+        case 'intro_safe':
+          safeZoneDescription = '\nCreate a decorative border or frame design around the outer edges of the image with an opening or clear space in the upper center area for title text. The frame should be thematic and welcoming. The upper-center area (approximately 40% of the image) must remain clear for title placement. Focus on border design - NO characters, animals, or objects should be placed anywhere in the image.';
+          break;
+        case 'outro_safe':
+          safeZoneDescription = '\nCreate a peaceful decorative border or frame design around the outer edges of the image with an opening or clear space in the center area for farewell messages and end credits. The frame should be thematic and provide closure. The center area (approximately 50% of the image) must remain clear for text placement. Focus exclusively on border design - NO characters, animals, or objects should be placed anywhere in the image.';
+          break;
+        case 'slideshow':
+          safeZoneDescription = '\nComplete, engaging composition that fills the frame beautifully. Designed to be viewed as standalone imagery in a slideshow format, with balanced visual weight and clear focal points.';
+          break;
+        case 'frame':
+          safeZoneDescription = '\nCreate a beautiful decorative frame or border design around the outer edges of the image with the center area completely empty for title text overlay. The frame should be thematic and peaceful. The entire center area must remain completely clear and empty for text placement. Focus on creating an elegant, soothing frame design around the edges only.';
+          break;
+      }
+    }
 
     return `${instructions}
 
@@ -514,7 +755,7 @@ CONTEXT:
 Theme: ${context.theme}
 Age Range: ${context.ageRange}
 Template: ${context.template}${safeZoneText}${artStyleText}${targetLetterText}${imageTypeText}
-${personalization}${themeContext}
+${personalization}${themeContext}${safeZoneDescription}
 
 TASK:
 ${taskText}

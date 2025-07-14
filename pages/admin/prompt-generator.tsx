@@ -18,7 +18,7 @@ interface PromptForm {
   customArtStyle: string;
   additionalContext: string;
   assetType?: string; // Keep for backward compatibility
-  imageType?: 'titleCard' | 'signImage' | 'bookImage' | 'groceryImage' | 'endingImage' | 'characterImage' | 'sceneImage';
+  imageType?: 'titleCard' | 'signImage' | 'bookImage' | 'groceryImage' | 'endingImage' | 'characterImage' | 'sceneImage' | 'bedtime_intro' | 'bedtime_outro' | 'bedtime_scene' | 'letter_image' | 'name_intro' | 'name_outro' | 'letterImageLeftSafe' | 'letterImageRightSafe' | 'introScene' | 'outroScene' | 'nameVideoTitleCard';
   targetLetter?: string; // Add target letter field for Letter Hunt
 }
 
@@ -114,8 +114,107 @@ export default function PromptGeneratorPage() {
           sessionStorage.setItem('letterHuntImageType', imageType);
         }
       }
+      else if (query.templateType === 'lullaby') {
+        // For Lullaby, determine asset class and safe zone based on image type
+        const assetClass = (query.assetClass as string) || 'bedtime_intro';
+        const safeZone = (query.safeZone as string) || 'slideshow'; // Default to slideshow if not specified
+        
+        setForm(prev => ({
+          ...prev,
+          template: 'lullaby',
+          childName: (query.childName as string) || '',
+          theme: (query.childTheme as string) || '',
+          ageRange: (query.ageRange as string) || '3-5',
+          safeZones: [safeZone], // Use the safe zone passed from Lullaby request v2
+          aspectRatio: (query.aspectRatio as '16:9' | '9:16') || '16:9',
+          artStyle: (query.artStyle as string) || '2D Pixar Style',
+          personalization: (query.personalization as 'general' | 'personalized') || 'personalized',
+          additionalContext: '', // Keep empty - we'll build context based on asset class
+          imageType: assetClass as any // Map assetClass to imageType for consistency
+        }));
+      }
+      else if (query.templateType === 'name-video') {
+        // For Name Video, determine asset class and safe zone based on image type
+        const assetClass = (query.assetClass as string) || 'letter_image';
+        const safeZone = (query.safeZone as string) || 'left_safe'; // Default to left_safe if not specified
+        
+        setForm(prev => ({
+          ...prev,
+          template: 'name-video',
+          childName: (query.childName as string) || '',
+          theme: (query.childTheme as string) || '',
+          ageRange: (query.ageRange as string) || '3-5',
+          safeZones: [safeZone], // Use the safe zone passed from Name Video request v2
+          aspectRatio: (query.aspectRatio as '16:9' | '9:16') || '16:9',
+          artStyle: (query.artStyle as string) || '2D Pixar Style',
+          personalization: (query.personalization as 'general' | 'personalized') || 'personalized',
+          additionalContext: '', // Keep empty - we'll build context based on asset class
+          imageType: assetClass as any, // Map assetClass to imageType for consistency
+          targetLetter: (query.letter as string) || '' // For letter images
+        }));
+      }
     }
   }, [router.isReady, router.query]);
+
+  // Update safe zones when imageType changes (like LetterHunt does)
+  useEffect(() => {
+    if (form.template === 'letter-hunt' && form.imageType) {
+      let safeZone = 'center_safe'; // Default safe zone
+      
+      // Title cards can use all_ok since they're designed for full composition
+      if (form.imageType === 'titleCard') {
+        safeZone = 'all_ok';
+      }
+      // Other image types might need different safe zones based on their requirements
+      else if (form.imageType === 'signImage' || form.imageType === 'bookImage' || form.imageType === 'groceryImage') {
+        safeZone = 'all_ok'; // Letter-specific images can use full composition for better visual impact
+      }
+      else if (form.imageType === 'endingImage') {
+        safeZone = 'all_ok'; // Celebratory ending can use full composition
+      }
+      
+      setForm(prev => ({
+        ...prev,
+        safeZones: [safeZone]
+      }));
+    } else if (form.template === 'lullaby' && form.imageType) {
+      let safeZone = 'slideshow'; // Default safe zone for lullaby
+      
+      // Set appropriate safe zone based on Lullaby image type
+      if (form.imageType === 'bedtime_intro') {
+        safeZone = 'frame'; // Frame composition with center area empty for title text
+      } else if (form.imageType === 'bedtime_outro') {
+        safeZone = 'outro_safe'; // Closing frame with decorative border
+      } else if (form.imageType === 'bedtime_scene') {
+        safeZone = 'slideshow'; // Full frame content for slideshow presentation
+      }
+      
+      setForm(prev => ({
+        ...prev,
+        safeZones: [safeZone]
+      }));
+    } else if (form.template === 'name-video' && form.imageType) {
+      let safeZone = 'center_safe'; // Default safe zone for name-video
+      
+      // Set appropriate safe zone based on name-video image type - auto-applied
+      if (form.imageType === 'letterImageLeftSafe') {
+        safeZone = 'left_safe'; // Character on right, text safe on left
+      } else if (form.imageType === 'letterImageRightSafe') {
+        safeZone = 'right_safe'; // Character on left, text safe on right
+      } else if (form.imageType === 'introScene') {
+        safeZone = 'frame'; // Frame safe zone for intro
+      } else if (form.imageType === 'outroScene') {
+        safeZone = 'frame'; // Frame safe zone for outro
+      } else if (form.imageType === 'nameVideoTitleCard') {
+        safeZone = 'all_ok'; // No safe zone restrictions for title card
+      }
+      
+      setForm(prev => ({
+        ...prev,
+        safeZones: [safeZone]
+      }));
+    }
+  }, [form.template, form.imageType]);
 
   const checkUser = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -148,6 +247,15 @@ export default function PromptGeneratorPage() {
     // Validate name for name-show templates and letter-hunt templates with personalized content
     if ((form.template === 'name-show' || (form.template === 'letter-hunt' && form.personalization === 'personalized')) && !form.childName.trim()) {
       setError(`Child's name is required for ${form.template === 'name-show' ? 'Name Show' : 'Letter Hunt'} template`);
+      setLoading(false);
+      return;
+    }
+
+    // Validate asset type selection for templates that require it
+    if ((form.template === 'name-video' || form.template === 'letter-hunt' || form.template === 'lullaby') && !form.imageType) {
+      const templateName = form.template === 'name-video' ? 'Name Video' : 
+                          form.template === 'letter-hunt' ? 'Letter Hunt' : 'Lullaby';
+      setError(`Asset type selection is required for ${templateName} template`);
       setLoading(false);
       return;
     }
@@ -450,6 +558,73 @@ export default function PromptGeneratorPage() {
                 </div>
               )}
 
+              {form.template === 'lullaby' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Asset Type *
+                  </label>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    {[
+                      { value: 'bedtime_intro', label: 'Intro Scene', desc: 'Peaceful nighttime intro' },
+                      { value: 'bedtime_outro', label: 'Outro Scene', desc: 'Serene goodnight scene' },
+                      { value: 'bedtime_scene', label: 'Slideshow Scene', desc: 'Soothing bedtime imagery' }
+                    ].map(({ value, label, desc }) => (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => setForm(prev => ({ ...prev, imageType: value as any }))}
+                        className={`p-3 border rounded-lg text-left text-sm ${
+                          form.imageType === value
+                            ? 'border-blue-500 bg-blue-50 text-blue-700'
+                            : 'border-gray-300 hover:border-gray-400'
+                        }`}
+                      >
+                        <div className="font-medium">{label}</div>
+                        <div className="text-xs text-gray-600">{desc}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {form.template === 'name-video' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Asset Type *
+                  </label>
+                  {!form.imageType && (
+                    <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                      <div className="text-sm text-blue-700">
+                        <strong>Choose an asset type:</strong> Each asset type automatically applies the correct safe zone and generates specialized prompts.
+                      </div>
+                    </div>
+                  )}
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    {[
+                      { value: 'letterImageLeftSafe', label: 'Letter Left Safe', desc: 'Character on right, text safe on left' },
+                      { value: 'letterImageRightSafe', label: 'Letter Right Safe', desc: 'Character on left, text safe on right' },
+                      { value: 'introScene', label: 'Intro Scene', desc: 'Opening frame/border' },
+                      { value: 'outroScene', label: 'Outro Scene', desc: 'Closing frame/border' },
+                      { value: 'nameVideoTitleCard', label: 'Title Card', desc: 'Child name prominently displayed' }
+                    ].map(({ value, label, desc }) => (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => setForm(prev => ({ ...prev, imageType: value as any }))}
+                        className={`p-3 border rounded-lg text-left text-sm ${
+                          form.imageType === value
+                            ? 'border-blue-500 bg-blue-50 text-blue-700'
+                            : 'border-gray-300 hover:border-gray-400'
+                        }`}
+                      >
+                        <div className="font-medium">{label}</div>
+                        <div className="text-xs text-gray-600">{desc}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Theme */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -638,47 +813,60 @@ export default function PromptGeneratorPage() {
                 </div>
               )}
 
-              {/* Safe Zone Selection */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Safe Zones</label>
-                {form.template === 'letter-hunt' && form.imageType ? (
-                  <div className="text-xs text-gray-600 mb-2">
-                    <span className="font-medium">Recommended for {form.imageType}:</span>{' '}
-                    {form.imageType === 'titleCard' || form.imageType === 'endingImage' 
-                      ? 'all_ok (full composition)' 
-                      : 'center_safe (keep letter/content centered)'}
-                  </div>
-                ) : (
+              {/* Safe Zone Selection - only show for name-video, name-show, educational */}
+              {!['letter-hunt', 'lullaby'].includes(form.template) && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Safe Zones</label>
                   <div className="text-xs text-gray-600 mb-2">
                     Compatible zones for {form.template}: {getSafeZonesForTemplate(form.template).join(', ')}
                   </div>
-                )}
-                <div className="flex flex-wrap gap-4">
-                  {getSafeZonesForTemplate(form.template).map((zone: string) => (
-                    <label key={zone} className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        checked={form.safeZones.includes(zone)}
-                        onChange={e => {
-                          if (e.target.checked) {
-                            setForm(prev => ({ ...prev, safeZones: [...prev.safeZones, zone] }));
-                          } else {
-                            setForm(prev => ({ ...prev, safeZones: prev.safeZones.filter(z => z !== zone) }));
-                          }
-                        }}
-                      />
-                      <span className="text-sm capitalize">{zone.replace('_', ' ')}</span>
-                      {/* Show recommendations for Letter Hunt */}
-                      {form.template === 'letter-hunt' && form.imageType && (
-                        ((form.imageType === 'titleCard' || form.imageType === 'endingImage') && zone === 'all_ok') ||
-                        ((form.imageType === 'signImage' || form.imageType === 'bookImage' || form.imageType === 'groceryImage') && zone === 'center_safe')
-                      ) && (
-                        <span className="text-xs text-green-600 font-medium">✓ Recommended</span>
-                      )}
-                    </label>
-                  ))}
+                  <div className="flex flex-wrap gap-4">
+                    {getSafeZonesForTemplate(form.template).map((zone: string) => (
+                      <label key={zone} className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          checked={form.safeZones.includes(zone)}
+                          onChange={e => {
+                            if (e.target.checked) {
+                              setForm(prev => ({ ...prev, safeZones: [...prev.safeZones, zone] }));
+                            } else {
+                              setForm(prev => ({ ...prev, safeZones: prev.safeZones.filter(z => z !== zone) }));
+                            }
+                          }}
+                        />
+                        <span className="text-sm capitalize">{zone.replace('_', ' ')}</span>
+                      </label>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
+
+              {/* Safe Zone Display for Letter Hunt, Lullaby, and Name Video - show current safe zone but no checkboxes */}
+              {['letter-hunt', 'lullaby', 'name-video'].includes(form.template) && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Safe Zones</label>
+                  {form.template === 'letter-hunt' && form.imageType ? (
+                    <div className="text-sm text-gray-600 mb-2">
+                      <span className="font-medium">Recommended for {form.imageType}:</span>{' '}
+                      {form.safeZones[0]} ({form.safeZones[0] === 'all_ok' ? 'full composition' : 'centered content'})
+                    </div>
+                  ) : form.template === 'lullaby' && form.imageType ? (
+                    <div className="text-sm text-gray-600 mb-2">
+                      <span className="font-medium">Auto-assigned for {form.imageType === 'bedtime_intro' ? 'Intro Scene' : form.imageType === 'bedtime_outro' ? 'Outro Scene' : 'Slideshow Scene'}:</span>{' '}
+                      {form.safeZones[0]} ({form.safeZones[0] === 'frame' ? 'decorative frame with empty center' : form.safeZones[0] === 'outro_safe' ? 'closing frame with border' : 'full frame content'})
+                    </div>
+                  ) : form.template === 'name-video' && form.imageType ? (
+                    <div className="text-sm text-gray-600 mb-2">
+                      <span className="font-medium">Auto-assigned for {form.imageType === 'letterImageLeftSafe' ? 'Letter Left Safe' : form.imageType === 'letterImageRightSafe' ? 'Letter Right Safe' : form.imageType === 'introScene' ? 'Intro Scene' : form.imageType === 'outroScene' ? 'Outro Scene' : 'Title Card'}:</span>{' '}
+                      {form.safeZones[0]} ({form.safeZones[0] === 'left_safe' ? 'character on right, left clear for text' : form.safeZones[0] === 'right_safe' ? 'character on left, right clear for text' : form.safeZones[0] === 'frame' ? 'decorative frame with empty center' : form.safeZones[0] === 'all_ok' ? 'full composition' : 'centered layout'})
+                    </div>
+                  ) : (
+                    <div className="text-sm text-gray-600 mb-2">
+                      Current: {form.safeZones[0] || 'none selected'} (auto-assigned based on image type)
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Prompt Count */}
               <div>
