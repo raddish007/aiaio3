@@ -2595,6 +2595,7 @@ export default function AssetManagement() {
                     setShowModal(false);
                     setReviewForm({ safe_zone: [], approval_notes: '', rejection_reason: '' });
                     setEditForm({ 
+                      title: '',
                       theme: '', 
                       description: '', 
                       tags: '', 
