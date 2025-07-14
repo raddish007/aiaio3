@@ -30,6 +30,23 @@ const nextConfig = {
       'remotionlambda-useast1-3pwoq46nsa.s3.us-east-1.amazonaws.com',
     ],
   },
+  
+  async rewrites() {
+    // Block admin routes in production deployments
+    if (process.env.VERCEL_ENV === 'production' || process.env.DEPLOY_TARGET === 'public') {
+      return [
+        {
+          source: '/admin/:path*',
+          destination: '/404'
+        },
+        {
+          source: '/api/admin/:path*', 
+          destination: '/api/not-found'
+        }
+      ];
+    }
+    return [];
+  }
 };
 
 module.exports = nextConfig; 
