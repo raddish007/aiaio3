@@ -138,12 +138,24 @@ export default function VideoPlayer({ video, className = "", autoPlay = false }:
     }, 3000);
   };
 
+  const handleTouch = () => {
+    setShowControls(true);
+    // Hide controls after 4 seconds on mobile for easier interaction
+    setTimeout(() => {
+      if (isPlaying) {
+        setShowControls(false);
+      }
+    }, 4000);
+  };
+
   return (
     <div
       ref={containerRef}
       className={`relative bg-black rounded-xl overflow-hidden shadow-lg ${className}`}
       onMouseMove={handleMouseMove}
       onMouseLeave={() => setShowControls(false)}
+      onTouchStart={handleTouch}
+      onTouchEnd={handleTouch}
     >
       {/* Video Element */}
       <video
@@ -177,9 +189,9 @@ export default function VideoPlayer({ video, className = "", autoPlay = false }:
         <div className="absolute inset-0 flex items-center justify-center">
           <button
             onClick={togglePlay}
-            className="group bg-white/90 backdrop-blur-sm rounded-full p-8 hover:bg-white transition-all duration-300 transform hover:scale-105 shadow-2xl"
+            className="group bg-white/90 backdrop-blur-sm rounded-full p-4 sm:p-8 hover:bg-white transition-all duration-300 transform hover:scale-105 shadow-2xl"
           >
-            <svg className="w-12 h-12 text-black ml-1 group-hover:scale-110 transition-transform duration-200" fill="currentColor" viewBox="0 0 24 24">
+            <svg className="w-8 h-8 sm:w-12 sm:h-12 text-black ml-1 group-hover:scale-110 transition-transform duration-200" fill="currentColor" viewBox="0 0 24 24">
               <path d="M8 5v14l11-7z"/>
             </svg>
           </button>
@@ -188,12 +200,12 @@ export default function VideoPlayer({ video, className = "", autoPlay = false }:
 
       {/* Controls Overlay */}
       <div
-        className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/80 to-transparent p-6 transition-opacity ${
+        className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/80 to-transparent p-3 sm:p-6 transition-opacity ${
           showControls ? 'opacity-100' : 'opacity-0'
         }`}
       >
         {/* Progress Bar */}
-        <div className="mb-8">
+        <div className="mb-4 sm:mb-8">
           <input
             type="range"
             min="0"
@@ -209,34 +221,34 @@ export default function VideoPlayer({ video, className = "", autoPlay = false }:
 
         {/* Control Buttons */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-8">
+          <div className="flex items-center space-x-3 sm:space-x-8">
             {/* Play/Pause Button */}
             <button
               onClick={togglePlay}
-              className="group bg-white/10 backdrop-blur-sm hover:bg-white/20 rounded-full p-3 transition-all duration-200 transform hover:scale-105"
+              className="group bg-white/10 backdrop-blur-sm hover:bg-white/20 rounded-full p-2 sm:p-3 transition-all duration-200 transform hover:scale-105"
             >
               {isPlaying ? (
-                <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 sm:w-6 sm:h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/>
                 </svg>
               ) : (
-                <svg className="w-6 h-6 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 sm:w-6 sm:h-6 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M8 5v14l11-7z"/>
                 </svg>
               )}
             </button>
 
             {/* Time Display */}
-            <div className="bg-black/30 backdrop-blur-sm rounded-lg px-3 py-1">
-              <span className="text-white text-sm font-medium tabular-nums">
+            <div className="bg-black/30 backdrop-blur-sm rounded-lg px-2 py-1 sm:px-3 sm:py-1">
+              <span className="text-white text-xs sm:text-sm font-medium tabular-nums">
                 {formatTime(currentTime)} / {formatTime(duration)}
               </span>
             </div>
           </div>
 
-          <div className="flex items-center space-x-6">
-            {/* Volume Control */}
-            <div className="flex items-center space-x-3 bg-black/30 backdrop-blur-sm rounded-lg px-3 py-2">
+          <div className="flex items-center space-x-3 sm:space-x-6">
+            {/* Volume Control - Hide on small screens */}
+            <div className="hidden sm:flex items-center space-x-3 bg-black/30 backdrop-blur-sm rounded-lg px-3 py-2">
               <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
               </svg>
@@ -254,14 +266,14 @@ export default function VideoPlayer({ video, className = "", autoPlay = false }:
             {/* Fullscreen Button */}
             <button
               onClick={toggleFullscreen}
-              className="group bg-white/10 backdrop-blur-sm hover:bg-white/20 rounded-full p-3 transition-all duration-200 transform hover:scale-105"
+              className="group bg-white/10 backdrop-blur-sm hover:bg-white/20 rounded-full p-2 sm:p-3 transition-all duration-200 transform hover:scale-105"
             >
               {isFullscreen ? (
-                <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 sm:w-5 sm:h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"/>
                 </svg>
               ) : (
-                <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 sm:w-5 sm:h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>
                 </svg>
               )}
@@ -271,10 +283,10 @@ export default function VideoPlayer({ video, className = "", autoPlay = false }:
       </div>
 
       {/* Video Title - Only show on hover */}
-      <div className={`absolute top-6 left-6 transition-opacity ${
+      <div className={`absolute top-3 sm:top-6 left-3 sm:left-6 transition-opacity ${
         showControls ? 'opacity-100' : 'opacity-0'
       }`}>
-        <h3 className="text-white text-xl font-bold drop-shadow-lg bg-black/50 px-4 py-2 rounded-lg">
+        <h3 className="text-white text-base sm:text-xl font-bold drop-shadow-lg bg-black/50 px-3 py-1 sm:px-4 sm:py-2 rounded-lg">
           {video.title}
         </h3>
       </div>

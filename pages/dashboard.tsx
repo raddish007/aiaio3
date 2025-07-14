@@ -161,7 +161,7 @@ export default function Dashboard() {
         {/* Header */}
         <header className="bg-white border-b border-gray-200">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center py-6">
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center py-4 space-y-4 sm:space-y-0">
               <div className="flex items-center space-x-4">
                 <Image
                   src="/HippoPolkaLogo.png"
@@ -169,19 +169,20 @@ export default function Dashboard() {
                   width={60}
                   height={60}
                   priority
+                  className="flex-shrink-0"
                 />
-                <h1 className="text-2xl font-bold text-black">Hippo Polka Beta</h1>
+                <h1 className="text-xl sm:text-2xl font-bold text-black truncate">Hippo Polka Beta</h1>
               </div>
-              <div className="flex items-center space-x-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
                 {children.length > 1 && (
-                  <div className="relative">
+                  <div className="relative w-full sm:w-auto">
                     <select
                       value={selectedChild?.id || ''}
                       onChange={(e) => {
                         const child = children.find(c => c.id === e.target.value);
                         setSelectedChild(child || null);
                       }}
-                      className="border border-gray-300 rounded-md px-4 py-2 pr-10 text-black bg-white min-w-[200px] appearance-none"
+                      className="border border-gray-300 rounded-md px-4 py-2 pr-10 text-black bg-white w-full sm:min-w-[200px] appearance-none"
                     >
                       {children.map((child) => (
                         <option key={child.id} value={child.id}>
@@ -196,18 +197,20 @@ export default function Dashboard() {
                     </div>
                   </div>
                 )}
-                <Link
-                  href="/account-management"
-                  className="text-black hover:text-gray-600 transition-colors"
-                >
-                  Account Settings
-                </Link>
-                <button
-                  onClick={handleLogout}
-                  className="text-black hover:text-gray-600 transition-colors"
-                >
-                  Logout
-                </button>
+                <div className="flex space-x-4">
+                  <Link
+                    href="/account-management"
+                    className="text-black hover:text-gray-600 transition-colors text-sm sm:text-base"
+                  >
+                    Account Settings
+                  </Link>
+                  <button
+                    onClick={handleLogout}
+                    className="text-black hover:text-gray-600 transition-colors text-sm sm:text-base"
+                  >
+                    Logout
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -246,7 +249,7 @@ export default function Dashboard() {
                 <h3 className="text-xl font-bold text-black">Video Gallery</h3>
               </div>
               {videos.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                   {videos.map((video) => {
                     return (
                       <div

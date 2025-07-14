@@ -79,19 +79,19 @@ export default function AccountManagement() {
     <div className="min-h-screen bg-white text-black">
       {/* Minimalist Header */}
       <header className="border-b border-black/10">
-        <div className="max-w-4xl mx-auto px-6 py-8">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-6">
-              <Link href="/dashboard" className="text-black/60 hover:text-black transition-colors">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
+            <div className="flex items-center space-x-4 sm:space-x-6">
+              <Link href="/dashboard" className="text-black/60 hover:text-black transition-colors text-sm sm:text-base">
                 ← Dashboard
               </Link>
-              <h1 className="text-2xl font-light text-black">Account</h1>
+              <h1 className="text-xl sm:text-2xl font-light text-black">Account</h1>
             </div>
-            <div className="flex items-center space-x-6">
-              <span className="text-black/60 text-sm">{user?.email}</span>
+            <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-6">
+              <span className="text-black/60 text-xs sm:text-sm truncate">{user?.email}</span>
               <button
                 onClick={handleLogout}
-                className="text-black/60 hover:text-black transition-colors text-sm"
+                className="text-black/60 hover:text-black transition-colors text-xs sm:text-sm text-left sm:text-center"
               >
                 Sign Out
               </button>
@@ -100,13 +100,13 @@ export default function AccountManagement() {
         </div>
       </header>
 
-      <div className="max-w-4xl mx-auto px-6 py-12">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
         {/* Minimalist Tab Navigation */}
-        <div className="border-b border-black/10 mb-12">
-          <nav className="flex space-x-12">
+        <div className="border-b border-black/10 mb-8 sm:mb-12">
+          <nav className="flex space-x-6 sm:space-x-12 overflow-x-auto">
             <button
               onClick={() => setActiveTab('children')}
-              className={`pb-4 text-sm transition-colors ${
+              className={`pb-4 text-sm whitespace-nowrap transition-colors ${
                 activeTab === 'children'
                   ? 'text-black border-b-2 border-black'
                   : 'text-black/50 hover:text-black/70'
@@ -116,7 +116,7 @@ export default function AccountManagement() {
             </button>
             <button
               onClick={() => setActiveTab('subscription')}
-              className={`pb-4 text-sm transition-colors ${
+              className={`pb-4 text-sm whitespace-nowrap transition-colors ${
                 activeTab === 'subscription'
                   ? 'text-black border-b-2 border-black'
                   : 'text-black/50 hover:text-black/70'
@@ -126,7 +126,7 @@ export default function AccountManagement() {
             </button>
             <button
               onClick={() => setActiveTab('settings')}
-              className={`pb-4 text-sm transition-colors ${
+              className={`pb-4 text-sm whitespace-nowrap transition-colors ${
                 activeTab === 'settings'
                   ? 'text-black border-b-2 border-black'
                   : 'text-black/50 hover:text-black/70'
@@ -146,7 +146,7 @@ export default function AccountManagement() {
             </div>
 
             {children.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8">
                 {children.map((child) => (
                   <div key={child.id} className="border border-black/10 p-8 hover:border-black/20 transition-colors">
                     <div className="flex items-start space-x-6">
