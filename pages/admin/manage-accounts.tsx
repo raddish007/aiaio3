@@ -35,6 +35,7 @@ export default function ManageAccounts() {
   const [showAddChildForm, setShowAddChildForm] = useState(false);
   const [showEditChildForm, setShowEditChildForm] = useState(false);
   const [showEditPasswordForm, setShowEditPasswordForm] = useState(false);
+  const [showEditAccountForm, setShowEditAccountForm] = useState(false);
   const [editingChild, setEditingChild] = useState<Child | null>(null);
   const [editingParent, setEditingParent] = useState<ParentAccount | null>(null);
   const [newChild, setNewChild] = useState({
@@ -55,6 +56,7 @@ export default function ManageAccounts() {
   });
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [newEmail, setNewEmail] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const router = useRouter();
@@ -321,6 +323,71 @@ export default function ManageAccounts() {
     }
   };
 
+  const handleEditAccount = (parent: ParentAccount) => {
+    setEditingParent(parent);
+    setNewEmail(parent.email);
+    setShowEditAccountForm(true);
+  };
+
+  const handleUpdateAccount = async () => {
+    if (!editingParent || !newEmail.trim()) {
+      setError('Please enter a valid email');
+      return;
+    }
+
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(newEmail)) {
+      setError('Please enter a valid email address');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    setMessage('');
+
+    try {
+      // Call API endpoint to update email
+      const response = await fetch('/api/admin/update-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: editingParent.id,
+          newEmail: newEmail
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to update email');
+      }
+
+      setMessage(`Email updated successfully for ${editingParent.email} → ${newEmail}`);
+      
+      // Update local state
+      setParentAccounts(prevAccounts => 
+        prevAccounts.map(account => 
+          account.id === editingParent.id 
+            ? { ...account, email: newEmail }
+            : account
+        )
+      );
+      
+      // Reset form
+      setNewEmail('');
+      setShowEditAccountForm(false);
+      setEditingParent(null);
+
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleRemoveChild = async (childId: string, childName: string) => {
     if (!confirm(`Are you sure you want to remove ${childName}? This action cannot be undone.`)) {
       return;
@@ -409,6 +476,12 @@ export default function ManageAccounts() {
                       <p className="text-sm text-gray-600">{parent.children.length} children</p>
                     </div>
                     <div className="flex space-x-2">
+                      <button
+                        onClick={() => handleEditAccount(parent)}
+                        className="px-3 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors text-sm"
+                      >
+                        Edit Account
+                      </button>
                       <button
                         onClick={() => handleEditPassword(parent)}
                         className="px-3 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 transition-colors text-sm"
@@ -830,6 +903,62 @@ export default function ManageAccounts() {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+
+        {/* Edit Account Modal */}
+        {showEditAccountForm && editingParent && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-8 max-w-md w-full mx-4">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-lg font-semibold text-gray-900">Update Account for {editingParent.email}</h3>
+                <button
+                  onClick={() => {
+                    setShowEditAccountForm(false);
+                    setEditingParent(null);
+                    setNewEmail('');
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Email Address
+                  </label>
+                  <input
+                    type="email"
+                    value={newEmail}
+                    onChange={(e) => setNewEmail(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Enter new email address"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end space-x-4 mt-6">
+                <button
+                  onClick={() => {
+                    setShowEditAccountForm(false);
+                    setEditingParent(null);
+                    setNewEmail('');
+                  }}
+                  className="px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleUpdateAccount}
+                  disabled={loading}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {loading ? 'Updating...' : 'Update Account'}
+                </button>
+              </div>
             </div>
           </div>
         )}

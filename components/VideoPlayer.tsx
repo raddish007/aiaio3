@@ -26,6 +26,8 @@ export default function VideoPlayer({ video, className = "", autoPlay = false }:
   const [volume, setVolume] = useState(1);
   const [showControls, setShowControls] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isBuffering, setIsBuffering] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -39,6 +41,7 @@ export default function VideoPlayer({ video, className = "", autoPlay = false }:
 
     const handleLoadedMetadata = () => {
       setDuration(videoElement.duration);
+      setIsLoading(false);
       if (autoPlay) {
         videoElement.play().catch(console.error);
       }
@@ -47,12 +50,18 @@ export default function VideoPlayer({ video, className = "", autoPlay = false }:
     const handlePlay = () => setIsPlaying(true);
     const handlePause = () => setIsPlaying(false);
     const handleEnded = () => setIsPlaying(false);
+    const handleWaiting = () => setIsBuffering(true);
+    const handleCanPlay = () => setIsBuffering(false);
+    const handleLoadStart = () => setIsLoading(true);
 
     videoElement.addEventListener('timeupdate', handleTimeUpdate);
     videoElement.addEventListener('loadedmetadata', handleLoadedMetadata);
     videoElement.addEventListener('play', handlePlay);
     videoElement.addEventListener('pause', handlePause);
     videoElement.addEventListener('ended', handleEnded);
+    videoElement.addEventListener('waiting', handleWaiting);
+    videoElement.addEventListener('canplay', handleCanPlay);
+    videoElement.addEventListener('loadstart', handleLoadStart);
 
     return () => {
       videoElement.removeEventListener('timeupdate', handleTimeUpdate);
@@ -60,8 +69,17 @@ export default function VideoPlayer({ video, className = "", autoPlay = false }:
       videoElement.removeEventListener('play', handlePlay);
       videoElement.removeEventListener('pause', handlePause);
       videoElement.removeEventListener('ended', handleEnded);
+      videoElement.removeEventListener('waiting', handleWaiting);
+      videoElement.removeEventListener('canplay', handleCanPlay);
+      videoElement.removeEventListener('loadstart', handleLoadStart);
     };
   }, []);
+
+  // Reset loading state when video URL changes
+  useEffect(() => {
+    setIsLoading(true);
+    setIsBuffering(false);
+  }, [optimizedVideoUrl]);
 
   useEffect(() => {
     const videoElement = videoRef.current;
@@ -140,8 +158,22 @@ export default function VideoPlayer({ video, className = "", autoPlay = false }:
         Your browser does not support the video tag.
       </video>
 
+      {/* Loading/Buffering Spinner Overlay */}
+      {(isLoading || isBuffering) && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/20 backdrop-blur-sm">
+          <div className="relative">
+            {/* Minimalist spinning circle */}
+            <div className="w-16 h-16 border-4 border-white/30 rounded-full animate-spin border-t-white"></div>
+            {/* Inner dot for extra visual interest */}
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Play Button Overlay */}
-      {!isPlaying && (
+      {!isPlaying && !isLoading && (
         <div className="absolute inset-0 flex items-center justify-center">
           <button
             onClick={togglePlay}

@@ -112,6 +112,32 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           'fal.ai_imagen4'
         );
 
+        // Handle special metadata mapping for lullaby slideshow assets
+        const isLullabySlideshow = req.body.template === 'lullaby' && 
+                                  (req.body.imageType === 'bedtime_scene' || safeZone === 'slideshow');
+        
+        const metadata = {
+          ...(promptData?.metadata || {}),
+          ...req.body, // Include any additional context from the request
+          generated_at: new Date().toISOString(),
+          generation_method: 'fal.ai_imagen4',
+          job_id: generationJob.jobId,
+          aspect_ratio: aspectRatio,
+          style: style,
+          safe_zone: safeZone,
+          safeZone: safeZone, // Also set camelCase version
+          seed: generationJob.result.seed,
+          fal_original_url: originalUrl, // Store original FAL URL for reference
+          file_size_bytes: fileSize,
+        };
+
+        // For lullaby slideshow assets, ensure correct fields are set
+        if (isLullabySlideshow) {
+          metadata.imageType = 'bedtime_scene';
+          metadata.asset_class = 'bedtime_scene';
+          metadata.template = 'lullaby';
+        }
+
         assetData = {
           type: 'image',
           theme: promptData?.theme || req.body.theme || 'general',
@@ -119,19 +145,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           status: 'pending',
           file_url: supabaseUrl, // Use permanent Supabase URL
           prompt: prompt, // Use the provided prompt text
-          metadata: {
-            ...(promptData?.metadata || {}),
-            ...req.body, // Include any additional context from the request
-            generated_at: new Date().toISOString(),
-            generation_method: 'fal.ai_imagen4',
-            job_id: generationJob.jobId,
-            aspect_ratio: aspectRatio,
-            style: style,
-            safe_zone: safeZone,
-            seed: generationJob.result.seed,
-            fal_original_url: originalUrl, // Store original FAL URL for reference
-            file_size_bytes: fileSize,
-          },
+          metadata: metadata,
         };
       }
     } else if (assetType === 'audio') {

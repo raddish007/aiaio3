@@ -451,11 +451,13 @@ export default function AssetManagement() {
           audio_class: (selectedAsset && selectedAsset.type === 'audio') ? editForm.audio_class : undefined,
           letter: (selectedAsset && selectedAsset.type === 'audio' && editForm.audio_class === 'letter_audio') ? editForm.letter : undefined,
           // Enhanced metadata fields
-          imageType: (selectedAsset && selectedAsset.type === 'image') ? editForm.imageType : undefined,
+          imageType: (selectedAsset && selectedAsset.type === 'image') ? 
+            (editForm.safeZone === 'slideshow' ? 'bedtime_scene' : editForm.imageType) : undefined,
           artStyle: (selectedAsset && selectedAsset.type === 'image') ? editForm.artStyle : undefined,
           aspectRatio: (selectedAsset && selectedAsset.type === 'image') ? editForm.aspectRatio : undefined,
           ageRange: editForm.ageRange || undefined,
           safeZone: (selectedAsset && selectedAsset.type === 'image') ? editForm.safeZone : undefined,
+          asset_class: (selectedAsset && selectedAsset.type === 'image' && editForm.safeZone === 'slideshow') ? 'bedtime_scene' : undefined,
           targetLetter: editForm.targetLetter || undefined,
           additionalContext: editForm.additionalContext || undefined,
           review: {
@@ -529,6 +531,10 @@ export default function AssetManagement() {
         return;
       }
 
+      const isSlideshow = (selectedAsset && selectedAsset.type === 'image' && editForm.safeZone === 'slideshow');
+      const imageTypeValue = isSlideshow ? 'bedtime_scene' : (selectedAsset && selectedAsset.type === 'image' ? editForm.imageType : undefined);
+      const assetClassValue = isSlideshow ? 'bedtime_scene' : undefined;
+
       const { data, error } = await supabase
         .from('assets')
         .update({ 
@@ -546,11 +552,12 @@ export default function AssetManagement() {
             audio_class: (selectedAsset && selectedAsset.type === 'audio') ? editForm.audio_class : undefined,
             letter: (selectedAsset && selectedAsset.type === 'audio' && editForm.audio_class === 'letter_audio') ? editForm.letter : undefined,
             // Enhanced metadata fields
-            imageType: (selectedAsset && selectedAsset.type === 'image') ? editForm.imageType : undefined,
+            imageType: imageTypeValue,
             artStyle: (selectedAsset && selectedAsset.type === 'image') ? editForm.artStyle : undefined,
             aspectRatio: (selectedAsset && selectedAsset.type === 'image') ? editForm.aspectRatio : undefined,
             ageRange: editForm.ageRange || undefined,
             safeZone: (selectedAsset && selectedAsset.type === 'image') ? editForm.safeZone : undefined,
+            asset_class: assetClassValue,
             targetLetter: editForm.targetLetter || undefined,
             additionalContext: editForm.additionalContext || undefined,
             review: {

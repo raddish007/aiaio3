@@ -81,7 +81,7 @@ const LULLABY_ASSET_DEFINITIONS = {
   }
 };
 
-const BEDTIME_IMAGES_TARGET = 15; // Target number of bedtime scene images
+const BEDTIME_IMAGES_TARGET = 23; // Target number of bedtime scene images (matches template requirements)
 
 export default function LullabyRequestV2() {
   const router = useRouter();
@@ -193,18 +193,19 @@ export default function LullabyRequestV2() {
         supabase
           .from('assets')
           .select('*')
-          .in('status', ['approved', 'pending'])
+          .eq('status', 'approved')
           .eq('metadata->>template', 'lullaby')
           .eq('metadata->>child_name', nameToUse),
         
-        // Bedtime scene images for theme
+        // Bedtime scene images for theme (lullaby template only)
         supabase
           .from('assets')
           .select('*')
-          .in('status', ['approved', 'pending'])
+          .eq('status', 'approved')
           .eq('type', 'image')
+          .eq('metadata->>template', 'lullaby')
           .or(`metadata->>asset_class.eq.bedtime_scene,metadata->>imageType.eq.bedtime_scene`)
-          .eq('metadata->>child_theme', themeToUse),
+          .or(`metadata->>child_theme.eq.${themeToUse},theme.ilike.%${themeToUse}%`),
         
         // Background music (DreamDrip asset)
         supabase
@@ -217,26 +218,23 @@ export default function LullabyRequestV2() {
         supabase
           .from('assets')
           .select('*')
-          .in('status', ['approved', 'pending'])
+          .eq('status', 'approved')
           .eq('type', 'image')
           .or(`metadata->>asset_class.in.(bedtime_intro,bedtime_outro),metadata->>imageType.in.(bedtime_intro,bedtime_outro)`)
-          .eq('metadata->>template', 'lullaby'),
+          .eq('metadata->>template', 'lullaby')
+          .or(`metadata->>child_theme.eq.${themeToUse},theme.ilike.%${themeToUse}%`),
         
-        // Fallback: Old-style theme-matching images with safe_zone (for backwards compatibility)
+        // No fallback queries - only use proper lullaby template assets
         supabase
           .from('assets')
           .select('*')
-          .eq('status', 'approved')
-          .eq('type', 'image')
-          .ilike('theme', `%${themeToUse}%`),
+          .limit(0), // Empty query since we don't use fallbacks
         
-        // Fallback: Old-style slideshow images with 'all_ok' safe_zone (for backwards compatibility)
+        // No fallback queries - only use proper lullaby template assets
         supabase
           .from('assets')
           .select('*')
-          .eq('status', 'approved')
-          .eq('type', 'image')
-          .ilike('theme', `%${themeToUse}%`)
+          .limit(0) // Empty query since we don't use fallbacks
       ]);
 
       console.log('🔍 Asset fetch results:', {
@@ -244,8 +242,8 @@ export default function LullabyRequestV2() {
         bedtimeImages: bedtimeImages.data?.length || 0,
         backgroundMusic: backgroundMusicAsset.data ? 'found' : 'missing',
         themeImages: themeImages.data?.length || 0,
-        oldStyleThemeImages: oldStyleThemeImages.data?.length || 0,
-        oldStyleSlideshowImages: oldStyleSlideshowImages.data?.length || 0
+        oldStyleThemeImages: 'N/A (no fallbacks)',
+        oldStyleSlideshowImages: 'N/A (no fallbacks)'
       });
 
       // Initialize asset status objects
@@ -294,7 +292,6 @@ export default function LullabyRequestV2() {
         console.log('🔍 Processing specific assets:', specificAssets.data.length);
         specificAssets.data.forEach(asset => {
           const assetClass = asset.metadata?.asset_class || asset.metadata?.audio_class;
-          const status = asset.status === 'approved' ? 'ready' : 'generating';
           
           console.log(`🎯 Asset ${asset.id.slice(-8)}: type=${asset.type}, class=${assetClass}, script="${asset.metadata?.script || 'N/A'}"`);
           
@@ -303,7 +300,7 @@ export default function LullabyRequestV2() {
               console.log('  → Assigning to introAudio');
               assets.introAudio = {
                 ...assets.introAudio,
-                status,
+                status: 'ready',
                 url: asset.file_url || '',
                 generatedAt: asset.created_at
               };
@@ -312,7 +309,7 @@ export default function LullabyRequestV2() {
               console.log('  → Assigning to outroAudio');
               assets.outroAudio = {
                 ...assets.outroAudio,
-                status,
+                status: 'ready',
                 url: asset.file_url || '',
                 generatedAt: asset.created_at
               };
@@ -321,7 +318,7 @@ export default function LullabyRequestV2() {
               console.log('  → Assigning to introImage');
               assets.introImage = {
                 ...assets.introImage,
-                status,
+                status: 'ready',
                 url: asset.file_url || '',
                 generatedAt: asset.created_at
               };
@@ -329,7 +326,7 @@ export default function LullabyRequestV2() {
             case 'bedtime_outro':
               assets.outroImage = {
                 ...assets.outroImage,
-                status,
+                status: 'ready',
                 url: asset.file_url || '',
                 generatedAt: asset.created_at
               };
@@ -350,104 +347,51 @@ export default function LullabyRequestV2() {
           type: 'image' as const,
           name: `Bedtime Scene ${asset.id.slice(-4)}`,
           description: 'Soothing bedtime imagery',
-          status: asset.status === 'approved' ? 'ready' : 'generating',
+          status: 'ready',
           url: asset.file_url || '',
           generatedAt: asset.created_at
         }));
       }
 
-      // Fallback: Add old-style slideshow images with 'all_ok' safe_zone if we need more bedtime images
-      if (oldStyleSlideshowImages.data && assets.bedtimeImages.length < BEDTIME_IMAGES_TARGET) {
-        const oldStyleImages = oldStyleSlideshowImages.data.filter(img => {
-          const safeZones = img.metadata?.review?.safe_zone || [];
-          
-          // Handle different safe zone formats (like the old template did)
-          if (Array.isArray(safeZones)) {
-            return safeZones.includes('all_ok');
-          } else if (typeof safeZones === 'string') {
-            return safeZones.includes('all_ok');
-          } else if (safeZones && typeof safeZones === 'object') {
-            return JSON.stringify(safeZones).includes('all_ok');
-          }
-          
-          return false;
-        });
-
-        // Add old-style images to fill up to target number
-        const additionalImages = oldStyleImages
-          .slice(0, BEDTIME_IMAGES_TARGET - assets.bedtimeImages.length)
-          .map(asset => ({
-            type: 'image' as const,
-            name: `Bedtime Scene ${asset.id.slice(-4)} (Legacy)`,
-            description: 'Soothing bedtime imagery (from old Lullaby)',
-            status: 'ready' as const,
-            url: asset.file_url || '',
-            generatedAt: asset.created_at
-          }));
-
-        assets.bedtimeImages = [...assets.bedtimeImages, ...additionalImages];
-      }
+      // No fallbacks - only use proper lullaby slideshow images
+      console.log(`📊 Bedtime images found: ${assets.bedtimeImages.length}/${BEDTIME_IMAGES_TARGET} (no fallbacks used)`);
 
       // Add fallback intro/outro images if needed
       if (assets.introImage.status === 'missing' && themeImages.data) {
         const introAsset = themeImages.data.find(a => 
-          a.metadata?.asset_class === 'bedtime_intro' || a.metadata?.imageType === 'bedtime_intro'
+          (a.metadata?.asset_class === 'bedtime_intro' || a.metadata?.imageType === 'bedtime_intro') &&
+          (a.metadata?.child_theme === themeToUse || a.theme?.toLowerCase().includes(themeToUse.toLowerCase()))
         );
         if (introAsset) {
+          console.log(`🎯 Found theme-matched intro image: ${introAsset.id.slice(-8)} (theme: ${introAsset.theme})`);
           assets.introImage = {
             ...assets.introImage,
-            status: introAsset.status === 'approved' ? 'ready' : 'generating',
+            status: 'ready',
             url: introAsset.file_url || '',
             generatedAt: introAsset.created_at
           };
         }
       }
 
-      // Fallback to old-style intro images with safe_zone
-      if (assets.introImage.status === 'missing' && oldStyleThemeImages.data) {
-        const oldStyleIntroAsset = oldStyleThemeImages.data.find(img => {
-          const safeZones = img.metadata?.review?.safe_zone || [];
-          return safeZones.includes('intro_safe');
-        });
-        if (oldStyleIntroAsset) {
-          assets.introImage = {
-            ...assets.introImage,
-            status: 'ready',
-            url: oldStyleIntroAsset.file_url || '',
-            generatedAt: oldStyleIntroAsset.created_at
-          };
-        }
-      }
+      // No fallbacks for intro images - only use proper lullaby intro images
 
       if (assets.outroImage.status === 'missing' && themeImages.data) {
         const outroAsset = themeImages.data.find(a => 
-          a.metadata?.asset_class === 'bedtime_outro' || a.metadata?.imageType === 'bedtime_outro'
+          (a.metadata?.asset_class === 'bedtime_outro' || a.metadata?.imageType === 'bedtime_outro') &&
+          (a.metadata?.child_theme === themeToUse || a.theme?.toLowerCase().includes(themeToUse.toLowerCase()))
         );
         if (outroAsset) {
+          console.log(`🎯 Found theme-matched outro image: ${outroAsset.id.slice(-8)} (theme: ${outroAsset.theme})`);
           assets.outroImage = {
             ...assets.outroImage,
-            status: outroAsset.status === 'approved' ? 'ready' : 'generating',
+            status: 'ready',
             url: outroAsset.file_url || '',
             generatedAt: outroAsset.created_at
           };
         }
       }
 
-      // Fallback to old-style outro images with safe_zone
-      if (assets.outroImage.status === 'missing' && oldStyleThemeImages.data) {
-        const oldStyleOutroAsset = oldStyleThemeImages.data.find(img => {
-          const safeZones = img.metadata?.review?.safe_zone || [];
-          return safeZones.includes('outro_safe');
-        });
-        if (oldStyleOutroAsset) {
-          assets.outroImage = {
-            ...assets.outroImage,
-            status: 'ready',
-            url: oldStyleOutroAsset.file_url || '',
-            generatedAt: oldStyleOutroAsset.created_at
-          };
-        }
-      }
+      // No fallbacks for outro images - only use proper lullaby outro images
 
       // Calculate asset summary
       const baseAssets = 5; // backgroundMusic, introImage, outroImage, introAudio, outroAudio

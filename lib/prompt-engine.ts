@@ -173,21 +173,21 @@ export class PromptEngine {
     center_safe: {
       id: 'center_safe',
       description: 'Decorative frame with completely empty center for name insertion',
-      compositionInstructions: 'Create ONLY a decorative border or frame design around the outer edges of the image. The frame should be thematic (e.g., paw prints for dogs, leaves for forest themes, stars for space themes) and ornamental. The entire center area must remain completely empty and clear for text placement. Focus exclusively on the border design - NO characters, animals, or objects should be placed anywhere in the image.',
+      compositionInstructions: 'Create ONLY a decorative border or frame design around the outer edges of the image. The frame should be thematic (e.g., paw prints for dogs, leaves for forest themes, stars for space themes) and ornamental. The entire center area must remain completely empty and clear. Focus exclusively on the border design - NO characters, animals, or objects should be placed anywhere in the image.',
       negativeInstructions: 'Absolutely NO characters, animals, people, or main subject elements anywhere in the image. NO visual elements, objects, or decorative details in the center area. The image should consist ONLY of a decorative border/frame around the edges. The center must be completely empty with solid background color.',
       templateCompatibility: ['name-video', 'educational', 'lullaby', 'letter-hunt']
     },
     intro_safe: {
       id: 'intro_safe',
       description: 'Opening frame with decorative border and space for title',
-      compositionInstructions: 'Create a decorative border or frame design around the outer edges of the image with an opening or clear space in the upper center area for title text. The frame should be thematic and welcoming (e.g., paw prints for dogs, stars for space themes, leaves for forest themes) and establish the video\'s mood. The upper-center area (approximately 40% of the image) must remain clear for title placement. Focus on border design - NO characters, animals, or objects should be placed anywhere in the image.',
+      compositionInstructions: 'Create a decorative border or frame design around the outer edges of the image with an opening or clear space in the upper center area. The frame should be thematic and welcoming (e.g., paw prints for dogs, stars for space themes, leaves for forest themes) and establish the video\'s mood. The upper-center area (approximately 40% of the image) must remain clear. Focus on border design - NO characters, animals, or objects should be placed anywhere in the image.',
       negativeInstructions: 'Absolutely NO characters, animals, people, or main subject elements anywhere in the image. NO visual elements, objects, or decorative details in the upper-center title area. The image should consist ONLY of a decorative border/frame around the edges with clear space for title text. Avoid overwhelming details or busy compositions.',
       templateCompatibility: ['name-video', 'lullaby', 'educational']
     },
     outro_safe: {
       id: 'outro_safe',
       description: 'Closing frame with decorative border and space for farewell message',
-      compositionInstructions: 'Create a peaceful decorative border or frame design around the outer edges of the image with an opening or clear space in the center area for farewell messages and end credits. The frame should be thematic and provide closure (e.g., sleepy elements for lullabies, graduation caps for educational content). The center area (approximately 50% of the image) must remain clear for text placement. Focus exclusively on border design - NO characters, animals, or objects should be placed anywhere in the image.',
+      compositionInstructions: 'Create a peaceful decorative border or frame design around the outer edges of the image with an opening or clear space in the center area for farewell messages and end credits. The frame should be thematic and provide closure (e.g., sleepy elements for lullabies, graduation caps for educational content). The center area (approximately 50% of the image) must remain clear. Focus exclusively on border design - NO characters, animals, or objects should be placed anywhere in the image.',
       negativeInstructions: 'Absolutely NO characters, animals, people, or main subject elements anywhere in the image. NO visual elements, objects, or decorative details in the center text area. The image should consist ONLY of a decorative border/frame around the edges with clear space for farewell text. Avoid jarring or overly energetic elements.',
       templateCompatibility: ['name-video', 'lullaby', 'educational']
     },
@@ -201,7 +201,7 @@ export class PromptEngine {
     frame: {
       id: 'frame',
       description: 'Frame composition with center area empty for title text',
-      compositionInstructions: 'Create a beautiful decorative frame or border design around the outer edges of the image with the center area completely empty for title text overlay. The frame should be thematic and peaceful, perfectly suited for bedtime or lullaby content (e.g., stars and moons, soft clouds, gentle flowers, sleepy animals as border elements). The entire center area must remain completely clear and empty for text placement. Focus on creating an elegant, soothing frame design around the edges only.',
+      compositionInstructions: 'Create a beautiful decorative frame or border design around the outer edges of the image with the center area completely empty. The frame should be thematic and peaceful, perfectly suited for bedtime or lullaby content (e.g., stars and moons, soft clouds, gentle flowers, sleepy animals as border elements). The entire center area must remain completely clear and empty. Focus on creating an elegant, soothing frame design around the edges only.',
       negativeInstructions: 'Absolutely NO characters, animals, people, or main subject elements anywhere in the image center. NO visual elements, objects, or decorative details in the center area where title text will be placed. The image should consist ONLY of a decorative border/frame around the outer edges. The center must be completely empty with solid background color.',
       templateCompatibility: ['lullaby']
     },
@@ -525,7 +525,7 @@ IMPORTANT: Make each prompt significantly different by varying:
 TARGET DETAILS:
 • Age Range: ${context.ageRange} years old
 • Template: ${template.name}
-• Composition Style: ${safeZoneRule.description}
+${context.safeZone !== 'slideshow' ? `• Composition Style: ${safeZoneRule.description}` : ''}
 ${context.childName ? `• Child Name Context: ${context.childName}` : ''}
 ${context.additionalContext ? `• Additional Context: ${context.additionalContext}` : ''}
 

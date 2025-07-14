@@ -196,6 +196,8 @@ Each prompt must include art style, the specific visual requirements from the ta
         ['letterImageLeftSafe', 'letterImageRightSafe', 'introScene', 'outroScene', 'nameVideoTitleCard'].includes(context.imageType)) {
       // Handle name-video with specific image types
       instructions = this.getNameVideoAssetInstructions(context.imageType);
+    } else if (context.template === 'lullaby' && context.imageType && ['bedtime_intro', 'bedtime_outro'].includes(context.imageType)) {
+      instructions = this.getLullabyFrameInstructions(context.imageType);
     } else if (context.template === 'lullaby') {
       instructions = this.getLullabyInstructions();
     } else if (context.template === 'name-show') {
@@ -628,6 +630,56 @@ Each prompt must include the target letter prominently displayed in a celebrator
     }
   }
 
+  private static getLullabyFrameInstructions(imageType: string): string {
+    if (imageType === 'bedtime_intro') {
+      return `You are generating prompts for lullaby video intro frames for preschool children (ages 2-5). Follow these rules carefully.
+
+🧒 CHILD SAFETY REQUIREMENTS (CRITICAL)
+Content must be 100% appropriate for ages 2-5 years old.
+NO scary, frightening, or intense imagery whatsoever.
+NO violence, conflict, or aggressive behavior (even cartoon style).
+NO dark themes, shadows, or ominous elements.
+All imagery must be gentle, soothing, and sleep-inducing with darker, rich colors that will make white text clearly visible.
+NO text, letters, numbers, or written content anywhere in the image.
+
+🎨 INTRO FRAME REQUIREMENTS
+Create ONLY a decorative border or frame design around the outer edges of the image.
+The frame should be bedtime-themed and welcoming, setting a calming tone for the video.
+The entire center area must remain completely empty and clear.
+Frame elements should be inviting and introduce the bedtime theme (stars, moon, clouds, soft swirls, etc).
+Use dark, rich, calming colors (deep blues, purples, forest greens, warm browns).
+Focus exclusively on border design - NO animals, characters, or objects in the center area.
+ABSOLUTELY NO TEXT, LETTERS, WORDS, NUMBERS, OR WRITTEN CONTENT anywhere in the image.
+
+📝 PROMPT STRUCTURE
+Each prompt must include art style, thematic frame design description, color details, welcoming bedtime atmosphere, and negative instructions emphasizing the empty center area.`;
+    } else if (imageType === 'bedtime_outro') {
+      return `You are generating prompts for lullaby video outro frames for preschool children (ages 2-5). Follow these rules carefully.
+
+🧒 CHILD SAFETY REQUIREMENTS (CRITICAL)
+Content must be 100% appropriate for ages 2-5 years old.
+NO scary, frightening, or intense imagery whatsoever.
+NO violence, conflict, or aggressive behavior (even cartoon style).
+NO dark themes, shadows, or ominous elements.
+All imagery must be gentle, soothing, and sleep-inducing with darker, rich colors that will make white text clearly visible.
+NO text, letters, numbers, or written content anywhere in the image.
+
+🎨 OUTRO FRAME REQUIREMENTS
+Create ONLY a decorative border or frame design around the outer edges of the image.
+The frame should be bedtime-themed and provide a sense of closure and calm.
+The entire center area must remain completely empty and clear.
+Frame elements should convey completion and encourage sleep (stars, moon, clouds, soft swirls, etc).
+Use dark, rich, calming colors (deep blues, purples, forest greens, warm browns).
+Focus exclusively on border design - NO animals, characters, or objects in the center area.
+ABSOLUTELY NO TEXT, LETTERS, WORDS, NUMBERS, OR WRITTEN CONTENT anywhere in the image.
+
+📝 PROMPT STRUCTURE
+Each prompt must include art style, thematic frame design description, color details, closing bedtime atmosphere, and negative instructions emphasizing the empty center area.`;
+    } else {
+      return this.getLullabyInstructions();
+    }
+  }
+
   private static buildUserPrompt(context: PromptContext, instructions: string, safeZone: string): string {
     const personalization = context.personalization === 'personalized' && context.childName
       ? `This content is personalized for a child named ${context.childName}.`
@@ -718,12 +770,12 @@ Each prompt must include the target letter prominently displayed in a celebrator
       taskText = `Generate ${context.promptCount || 3} image prompts for a ${context.theme} video targeting ${context.ageRange} year olds.`;
     }
 
-    // Only include safe zone in context if it's not 'all_ok' (which means no restrictions)
-    const safeZoneText = safeZone !== 'all_ok' ? `\nSafe Zone: ${safeZone}` : '';
+    // Only include safe zone in context if it's not 'all_ok' or 'slideshow' (which means no restrictions)
+    const safeZoneText = (safeZone !== 'all_ok' && safeZone !== 'slideshow') ? `\nSafe Zone: ${safeZone}` : '';
     
     // Add safe zone descriptions for proper positioning context
     let safeZoneDescription = '';
-    if (safeZone !== 'all_ok') {
+    if (safeZone !== 'all_ok' && safeZone !== 'slideshow') {
       switch (safeZone) {
         case 'left_safe':
           safeZoneDescription = '\nCharacter positioned confidently in the right half of the frame, creating a natural visual flow from left to right. The left half of the image maintains clean, uncluttered space with subtle background elements that won\'t compete with overlaid content.';
@@ -732,19 +784,19 @@ Each prompt must include the target letter prominently displayed in a celebrator
           safeZoneDescription = '\nCharacter positioned dynamically in the left half of the frame, with the character facing toward or engaging with the right side of the composition. The right half maintains open, clean space suitable for content overlay.';
           break;
         case 'center_safe':
-          safeZoneDescription = '\nCreate ONLY a decorative border or frame design around the outer edges of the image. The frame should be thematic and ornamental. The entire center area must remain completely empty and clear for text placement. Focus exclusively on the border design - NO characters, animals, or objects should be placed anywhere in the image.';
+          safeZoneDescription = '\nCreate ONLY a decorative border or frame design around the outer edges of the image. The frame should be thematic and ornamental. The entire center area must remain completely empty and clear. Focus exclusively on the border design - NO characters, animals, or objects should be placed anywhere in the image.';
           break;
         case 'intro_safe':
-          safeZoneDescription = '\nCreate a decorative border or frame design around the outer edges of the image with an opening or clear space in the upper center area for title text. The frame should be thematic and welcoming. The upper-center area (approximately 40% of the image) must remain clear for title placement. Focus on border design - NO characters, animals, or objects should be placed anywhere in the image.';
+          safeZoneDescription = '\nCreate a decorative border or frame design around the outer edges of the image with an opening or clear space in the upper center area. The frame should be thematic and welcoming. The upper-center area (approximately 40% of the image) must remain clear. Focus on border design - NO characters, animals, or objects should be placed anywhere in the image.';
           break;
         case 'outro_safe':
-          safeZoneDescription = '\nCreate a peaceful decorative border or frame design around the outer edges of the image with an opening or clear space in the center area for farewell messages and end credits. The frame should be thematic and provide closure. The center area (approximately 50% of the image) must remain clear for text placement. Focus exclusively on border design - NO characters, animals, or objects should be placed anywhere in the image.';
+          safeZoneDescription = '\nCreate a peaceful decorative border or frame design around the outer edges of the image with an opening or clear space in the center area for farewell messages and end credits. The frame should be thematic and provide closure. The center area (approximately 50% of the image) must remain clear. Focus exclusively on border design - NO characters, animals, or objects should be placed anywhere in the image.';
           break;
         case 'slideshow':
           safeZoneDescription = '\nComplete, engaging composition that fills the frame beautifully. Designed to be viewed as standalone imagery in a slideshow format, with balanced visual weight and clear focal points.';
           break;
         case 'frame':
-          safeZoneDescription = '\nCreate a beautiful decorative frame or border design around the outer edges of the image with the center area completely empty for title text overlay. The frame should be thematic and peaceful. The entire center area must remain completely clear and empty for text placement. Focus on creating an elegant, soothing frame design around the edges only.';
+          safeZoneDescription = '\nCreate a beautiful decorative frame or border design around the outer edges of the image with the center area completely empty. The frame should be thematic and peaceful. The entire center area must remain completely clear and empty. Focus on creating an elegant, soothing frame design around the edges only.';
           break;
       }
     }
@@ -770,7 +822,7 @@ Return a JSON object with the following structure:
 }
 
 IMPORTANT:
-- Each prompt must follow the exact format and safety requirements above${safeZone !== 'all_ok' ? '\n- Include the safe zone placement instructions in each image prompt' : ''}
+- Each prompt must follow the exact format and safety requirements above${(safeZone !== 'all_ok' && safeZone !== 'slideshow') ? '\n- Include the safe zone placement instructions in each image prompt' : ''}
 - Make content engaging and age-appropriate
 - Ensure all prompts are consistent with the theme
 - Return ONLY the JSON object, no additional text`;

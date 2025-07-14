@@ -8,9 +8,11 @@ import Link from 'next/link';
 interface Child {
   id: string;
   name: string;
+  age: number;
   icon: string;
-  theme: string;
-  additional_themes?: string;
+  primary_interest?: string;
+  profile_photo_url?: string;
+  created_at: string;
 }
 
 export default function AccountManagement() {
@@ -41,7 +43,7 @@ export default function AccountManagement() {
       const { data, error } = await supabase
         .from('children')
         .select('*')
-        .eq('user_id', userId)
+        .eq('parent_id', userId)
         .order('name');
 
       if (error) {
@@ -66,75 +68,68 @@ export default function AccountManagement() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-black mx-auto mb-4"></div>
-          <p className="text-black">Loading...</p>
+          <div className="w-8 h-8 border-2 border-black/20 border-t-black rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-black/70">Loading your account...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-white">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <div className="flex items-center space-x-4">
-              <Link href="/dashboard" className="text-gray-600 hover:text-gray-900">
-                ← Back to Dashboard
+    <div className="min-h-screen bg-white text-black">
+      {/* Minimalist Header */}
+      <header className="border-b border-black/10">
+        <div className="max-w-4xl mx-auto px-6 py-8">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-6">
+              <Link href="/dashboard" className="text-black/60 hover:text-black transition-colors">
+                ← Dashboard
               </Link>
-              <Image
-                src="/HippoPolkaLogo.png"
-                alt="Hippo and Dog Logo"
-                width={40}
-                height={40}
-                priority
-              />
-              <h1 className="text-2xl font-bold text-black">Account Management</h1>
+              <h1 className="text-2xl font-light text-black">Account</h1>
             </div>
-            <div className="flex items-center space-x-4">
-              <span className="text-gray-700">{user?.email}</span>
+            <div className="flex items-center space-x-6">
+              <span className="text-black/60 text-sm">{user?.email}</span>
               <button
                 onClick={handleLogout}
-                className="text-gray-600 hover:text-gray-900 transition-colors"
+                className="text-black/60 hover:text-black transition-colors text-sm"
               >
-                Logout
+                Sign Out
               </button>
             </div>
           </div>
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Tab Navigation */}
-        <div className="border-b border-gray-200 mb-8">
-          <nav className="-mb-px flex space-x-8">
+      <div className="max-w-4xl mx-auto px-6 py-12">
+        {/* Minimalist Tab Navigation */}
+        <div className="border-b border-black/10 mb-12">
+          <nav className="flex space-x-12">
             <button
               onClick={() => setActiveTab('children')}
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              className={`pb-4 text-sm transition-colors ${
                 activeTab === 'children'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  ? 'text-black border-b-2 border-black'
+                  : 'text-black/50 hover:text-black/70'
               }`}
             >
-              Family Members ({children.length})
+              Family ({children.length})
             </button>
             <button
               onClick={() => setActiveTab('subscription')}
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              className={`pb-4 text-sm transition-colors ${
                 activeTab === 'subscription'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  ? 'text-black border-b-2 border-black'
+                  : 'text-black/50 hover:text-black/70'
               }`}
             >
               Subscription
             </button>
             <button
               onClick={() => setActiveTab('settings')}
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              className={`pb-4 text-sm transition-colors ${
                 activeTab === 'settings'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  ? 'text-black border-b-2 border-black'
+                  : 'text-black/50 hover:text-black/70'
               }`}
             >
               Settings
@@ -142,95 +137,121 @@ export default function AccountManagement() {
           </nav>
         </div>
 
-        {/* Tab Content */}
+        {/* Children Tab */}
         {activeTab === 'children' && (
           <div>
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-semibold text-black">Family Members</h2>
-              <button className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm">
-                + Add Child
-              </button>
+            <div className="mb-8">
+              <h2 className="text-xl font-light text-black mb-2">Family Members</h2>
+              <p className="text-black/60 text-sm">Your children's profiles and preferences</p>
             </div>
 
             {children.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 {children.map((child) => (
-                  <div key={child.id} className="bg-white border border-gray-200 rounded-lg p-6">
-                    <div className="text-center mb-4">
-                      <div className="w-16 h-16 mx-auto mb-3">
-                        <Image
-                          src={`/${child.icon}`}
-                          alt={`${child.name}'s icon`}
-                          width={64}
-                          height={64}
-                          className="rounded-lg"
-                        />
+                  <div key={child.id} className="border border-black/10 p-8 hover:border-black/20 transition-colors">
+                    <div className="flex items-start space-x-6">
+                      {/* Child Avatar */}
+                      <div className="w-16 h-16 bg-black/5 rounded-full flex items-center justify-center flex-shrink-0">
+                        {child.icon ? (
+                          <Image
+                            src={`/${child.icon}`}
+                            alt={`${child.name}'s icon`}
+                            width={40}
+                            height={40}
+                            className="object-contain"
+                          />
+                        ) : (
+                          <Image
+                            src="/icon_bear.png"
+                            alt={`${child.name}'s icon`}
+                            width={40}
+                            height={40}
+                            className="object-contain"
+                          />
+                        )}
                       </div>
-                      <h3 className="text-lg font-semibold text-black">{child.name}</h3>
-                      <p className="text-sm text-gray-600 capitalize">{child.theme}</p>
-                    </div>
-                    <div className="space-y-2">
-                      <button className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50 transition-colors">
-                        Edit Profile
-                      </button>
-                      <button className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50 transition-colors">
-                        View Videos
-                      </button>
-                      <button className="w-full px-3 py-2 text-sm text-red-600 border border-red-300 rounded-md hover:bg-red-50 transition-colors">
-                        Remove Child
-                      </button>
+                      
+                      {/* Child Info */}
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-lg font-medium text-black mb-1">{child.name}</h3>
+                        <div className="space-y-1 text-sm text-black/60">
+                          <p>Age {child.age}</p>
+                          {child.primary_interest && (
+                            <p className="capitalize">Loves {child.primary_interest}</p>
+                          )}
+                          <p>Member since {new Date(child.created_at).toLocaleDateString()}</p>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="text-center py-12">
-                <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <span className="text-3xl">👶</span>
+              <div className="text-center py-16">
+                <div className="w-20 h-20 bg-black/5 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <Image
+                    src="/icon_bear.png"
+                    alt="No children"
+                    width={50}
+                    height={50}
+                    className="object-contain opacity-30"
+                  />
                 </div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No children added yet</h3>
-                <p className="text-gray-600 mb-6">Add your first child to get started</p>
-                <button className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
-                  Add Your First Child
-                </button>
+                <h3 className="text-lg font-medium text-black mb-2">No children added yet</h3>
+                <p className="text-black/60 max-w-md mx-auto">
+                  Children profiles will appear here once they are added to your account
+                </p>
               </div>
             )}
           </div>
         )}
 
+        {/* Subscription Tab */}
         {activeTab === 'subscription' && (
           <div>
-            <h2 className="text-xl font-semibold text-black mb-6">Subscription & Billing</h2>
-            <div className="bg-gray-50 rounded-lg p-8 text-center">
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-2xl">💳</span>
-              </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">Free Plan</h3>
-              <p className="text-gray-600 mb-6">You're currently on the free plan. Upgrade to unlock premium features.</p>
-              <div className="space-y-4">
-                <button className="px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
-                  View Plans
-                </button>
-                <p className="text-sm text-gray-500">Billing management coming soon</p>
+            <div className="mb-8">
+              <h2 className="text-xl font-light text-black mb-2">Subscription</h2>
+              <p className="text-black/60 text-sm">Your current plan details</p>
+            </div>
+            
+            <div className="border border-black/10 p-8">
+              <div className="text-center max-w-md mx-auto">
+                <div className="w-16 h-16 bg-black/5 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <span className="text-2xl">�</span>
+                </div>
+                <h3 className="text-lg font-medium text-black mb-2">Friends & Family Plan</h3>
+                <p className="text-black/60 mb-8">
+                  You're currently on the Friends & Family plan with access to personalized videos for your children.
+                </p>
+                <div className="text-sm text-black/40">
+                  <p>Plan management coming soon</p>
+                </div>
               </div>
             </div>
           </div>
         )}
 
+        {/* Settings Tab */}
         {activeTab === 'settings' && (
           <div>
-            <h2 className="text-xl font-semibold text-black mb-6">Account Settings</h2>
-            <div className="bg-gray-50 rounded-lg p-8 text-center">
-              <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-2xl">⚙️</span>
-              </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">Settings</h3>
-              <p className="text-gray-600 mb-6">Account settings and preferences management coming soon.</p>
-              <div className="space-y-4">
-                <button className="px-6 py-3 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors">
+            <div className="mb-8">
+              <h2 className="text-xl font-light text-black mb-2">Settings</h2>
+              <p className="text-black/60 text-sm">Account preferences and notifications</p>
+            </div>
+            
+            <div className="border border-black/10 p-8">
+              <div className="text-center max-w-md mx-auto">
+                <div className="w-16 h-16 bg-black/5 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <span className="text-2xl">⚙️</span>
+                </div>
+                <h3 className="text-lg font-medium text-black mb-2">Settings Panel</h3>
+                <p className="text-black/60 mb-8">
+                  Advanced settings and preferences will be available here soon.
+                </p>
+                <button className="px-8 py-3 border border-black/20 text-black hover:bg-black/5 transition-colors text-sm">
                   Coming Soon
                 </button>
-                <p className="text-sm text-gray-500">Email preferences, notifications, and more</p>
+                <p className="text-xs text-black/40 mt-4">Email preferences, notifications, and more</p>
               </div>
             </div>
           </div>

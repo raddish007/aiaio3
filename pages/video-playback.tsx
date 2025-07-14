@@ -163,7 +163,7 @@ export default function VideoPlayback() {
                       })}
                     >
                       <div className="flex gap-3 p-3">
-                        <div className="relative w-20 h-14 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
+                        <div className="relative w-28 h-20 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
                           {otherVideo.display_image ? (
                             <>
                               <img
@@ -200,11 +200,6 @@ export default function VideoPlayback() {
                           <h4 className="text-sm font-semibold text-gray-900 line-clamp-2 group-hover:text-blue-600 transition-colors leading-tight">
                             {otherVideo.title}
                           </h4>
-                          <div className="mt-1 flex items-center gap-2 text-xs text-gray-500">
-                            {otherVideo.duration_seconds && (
-                              <span>{Math.floor(otherVideo.duration_seconds / 60)} min</span>
-                            )}
-                          </div>
                         </div>
                       </div>
                     </div>
