@@ -1,5 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { supabase } from '@/lib/supabase';
+import { getOptimizedVideoUrlServer } from '@/lib/video-cdn';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
@@ -63,7 +64,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         id: video.id,
         title: video.title,
         type: 'individual' as const,
-        video_url: video.video_url,
+        video_url: getOptimizedVideoUrlServer(video.video_url),
         created_at: video.publish_date || video.created_at,
         metadata: {
           ...video.metadata,
@@ -135,7 +136,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             id: content.id,
             title: content.title,
             type: 'individual',
-            video_url: content.video_url,
+            video_url: getOptimizedVideoUrlServer(content.video_url),
             created_at: content.created_at,
             metadata: content.metadata
           });
@@ -149,7 +150,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             id: video.id,
             title: video.video_title,
             type: 'individual',
-            video_url: video.video_url,
+            video_url: getOptimizedVideoUrlServer(video.video_url),
             created_at: video.created_at,
             metadata: {
               ...video.template_data,
@@ -171,7 +172,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
               id: video.id,
               title: video.video_title,
               type: 'individual',
-              video_url: video.video_url,
+              video_url: getOptimizedVideoUrlServer(video.video_url),
               created_at: video.created_at,
               metadata: {
                 ...video.template_data,

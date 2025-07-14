@@ -1,5 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { supabase } from '@/lib/supabase';
+import { getOptimizedVideoUrlServer } from '@/lib/video-cdn';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
@@ -84,7 +85,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       index === self.findIndex(v => v.id === video.id)
     );
 
-    // Format videos for consumer display
+    // Format videos for consumer display with CDN optimization
     const formattedVideos = uniqueVideos.map(video => {
       // Pick the assignment for this child, or general, or first available
       let assignment = (video.video_assignments || []).find((a: any) => a.child_id === childId) ||
@@ -96,7 +97,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         description: video.consumer_description || '',
         parent_tip: video.parent_tip || '',
         display_image: video.display_image_url || '',
-        video_url: video.video_url,
+        video_url: getOptimizedVideoUrlServer(video.video_url), // 🚀 CDN optimization
         publish_date: assignment?.publish_date || video.created_at,
         personalization_level: video.personalization_level,
         child_theme: video.child_theme,

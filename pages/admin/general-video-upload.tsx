@@ -219,7 +219,7 @@ export default function GeneralVideoUpload() {
     try {
       // Step 1: Get pre-signed S3 upload URL
       console.log('📤 Getting pre-signed upload URL...');
-      const uploadUrlResponse = await fetch('/api/uoload-video-url', {
+      const uploadUrlResponse = await fetch('/api/upload-video-url', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -249,11 +249,19 @@ export default function GeneralVideoUpload() {
       // Step 3: Save video metadata to database
       console.log('💾 Saving video metadata to database...');
       
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        throw new Error('You must be logged in to upload videos');
+      }
+      
       // Create a general video in the existing system
       const { error: videoError } = await supabase
         .from('child_approved_videos')
         .insert({
-          video_generation_job_id: '00000000-0000-0000-0000-000000000000', // Placeholder UUID
+          video_generation_job_id: null, // NULL for manual uploads
+          video_source: 'manual_upload', // Indicate this is a manual upload
           video_url: publicUrl,
           video_title: formData.title,
           child_id: null, // General video, not child-specific
@@ -263,7 +271,7 @@ export default function GeneralVideoUpload() {
           personalization_level: 'generic',
           approval_status: 'approved',
           metadata_status: 'approved', // Pre-approved for general uploads
-          submitted_by: '00000000-0000-0000-0000-000000000000', // Would need real user ID
+          submitted_by: user.id, // Use actual user ID
           duration_seconds: videoMetadata.duration || 0,
           template_type: 'general-upload',
           template_data: {
@@ -308,7 +316,7 @@ export default function GeneralVideoUpload() {
             assignment_type: 'general',
             publish_date: new Date().toISOString(),
             status: 'pending', // Not published yet - admin will publish via video publishing tool
-            assigned_by: '00000000-0000-0000-0000-000000000000', // Would need real user ID
+            assigned_by: user.id, // Use actual user ID
             metadata: {
               source: 'general-upload',
               originalFilename: selectedFile.name

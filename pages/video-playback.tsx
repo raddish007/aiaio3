@@ -4,6 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import VideoPlayer from '@/components/VideoPlayer';
+import { getOptimizedVideoUrl } from '@/lib/video-cdn';
 
 export default function VideoPlayback() {
   const router = useRouter();
@@ -38,7 +39,16 @@ export default function VideoPlayback() {
       .single();
     if (data && data.videos) {
       const found = data.videos.find((v: any) => v.id === videoId);
-      setVideo(found || null);
+      if (found) {
+        // Optimize video URL for CDN delivery
+        const optimizedVideo = {
+          ...found,
+          video_url: getOptimizedVideoUrl(found.video_url)
+        };
+        setVideo(optimizedVideo);
+      } else {
+        setVideo(null);
+      }
     }
     setLoading(false);
   };

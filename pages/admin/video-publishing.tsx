@@ -461,11 +461,14 @@ export default function VideoPublishing() {
         // Get the earliest publish date and check assignment statuses
         const publishDates = videoAssignments.map(a => a.publish_date).sort();
         const publishedAssignments = videoAssignments.filter(a => a.status === 'published');
+        const archivedAssignments = videoAssignments.filter(a => a.status === 'archived');
+        const activeAssignments = videoAssignments.filter(a => a.status !== 'archived');
         const publishedDates = publishedAssignments.map(a => a.published_at).filter(Boolean).sort();
         
         const earliestPublishDate = publishDates[0];
         const latestPublishedDate = publishedDates.length > 0 ? publishedDates[publishedDates.length - 1] : null;
         const hasPublishedAssignments = publishedAssignments.length > 0;
+        const hasOnlyArchivedAssignments = archivedAssignments.length > 0 && activeAssignments.length === 0;
         
         const today = new Date().toISOString().split('T')[0];
         
@@ -473,7 +476,10 @@ export default function VideoPublishing() {
         let publishDate: string | undefined;
         let publishedDate: string | undefined;
 
-        if (hasPublishedAssignments) {
+        if (hasOnlyArchivedAssignments) {
+          // Video was unpublished (all assignments are archived)
+          publishingStatus = 'unpublished';
+        } else if (hasPublishedAssignments) {
           publishingStatus = 'published';
           publishedDate = latestPublishedDate || earliestPublishDate;
         } else if (earliestPublishDate > today) {

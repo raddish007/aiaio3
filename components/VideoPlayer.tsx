@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useOptimizedVideoUrl } from '@/hooks/useOptimizedVideo';
 
 interface Video {
   id: string;
@@ -17,6 +18,7 @@ interface VideoPlayerProps {
 }
 
 export default function VideoPlayer({ video, className = "" }: VideoPlayerProps) {
+  const optimizedVideoUrl = useOptimizedVideoUrl(video.video_url); // 🚀 CDN optimization
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -128,9 +130,9 @@ export default function VideoPlayer({ video, className = "" }: VideoPlayerProps)
         preload="metadata"
         poster={video.thumbnail_url}
       >
-        <source src={video.video_url} type="video/mp4" />
-        <source src={video.video_url} type="video/webm" />
-        <source src={video.video_url} type="video/ogg" />
+        <source src={optimizedVideoUrl} type="video/mp4" />
+        <source src={optimizedVideoUrl} type="video/webm" />
+        <source src={optimizedVideoUrl} type="video/ogg" />
         Your browser does not support the video tag.
       </video>
 

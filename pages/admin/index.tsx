@@ -381,6 +381,19 @@ export default function AdminDashboard() {
                 <p className="text-sm text-gray-600">Regenerate video playlists for all children</p>
               </div>
             </button>
+
+            <button
+              onClick={() => router.push('/admin/s3-browser')}
+              className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-200 border border-gray-200 hover:border-cyan-300 group"
+            >
+              <div className="text-center">
+                <div className="w-16 h-16 bg-cyan-100 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-cyan-200 transition-colors">
+                  <span className="text-3xl">🗂️</span>
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">S3 Browser</h3>
+                <p className="text-sm text-gray-600">Browse and view uploaded video files</p>
+              </div>
+            </button>
           </div>
         </div>
 
