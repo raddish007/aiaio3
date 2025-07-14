@@ -106,7 +106,5 @@ async function approveVideoWithMigration(videoId: string) {
   }
 }
 
-module.exports = { approveVideoWithMigration, copyRemotionVideoToPublicBucket };
-
-// Also export for ES6 imports
+// Export for ES6 imports
 export { approveVideoWithMigration, copyRemotionVideoToPublicBucket };
