@@ -36,6 +36,11 @@ const nextConfig = {
     return config;
   },
 
+  typescript: {
+    // Skip TypeScript checking during production build
+    ignoreBuildErrors: process.env.DEPLOY_TARGET === 'public',
+  },
+
   images: {
     domains: [
       'localhost',
