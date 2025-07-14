@@ -41,8 +41,12 @@ const nextConfig = {
   },
 
   async rewrites() {
+    console.log('VERCEL_ENV:', process.env.VERCEL_ENV);
+    console.log('DEPLOY_TARGET:', process.env.DEPLOY_TARGET);
+    
     // Block admin routes in production deployments
     if (process.env.VERCEL_ENV === 'production' || process.env.DEPLOY_TARGET === 'public') {
+      console.log('BLOCKING ADMIN ROUTES');
       return [
         {
           source: '/admin/:path*',
@@ -54,6 +58,7 @@ const nextConfig = {
         }
       ];
     }
+    console.log('NOT BLOCKING ADMIN ROUTES');
     return [];
   }
 };
