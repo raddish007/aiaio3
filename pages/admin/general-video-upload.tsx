@@ -217,41 +217,106 @@ export default function GeneralVideoUpload() {
     setUploading(true);
 
     try {
-      // Get the current session token
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        alert('You must be logged in to upload.');
-        setUploading(false);
-        return;
-      }
-
-      // Create FormData for file upload to S3
-      const uploadFormData = new FormData();
-      uploadFormData.append('file', selectedFile);
-      uploadFormData.append('title', formData.title);
-      uploadFormData.append('description', formData.description);
-      uploadFormData.append('parentTip', formData.parentTip);
-      uploadFormData.append('theme', formData.theme);
-      uploadFormData.append('ageRange', formData.ageRange);
-      uploadFormData.append('duration', videoMetadata.duration?.toString() || '0');
-      uploadFormData.append('tags', JSON.stringify(formData.tags));
-      uploadFormData.append('displayImageUrl', formData.displayImageUrl || '');
-      uploadFormData.append('accessToken', session.access_token);
-
-      // Upload to S3 via API
-      console.log('📤 Uploading video to S3...');
-      const response = await fetch('/api/videos/upload-general', {
+      // Step 1: Get pre-signed S3 upload URL
+      console.log('📤 Getting pre-signed upload URL...');
+      const uploadUrlResponse = await fetch('/api/uoload-video-url', {
         method: 'POST',
-        body: uploadFormData,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          filename: selectedFile.name, 
+          filetype: selectedFile.type 
+        }),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Upload failed');
+      if (!uploadUrlResponse.ok) {
+        throw new Error('Failed to get upload URL');
       }
 
-      const result = await response.json();
-      console.log('✅ Video uploaded successfully:', result);
+      const { url: uploadUrl, publicUrl } = await uploadUrlResponse.json();
+
+      // Step 2: Upload video file directly to S3
+      console.log('📤 Uploading video to S3...');
+      const s3UploadResponse = await fetch(uploadUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': selectedFile.type },
+        body: selectedFile,
+      });
+
+      if (!s3UploadResponse.ok) {
+        throw new Error('S3 upload failed');
+      }
+
+      // Step 3: Save video metadata to database
+      console.log('💾 Saving video metadata to database...');
+      
+      // Create a general video in the existing system
+      const { error: videoError } = await supabase
+        .from('child_approved_videos')
+        .insert({
+          video_generation_job_id: '00000000-0000-0000-0000-000000000000', // Placeholder UUID
+          video_url: publicUrl,
+          video_title: formData.title,
+          child_id: null, // General video, not child-specific
+          child_name: 'General',
+          child_age: 0,
+          child_theme: formData.theme || 'general',
+          personalization_level: 'generic',
+          approval_status: 'approved',
+          metadata_status: 'approved', // Pre-approved for general uploads
+          submitted_by: '00000000-0000-0000-0000-000000000000', // Would need real user ID
+          duration_seconds: videoMetadata.duration || 0,
+          template_type: 'general-upload',
+          template_data: {
+            title: formData.title,
+            description: formData.description,
+            parent_tip: formData.parentTip,
+            display_image: formData.displayImageUrl || '',
+            tags: formData.tags,
+            ageRange: formData.ageRange,
+            width: videoMetadata.width,
+            height: videoMetadata.height,
+            aspectRatio: videoMetadata.aspectRatio,
+            uploadedVia: 'general-upload',
+            originalFilename: selectedFile.name
+          },
+          consumer_title: formData.title,
+          consumer_description: formData.description,
+          parent_tip: formData.parentTip,
+          display_image_url: formData.displayImageUrl || '',
+          is_published: false // Will be published via video publishing admin
+        });
+      
+      if (videoError) {
+        console.error('Database error:', videoError);
+        throw new Error('Failed to save video metadata');
+      }
+
+      // Get the created video ID
+      const { data: videoData } = await supabase
+        .from('child_approved_videos')
+        .select('id')
+        .eq('video_url', publicUrl)
+        .single();
+      
+      if (videoData) {
+        // Create a general video assignment (but not published yet)
+        await supabase
+          .from('video_assignments')
+          .insert({
+            video_id: videoData.id,
+            child_id: null, // General assignment
+            assignment_type: 'general',
+            publish_date: new Date().toISOString(),
+            status: 'pending', // Not published yet - admin will publish via video publishing tool
+            assigned_by: '00000000-0000-0000-0000-000000000000', // Would need real user ID
+            metadata: {
+              source: 'general-upload',
+              originalFilename: selectedFile.name
+            }
+          });
+      }
+
+      console.log('✅ Video uploaded successfully');
       alert('Video uploaded successfully and is ready for publishing!');
       
       // Reset form

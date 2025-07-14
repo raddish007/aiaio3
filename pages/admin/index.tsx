@@ -303,7 +303,7 @@ export default function AdminDashboard() {
             <p className="text-gray-600">Manage and review existing content</p>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6">
             <button
               onClick={() => router.push('/admin/video-moderation')}
               className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-200 border border-gray-200 hover:border-red-300 group"
@@ -366,6 +366,19 @@ export default function AdminDashboard() {
                 </div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">Video Storage Management</h3>
                 <p className="text-sm text-gray-600">Manage S3 video storage and retention</p>
+              </div>
+            </button>
+
+            <button
+              onClick={() => router.push('/admin/update-child-playlists')}
+              className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-200 border border-gray-200 hover:border-teal-300 group"
+            >
+              <div className="text-center">
+                <div className="w-16 h-16 bg-teal-100 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-teal-200 transition-colors">
+                  <span className="text-3xl">🔄</span>
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Update Child Playlists</h3>
+                <p className="text-sm text-gray-600">Regenerate video playlists for all children</p>
               </div>
             </button>
           </div>

@@ -257,7 +257,7 @@ export default function Dashboard() {
                           query: { videoId: video.id, childId: selectedChild?.id }
                         })}
                       >
-                        <div className="relative" style={{ aspectRatio: '4/3' }}>
+                        <div className="relative" style={{ aspectRatio: '16/9' }}>
                           <img
                             src={video.display_image}
                             alt={video.title}

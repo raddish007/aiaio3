@@ -318,7 +318,7 @@ export default function VideoMetadata() {
     await fetchVideoAssets(video.id);
   };
 
-  const handleSaveMetadata = async () => {
+  const handleSaveMetadata = async (overrideStatus?: 'pending' | 'approved' | 'rejected') => {
     if (!editingVideo) return;
 
     setSaving(true);
@@ -333,6 +333,9 @@ export default function VideoMetadata() {
         finalDisplayImageUrl = displayImageUrl;
       }
 
+      // Use override status if provided, otherwise use current editing video status
+      const finalMetadataStatus = overrideStatus || editingVideo.metadata_status;
+
       const { error } = await supabase
         .from('child_approved_videos')
         .update({
@@ -342,7 +345,7 @@ export default function VideoMetadata() {
           display_image_url: finalDisplayImageUrl,
           display_image_source: editingVideo.display_image_source,
           selected_asset_id: editingVideo.selected_asset_id,
-          metadata_status: editingVideo.metadata_status,
+          metadata_status: finalMetadataStatus,
           updated_at: new Date().toISOString()
         })
         .eq('id', editingVideo.id);
@@ -1042,19 +1045,14 @@ export default function VideoMetadata() {
                 {/* Action Buttons */}
                 <div className="flex space-x-3 pt-4">
                   <button
-                    onClick={handleSaveMetadata}
+                    onClick={() => handleSaveMetadata()}
                     disabled={saving || !editingVideo.consumer_title}
                     className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
                   >
                     {saving ? 'Saving...' : 'Save Metadata'}
                   </button>
                   <button
-                    onClick={async () => {
-                      if (!editingVideo) return;
-                      const updatedVideo = { ...editingVideo, metadata_status: 'approved' as const };
-                      setEditingVideo(updatedVideo);
-                      await handleSaveMetadata();
-                    }}
+                    onClick={() => handleSaveMetadata('approved')}
                     disabled={saving || !editingVideo.consumer_title}
                     className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
                   >

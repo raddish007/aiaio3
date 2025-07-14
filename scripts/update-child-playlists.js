@@ -31,30 +31,59 @@ async function updateChildPlaylists() {
       continue;
     }
 
-    // Filter for child-specific videos
+    // Filter for child-specific videos (only published/pending assignments)
     const childSpecific = videosRaw.filter(video =>
       Array.isArray(video.video_assignments) &&
-      video.video_assignments.some((a) => a.child_id === child.id)
+      video.video_assignments.some((a) => 
+        a.child_id === child.id && 
+        (a.status === 'published' || a.status === 'pending')
+      )
     );
-    // General videos
+    
+    // General videos from child_approved_videos (only published/pending assignments)
     const general = videosRaw.filter(video =>
       Array.isArray(video.video_assignments) &&
-      video.video_assignments.some((a) => a.child_id === null)
+      video.video_assignments.some((a) => 
+        a.child_id === null && 
+        (a.status === 'published' || a.status === 'pending')
+      )
     );
-    // Theme-specific
+    
+    // Theme-specific videos from child_approved_videos (only if published and not archived)
     const theme = videosRaw.filter(video =>
       video.personalization_level === 'theme_specific' &&
-      video.child_theme === child.primary_interest
+      video.child_theme === child.primary_interest &&
+      video.is_published === true &&
+      Array.isArray(video.video_assignments) &&
+      video.video_assignments.some((a) => a.status === 'published' || a.status === 'pending')
     );
-    // Combine and deduplicate
+    
+    // Combine and deduplicate (using video_url as unique identifier)
     const all = [...childSpecific, ...general, ...theme];
-    const unique = all.filter((v, i, self) => i === self.findIndex(x => x.id === v.id));
+    const unique = all.filter((v, i, self) => 
+      i === self.findIndex(x => 
+        (x.video_url === v.video_url) || 
+        (x.id === v.id && x.id !== undefined)
+      )
+    );
 
-    // Format for playlist (same as API)
+    // Format for playlist
     const playlist = unique.map(video => {
-      let assignment = (video.video_assignments || []).find(a => a.child_id === child.id) ||
-                       (video.video_assignments || []).find(a => a.child_id === null) ||
-                       (video.video_assignments || [])[0];
+      // Only get active assignments (not archived)
+      let assignment = (video.video_assignments || [])
+        .filter(a => a.status === 'published' || a.status === 'pending')
+        .find(a => a.child_id === child.id) ||
+        (video.video_assignments || [])
+        .filter(a => a.status === 'published' || a.status === 'pending')
+        .find(a => a.child_id === null) ||
+        (video.video_assignments || [])
+        .filter(a => a.status === 'published' || a.status === 'pending')[0];
+      
+      // Skip this video if no active assignment found
+      if (!assignment) {
+        return null;
+      }
+      
       return {
         id: video.id,
         title: video.consumer_title || video.video_title,
@@ -68,11 +97,13 @@ async function updateChildPlaylists() {
         duration_seconds: video.duration_seconds,
         is_published: video.is_published,
         metadata: {
+          source: 'child_approved_videos',
+          assignment_status: assignment.status,
           ...video.template_data,
           assignment_metadata: assignment?.metadata || {}
         }
       };
-    });
+    }).filter(video => video !== null); // Remove null entries from videos with no active assignments
     playlist.sort((a, b) => new Date(b.publish_date) - new Date(a.publish_date));
 
     // 3. Upsert into child_playlists
@@ -82,7 +113,8 @@ async function updateChildPlaylists() {
     if (upsertError) {
       console.error(`❌ Error upserting playlist for child ${child.name}:`, upsertError);
     } else {
-      console.log(`✅ Updated playlist for ${child.name} (${playlist.length} videos)`);
+      const approvedCount = playlist.filter(v => v.metadata?.source === 'child_approved_videos').length;
+      console.log(`✅ Updated playlist for ${child.name} (${playlist.length} total videos from child_approved_videos)`);
     }
   }
 

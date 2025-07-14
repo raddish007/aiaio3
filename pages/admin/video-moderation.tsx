@@ -18,6 +18,7 @@ interface VideoForModeration {
   duration_seconds: number;
   template_type: string;
   template_data: any;
+  is_published?: boolean;
   video_moderation_queue?: {
     id: string;
     assigned_to: string | null;
@@ -106,13 +107,60 @@ export default function VideoModeration() {
     if (!user) return;
 
     try {
+      // Get the video data for migration
+      const selectedVideoData = videos.find(v => v.id === videoId);
+      if (!selectedVideoData) {
+        console.error('Video not found');
+        return;
+      }
+
+      let finalVideoUrl = selectedVideoData.video_url;
+      let migrationInfo = undefined;
+
+      // Check if this is a Remotion video that needs migration
+      if (selectedVideoData.video_url.includes('remotionlambda')) {
+        console.log('🔄 Migrating Remotion video to public bucket...');
+        
+        try {
+          // Import and use the migration function
+          const { copyRemotionVideoToPublicBucket } = await import('@/lib/video-approval');
+          
+          const publicUrl = await copyRemotionVideoToPublicBucket(
+            selectedVideoData.video_url,
+            selectedVideoData.id,
+            selectedVideoData.child_name
+          );
+          
+          finalVideoUrl = publicUrl;
+          migrationInfo = {
+            originalUrl: selectedVideoData.video_url,
+            migratedUrl: finalVideoUrl,
+            migratedAt: new Date().toISOString(),
+            migrationType: 'auto-on-approval'
+          };
+          console.log('✅ Video migrated to public bucket:', publicUrl);
+        } catch (migrationError) {
+          console.warn('⚠️ Migration failed, proceeding with original URL:', migrationError);
+          // Don't fail approval if migration fails - video can still be approved with original URL
+        }
+      } else if (selectedVideoData.video_url.includes('aiaio3-public-videos')) {
+        console.log('✅ Video already in public bucket, no migration needed');
+      } else {
+        console.log('ℹ️ Video from unknown source, using original URL');
+      }
+
       const { error } = await supabase
         .from('child_approved_videos')
         .update({
           approval_status: 'approved',
           reviewed_by: user.id,
           reviewed_at: new Date().toISOString(),
-          approval_notes: reviewNotes
+          approval_notes: reviewNotes,
+          video_url: finalVideoUrl, // Use migrated URL if available
+          template_data: {
+            ...selectedVideoData.template_data,
+            migration: migrationInfo || selectedVideoData.template_data?.migration
+          }
         })
         .eq('id', videoId);
 
@@ -141,7 +189,6 @@ export default function VideoModeration() {
         .eq('child_approved_video_id', videoId);
 
       // Find and update corresponding assignment if it exists
-      const selectedVideoData = videos.find(v => v.id === videoId);
       if (selectedVideoData) {
         try {
           const { data: assignment, error: assignmentFindError } = await supabase
@@ -156,7 +203,7 @@ export default function VideoModeration() {
               .from('child_video_assignments')
               .update({
                 status: 'approved',
-                output_video_url: selectedVideoData.video_url,
+                output_video_url: finalVideoUrl, // Use migrated URL
                 approved_at: new Date().toISOString(),
                 approved_by: user.id
               })
@@ -392,6 +439,45 @@ export default function VideoModeration() {
     }
   };
 
+  const handleTogglePublish = async (videoId: string, currentPublishStatus: boolean) => {
+    if (!user) return;
+
+    try {
+      const newPublishStatus = !currentPublishStatus;
+      
+      const { error } = await supabase
+        .from('child_approved_videos')
+        .update({
+          is_published: newPublishStatus,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', videoId);
+
+      if (error) {
+        console.error('Error toggling publish status:', error);
+        alert('Failed to update publish status');
+        return;
+      }
+
+      // Update local state
+      setVideos(prev => prev.map(video => 
+        video.id === videoId 
+          ? { ...video, is_published: newPublishStatus }
+          : video
+      ));
+
+      // Update selected video if it's the one being modified
+      if (selectedVideo?.id === videoId) {
+        setSelectedVideo(prev => prev ? { ...prev, is_published: newPublishStatus } : null);
+      }
+
+      alert(`Video ${newPublishStatus ? 'published' : 'unpublished'} successfully!`);
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Failed to update publish status');
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'pending_review': return 'bg-yellow-100 text-yellow-800';
@@ -539,6 +625,39 @@ export default function VideoModeration() {
                       <span className={`px-2 py-1 text-xs font-medium rounded-full ${getPersonalizationBadge(video.personalization_level)}`}>
                         {video.personalization_level.replace('_', ' ')}
                       </span>
+                      {/* Migration Status Badge */}
+                      {video.video_url.includes('remotionlambda') && (
+                        <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800 flex items-center space-x-1">
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                          </svg>
+                          <span>Auto-Migrate</span>
+                        </span>
+                      )}
+                      {video.template_data?.migration && (
+                        <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800 flex items-center space-x-1">
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                          <span>Migrated</span>
+                        </span>
+                      )}
+                      {video.approval_status === 'approved' && (
+                        <span className={`px-2 py-1 text-xs font-medium rounded-full flex items-center space-x-1 ${
+                          video.is_published 
+                            ? 'bg-green-100 text-green-800' 
+                            : 'bg-gray-100 text-gray-800'
+                        }`}>
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={
+                              video.is_published 
+                                ? "M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                                : "M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L12 12m-3.122-3.122l3.122-3.122 3.122 3.122-3.122 3.122z"
+                            } />
+                          </svg>
+                          <span>{video.is_published ? 'Published' : 'Unpublished'}</span>
+                        </span>
+                      )}
                     </div>                    
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-600 mb-4">
                       <div>
@@ -567,16 +686,37 @@ export default function VideoModeration() {
                     </div>
 
                     {/* Action Buttons */}
-                    {video.approval_status === 'pending_review' && (
-                      <div className="flex space-x-3">
+                    <div className="flex space-x-3">
+                      {video.approval_status === 'pending_review' && (
                         <button
                           onClick={() => setSelectedVideo(video)}
                           className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
                         >
                           Review Video
                         </button>
-                      </div>
-                    )}
+                      )}
+                      
+                      {video.approval_status === 'approved' && (
+                        <>
+                          <button
+                            onClick={() => setSelectedVideo(video)}
+                            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                          >
+                            View Details
+                          </button>
+                          <button
+                            onClick={() => handleTogglePublish(video.id, video.is_published || false)}
+                            className={`px-4 py-2 rounded-md font-medium ${
+                              video.is_published
+                                ? 'bg-orange-600 text-white hover:bg-orange-700'
+                                : 'bg-green-600 text-white hover:bg-green-700'
+                            }`}
+                          >
+                            {video.is_published ? 'Unpublish' : 'Publish'}
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -608,6 +748,57 @@ export default function VideoModeration() {
                 </video>
               </div>
 
+              {/* Migration Status Indicator */}
+              {selectedVideo.video_url.includes('remotionlambda') && (
+                <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                  <div className="flex items-center space-x-2">
+                    <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                    <div>
+                      <p className="text-sm font-medium text-blue-900">Remotion Video - Auto-Migration</p>
+                      <p className="text-xs text-blue-700">
+                        When approved, this video will be automatically copied to the public CDN bucket for better performance.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Show if video was already migrated */}
+              {selectedVideo.template_data?.migration && (
+                <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md">
+                  <div className="flex items-center space-x-2">
+                    <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    <div>
+                      <p className="text-sm font-medium text-green-900">Video Migrated</p>
+                      <p className="text-xs text-green-700">
+                        This video was migrated to the public CDN bucket on {new Date(selectedVideo.template_data.migration.migratedAt).toLocaleString()}.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Show status for videos already in public bucket (manually uploaded or previously migrated) */}
+              {selectedVideo.video_url.includes('aiaio3-public-videos') && !selectedVideo.template_data?.migration && (
+                <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md">
+                  <div className="flex items-center space-x-2">
+                    <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    <div>
+                      <p className="text-sm font-medium text-green-900">Public CDN Video</p>
+                      <p className="text-xs text-green-700">
+                        This video is already stored in the public CDN bucket for optimal streaming performance.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Review Notes
@@ -620,6 +811,54 @@ export default function VideoModeration() {
                   placeholder="Add your review notes here..."
                 />
               </div>
+
+              {/* Show publish status for approved videos */}
+              {selectedVideo.approval_status === 'approved' && (
+                <div className={`mb-4 p-3 border rounded-md ${
+                  selectedVideo.is_published 
+                    ? 'bg-green-50 border-green-200' 
+                    : 'bg-yellow-50 border-yellow-200'
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <svg className={`w-5 h-5 ${
+                        selectedVideo.is_published ? 'text-green-600' : 'text-yellow-600'
+                      }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={
+                          selectedVideo.is_published 
+                            ? "M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                            : "M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L12 12m-3.122-3.122l3.122-3.122 3.122 3.122-3.122 3.122z"
+                        } />
+                      </svg>
+                      <div>
+                        <p className={`text-sm font-medium ${
+                          selectedVideo.is_published ? 'text-green-900' : 'text-yellow-900'
+                        }`}>
+                          {selectedVideo.is_published ? 'Published' : 'Unpublished'}
+                        </p>
+                        <p className={`text-xs ${
+                          selectedVideo.is_published ? 'text-green-700' : 'text-yellow-700'
+                        }`}>
+                          {selectedVideo.is_published 
+                            ? 'This video is visible to children and parents'
+                            : 'This video is approved but not yet published'
+                          }
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleTogglePublish(selectedVideo.id, selectedVideo.is_published || false)}
+                      className={`px-3 py-1 text-sm rounded-md font-medium ${
+                        selectedVideo.is_published
+                          ? 'bg-orange-600 text-white hover:bg-orange-700'
+                          : 'bg-green-600 text-white hover:bg-green-700'
+                      }`}
+                    >
+                      {selectedVideo.is_published ? 'Unpublish' : 'Publish'}
+                    </button>
+                  </div>
+                </div>
+              )}
 
               <div className="flex space-x-3">
                 <button

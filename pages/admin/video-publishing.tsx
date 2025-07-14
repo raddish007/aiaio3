@@ -581,6 +581,39 @@ export default function VideoPublishing() {
     }
   };
 
+  const handleUnpublishVideo = async (videoId: string) => {
+    if (!confirm('Are you sure you want to unpublish this video? This will remove it from all children\'s playlists.')) {
+      return;
+    }
+
+    try {
+      // Update all video assignments to archived status
+      const { error: assignmentError } = await supabase
+        .from('video_assignments')
+        .update({ 
+          status: 'archived',
+          archived_at: new Date().toISOString()
+        })
+        .eq('video_id', videoId);
+
+      if (assignmentError) throw assignmentError;
+
+      // Set is_published = false for the video
+      const { error: videoError } = await supabase
+        .from('child_approved_videos')
+        .update({ is_published: false })
+        .eq('id', videoId);
+
+      if (videoError) throw videoError;
+
+      alert('Video unpublished successfully!');
+      await fetchData(); // Refresh the data
+    } catch (error) {
+      console.error('Error unpublishing video:', error);
+      alert('Error unpublishing video. Please try again.');
+    }
+  };
+
   const openPublishingModal = (video: Video) => {
     setSelectedVideo(video);
     setIsModalOpen(true);
@@ -667,8 +700,7 @@ export default function VideoPublishing() {
           {filteredVideos.map((video) => (
             <div
               key={video.id}
-              className="bg-white shadow rounded-lg overflow-hidden hover:shadow-lg transition-shadow cursor-pointer"
-              onClick={() => openPublishingModal(video)}
+              className="bg-white shadow rounded-lg overflow-hidden hover:shadow-lg transition-shadow"
             >
               {/* Video Image */}
               <div className="aspect-video bg-gray-200 relative">
@@ -695,10 +727,41 @@ export default function VideoPublishing() {
                   {getStatusBadge(video)}
                 </div>
                 
-                {/* Publish Button Overlay */}
-                <div className="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-20 transition-all flex items-center justify-center">
-                  <div className="bg-blue-600 text-white px-4 py-2 rounded-md opacity-0 hover:opacity-100 transition-opacity">
-                    {video.publishingStatus === 'unpublished' ? 'Publish Video' : 'Manage Publishing'}
+                {/* Action Buttons Overlay */}
+                <div className="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-30 transition-all flex items-center justify-center">
+                  <div className="opacity-0 hover:opacity-100 transition-opacity flex flex-col space-y-2">
+                    {video.publishingStatus === 'unpublished' ? (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openPublishingModal(video);
+                        }}
+                        className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
+                      >
+                        Publish Video
+                      </button>
+                    ) : (
+                      <>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openPublishingModal(video);
+                          }}
+                          className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
+                        >
+                          Manage Publishing
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleUnpublishVideo(video.id);
+                          }}
+                          className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition-colors"
+                        >
+                          Unpublish
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>

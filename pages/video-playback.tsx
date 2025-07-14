@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
+import VideoPlayer from '@/components/VideoPlayer';
 
 export default function VideoPlayback() {
   const router = useRouter();
@@ -110,15 +111,22 @@ export default function VideoPlayback() {
           <div className="text-center py-24 text-gray-500">Video not found.</div>
         ) : (
           <>
+            {/* Debug Info */}
+            <div className="bg-yellow-50 border border-yellow-200 rounded p-4 mb-6 text-yellow-900 text-sm">
+              <div><strong>Debug:</strong></div>
+              <div>Video ID: {video.id}</div>
+              <div>Video Title: {video.title}</div>
+              <div>Video URL: <a href={video.video_url} target="_blank" rel="noopener noreferrer" className="underline text-blue-700">{video.video_url}</a></div>
+              {video.video_url && !video.video_url.startsWith('https://') && (
+                <div className="text-red-700">Warning: Video URL is not HTTPS!</div>
+              )}
+              {video.video_url && video.video_url.includes('amazonaws.com') && (
+                <div className="text-green-700">S3 URL detected.</div>
+              )}
+            </div>
             {/* Video Player */}
             <div className="flex justify-center mb-8">
-              <video
-                src={video.video_url}
-                controls
-                autoPlay
-                className="w-full max-w-3xl h-[60vh] bg-black rounded-none shadow-none"
-                style={{ objectFit: 'contain' }}
-              />
+              <VideoPlayer video={video} className="w-full max-w-3xl h-[60vh]" />
             </div>
             {/* Title */}
             <h2 className="text-2xl font-bold text-black text-center mb-4">{video.title}</h2>
