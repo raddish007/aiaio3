@@ -11,7 +11,6 @@ export default function AdminDashboard() {
     pendingVideos: 0,
     totalAssets: 0
   });
-  const [recentActivity, setRecentActivity] = useState<any[]>([]);
   const router = useRouter();
 
   useEffect(() => {
@@ -73,15 +72,6 @@ export default function AdminDashboard() {
         pendingVideos: videosCount || 0,
         totalAssets: assetsCount || 0
       });
-
-      // Fetch recent activity
-      const { data: activity } = await supabase
-        .from('assets')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(5);
-
-      setRecentActivity(activity || []);
     } catch (error) {
       console.error('Error fetching admin data:', error);
     }
@@ -124,7 +114,7 @@ export default function AdminDashboard() {
             <p className="text-gray-600">AI-powered tools for generating content and assets</p>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
             <button
               onClick={() => router.push('/admin/prompt-generator')}
               className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-200 border border-gray-200 hover:border-indigo-300 group"
@@ -146,7 +136,7 @@ export default function AdminDashboard() {
                 <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-emerald-200 transition-colors">
                   <span className="text-3xl">📝</span>
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Prompt Management</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Prompts Manager</h3>
                 <p className="text-sm text-gray-600">Review, edit, and delete AI prompts</p>
               </div>
             </button>
@@ -176,17 +166,7 @@ export default function AdminDashboard() {
                 <p className="text-sm text-gray-600">Generate audio with ElevenLabs</p>
               </div>
             </button>
-          </div>
-        </div>
 
-        {/* Video Production Tools */}
-        <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-8 mb-8 border border-purple-200">
-          <div className="text-center mb-6">
-            <h2 className="text-3xl font-bold text-gray-900 mb-2">Video Production Tools</h2>
-            <p className="text-gray-600">Create and manage video content</p>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <button
               onClick={() => router.push('/admin/assets')}
               className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-200 border border-gray-200 hover:border-blue-300 group"
@@ -199,7 +179,17 @@ export default function AdminDashboard() {
                 <p className="text-sm text-gray-600">Review and approve submitted assets</p>
               </div>
             </button>
+          </div>
+        </div>
 
+        {/* Video Production Tools */}
+        <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-8 mb-8 border border-purple-200">
+          <div className="text-center mb-6">
+            <h2 className="text-3xl font-bold text-gray-900 mb-2">Video Production Tools</h2>
+            <p className="text-gray-600">Create and manage video content</p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <button
               onClick={() => router.push('/admin/lullaby-video-request')}
               className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-200 border border-gray-200 hover:border-purple-300 group"
@@ -208,7 +198,7 @@ export default function AdminDashboard() {
                 <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-purple-200 transition-colors">
                   <span className="text-3xl">🌙</span>
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Lullaby Video</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Lullaby</h3>
                 <p className="text-sm text-gray-600">Create personalized lullaby videos</p>
               </div>
             </button>
@@ -221,7 +211,7 @@ export default function AdminDashboard() {
                 <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-blue-200 transition-colors">
                   <span className="text-3xl">📝</span>
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Name Video</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Name</h3>
                 <p className="text-sm text-gray-600">Create personalized name spelling videos</p>
               </div>
             </button>
@@ -234,7 +224,7 @@ export default function AdminDashboard() {
                 <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-orange-200 transition-colors">
                   <span className="text-3xl">🔤</span>
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Letter Hunt Video</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Letter Hunt</h3>
                 <p className="text-sm text-gray-600">Create personalized letter hunt videos</p>
               </div>
             </button>
@@ -247,7 +237,7 @@ export default function AdminDashboard() {
                 <div className="w-16 h-16 bg-teal-100 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-teal-200 transition-colors">
                   <span className="text-3xl">📋</span>
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Assignment Manager</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Video Creation Assignments</h3>
                 <p className="text-sm text-gray-600">Manage child video assignments</p>
               </div>
             </button>
@@ -273,7 +263,7 @@ export default function AdminDashboard() {
                 <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-yellow-200 transition-colors">
                   <span className="text-3xl">⚙️</span>
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Monitor Jobs</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Video Creation Status Monitoring</h3>
                 <p className="text-sm text-gray-600">Track video generation progress</p>
               </div>
             </button>
@@ -286,7 +276,7 @@ export default function AdminDashboard() {
                 <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-indigo-200 transition-colors">
                   <span className="text-3xl">📤</span>
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Video Asset Upload</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Video Components Upload Supabase</h3>
                 <p className="text-sm text-gray-600">Upload video assets for templates</p>
               </div>
             </button>
@@ -299,7 +289,7 @@ export default function AdminDashboard() {
                 <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-green-200 transition-colors">
                   <span className="text-3xl">🎬</span>
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">General Video Upload</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">General Video Upload (S3)</h3>
                 <p className="text-sm text-gray-600">Upload complete videos for publishing</p>
               </div>
             </button>
@@ -313,7 +303,7 @@ export default function AdminDashboard() {
             <p className="text-gray-600">Manage and review existing content</p>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
             <button
               onClick={() => router.push('/admin/video-moderation')}
               className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-200 border border-gray-200 hover:border-red-300 group"
@@ -335,7 +325,7 @@ export default function AdminDashboard() {
                 <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-green-200 transition-colors">
                   <span className="text-3xl">📝</span>
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Video Metadata</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Video Metadata Moderation</h3>
                 <p className="text-sm text-gray-600">Manage consumer-facing video information</p>
               </div>
             </button>
@@ -348,7 +338,7 @@ export default function AdminDashboard() {
                 <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-purple-200 transition-colors">
                   <span className="text-3xl">⚙️</span>
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Template Defaults</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Metadata Template Defaults</h3>
                 <p className="text-sm text-gray-600">Manage default metadata for video types</p>
               </div>
             </button>
@@ -374,27 +364,14 @@ export default function AdminDashboard() {
                 <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-indigo-200 transition-colors">
                   <span className="text-3xl">💾</span>
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Video Storage</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Video Storage Management</h3>
                 <p className="text-sm text-gray-600">Manage S3 video storage and retention</p>
-              </div>
-            </button>
-
-            <button
-              onClick={() => router.push('/admin/analytics')}
-              className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-200 border border-gray-200 hover:border-purple-300 group"
-            >
-              <div className="text-center">
-                <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-purple-200 transition-colors">
-                  <span className="text-3xl">📊</span>
-                </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Analytics</h3>
-                <p className="text-sm text-gray-600">View platform statistics</p>
               </div>
             </button>
           </div>
         </div>
 
-        {/* System Management Tools */}
+        {/* System Management */}
         <div className="bg-gradient-to-r from-orange-50 to-red-50 rounded-xl p-8 mb-8 border border-orange-200">
           <div className="text-center mb-6">
             <h2 className="text-3xl font-bold text-gray-900 mb-2">System Management</h2>
@@ -426,6 +403,29 @@ export default function AdminDashboard() {
                 <p className="text-sm text-gray-600">Add/remove children from existing accounts</p>
               </div>
             </button>
+
+            <button
+              onClick={() => router.push('/admin/analytics')}
+              className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-200 border border-gray-200 hover:border-purple-300 group"
+            >
+              <div className="text-center">
+                <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-purple-200 transition-colors">
+                  <span className="text-3xl">📊</span>
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Analytics</h3>
+                <p className="text-sm text-gray-600">View platform statistics</p>
+              </div>
+            </button>
+          </div>
+        </div>
+
+        {/* Archive */}
+        <div className="bg-gradient-to-r from-gray-50 to-slate-50 rounded-xl p-8 mb-8 border border-gray-200">
+          <div className="text-center mb-6">
+            <h2 className="text-3xl font-bold text-gray-900 mb-2">Archive</h2>
+            <p className="text-gray-600">Template and asset archives</p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <button
               onClick={() => router.push('/admin/template-audio')}
               className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-200 border border-gray-200 hover:border-purple-300 group"
@@ -454,7 +454,7 @@ export default function AdminDashboard() {
         </div>
 
         {/* Stats Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center">
               <div className="p-3 rounded-full bg-blue-100 text-blue-600">
@@ -501,37 +501,6 @@ export default function AdminDashboard() {
                 <p className="text-2xl font-semibold text-gray-900">{stats.totalAssets}</p>
               </div>
             </div>
-          </div>
-        </div>
-
-        {/* Recent Activity */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Recent Activity</h2>
-          <div className="space-y-4">
-            {recentActivity.length > 0 ? (
-              recentActivity.map((asset) => (
-                <div key={asset.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-                  <div>
-                    <h3 className="font-medium text-gray-900">{asset.theme}</h3>
-                    <p className="text-sm text-gray-600">
-                      Type: {asset.type} | Status: {asset.status}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      Created: {new Date(asset.created_at).toLocaleDateString()}
-                    </p>
-                  </div>
-                  <span className={`px-2 py-1 text-xs rounded-full ${
-                    asset.status === 'approved' ? 'bg-green-100 text-green-800' :
-                    asset.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                    'bg-red-100 text-red-800'
-                  }`}>
-                    {asset.status}
-                  </span>
-                </div>
-              ))
-            ) : (
-              <p className="text-gray-500 text-center py-8">No recent activity</p>
-            )}
           </div>
         </div>
       </div>

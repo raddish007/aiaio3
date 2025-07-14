@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
+import AdminHeader from '@/components/AdminHeader';
 
 interface VideoInfo {
   key: string;
@@ -200,26 +201,10 @@ const VideoManagementPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="py-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">Video Storage Management</h1>
-                <p className="mt-1 text-sm text-gray-500">
-                  Manage S3 video storage, monitor usage, and control retention
-                </p>
-              </div>
-              <button
-                onClick={() => router.push('/admin')}
-                className="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700"
-              >
-                Back to Admin
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
+      <AdminHeader 
+        title="Video Storage Management" 
+        subtitle="Manage S3 video storage, monitor usage, and control retention"
+      />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Storage Statistics */}

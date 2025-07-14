@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '@/lib/supabase';
 import { User } from '@supabase/supabase-js';
+import AdminHeader from '@/components/AdminHeader';
 
 export default function AdminAnalytics() {
   const [user, setUser] = useState<User | null>(null);
@@ -124,31 +125,10 @@ export default function AdminAnalytics() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={() => router.push('/admin')}
-                className="text-gray-600 hover:text-gray-900"
-              >
-                ← Back to Dashboard
-              </button>
-              <h1 className="text-3xl font-bold text-gray-900">Analytics Dashboard</h1>
-            </div>
-            <div className="flex items-center space-x-4">
-              <span className="text-gray-700">Welcome, {user.email}</span>
-              <button
-                onClick={handleLogout}
-                className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700"
-              >
-                Logout
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
+      <AdminHeader 
+        title="Analytics" 
+        subtitle="View platform statistics and insights"
+      />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Overview Stats */}

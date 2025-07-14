@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase';
 import { User } from '@supabase/supabase-js';
 import Image from 'next/image';
 import Link from 'next/link';
+import AdminHeader from '@/components/AdminHeader';
 
 interface Child {
   id: string;
@@ -362,43 +363,25 @@ export default function ManageAccounts() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <div className="flex items-center space-x-4">
-              <Link 
-                href="/admin"
-                className="text-gray-600 hover:text-gray-900 transition-colors"
-              >
-                ← Back to Admin Dashboard
-              </Link>
-              <h1 className="text-3xl font-bold text-gray-900">Manage Parent Accounts</h1>
-            </div>
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={() => {
-                  setLoading(true);
-                  loadParentAccounts();
-                }}
-                disabled={loading}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {loading ? 'Refreshing...' : 'Refresh'}
-              </button>
-              <span className="text-gray-700">Welcome, {user.email}</span>
-              <button
-                onClick={handleLogout}
-                className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700"
-              >
-                Logout
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
+      <AdminHeader 
+        title="Manage Accounts" 
+        subtitle="Add/remove children from existing accounts"
+      />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Action Buttons */}
+        <div className="flex justify-end mb-6">
+          <button
+            onClick={() => {
+              setLoading(true);
+              loadParentAccounts();
+            }}
+            disabled={loading}
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading ? 'Refreshing...' : 'Refresh'}
+          </button>
+        </div>
         {message && (
           <div className="mb-6 p-4 bg-green-100 border border-green-400 text-green-700 rounded">
             {message}

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '@/lib/supabase';
 import AudioPlayer from '@/components/admin/AudioPlayer';
+import AdminHeader from '@/components/AdminHeader';
 
 interface Asset {
   id: string;
@@ -956,42 +957,33 @@ export default function AssetManagement() {
   return (
     <>
       <div className="min-h-screen bg-gray-50">
-        {/* Header */}
-        <header className="bg-white shadow-sm">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center py-4">
-              <h1 className="text-2xl font-bold text-gray-900">Asset Management</h1>
-              <div className="flex space-x-3">
-                <button
-                  onClick={() => router.push('/admin/ai-generator')}
-                  className="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 text-sm"
-                >
-                  Generate with AI
-                </button>
-                <button
-                  onClick={() => setShowUploadModal(true)}
-                  className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 text-sm"
-                >
-                  Upload Asset
-                </button>
-                <button
-                  onClick={() => setShowBulkUploadModal(true)}
-                  className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 text-sm"
-                >
-                  Bulk Upload
-                </button>
-                <button
-                  onClick={() => router.push('/admin')}
-                  className="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 text-sm"
-                >
-                  Back to Dashboard
-                </button>
-              </div>
-            </div>
-          </div>
-        </header>
+        <AdminHeader 
+          title="Asset Review" 
+          subtitle="Review and approve submitted assets"
+        />
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          {/* Action Buttons */}
+          <div className="flex justify-end space-x-3 mb-6">
+            <button
+              onClick={() => router.push('/admin/ai-generator')}
+              className="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 text-sm"
+            >
+              Generate with AI
+            </button>
+            <button
+              onClick={() => setShowUploadModal(true)}
+              className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 text-sm"
+            >
+              Upload Asset
+            </button>
+            <button
+              onClick={() => setShowBulkUploadModal(true)}
+              className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 text-sm"
+            >
+              Bulk Upload
+            </button>
+          </div>
           {/* Stats */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
             <div className="bg-white rounded-lg shadow-sm p-4">

@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import { supabase } from '@/lib/supabase';
 import { User } from '@supabase/supabase-js';
 import Link from 'next/link';
+import AdminHeader from '@/components/AdminHeader';
 
 export default function CreateAccountPage() {
   const [user, setUser] = useState<User | null>(null);
@@ -139,31 +140,10 @@ export default function CreateAccountPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <div className="flex items-center space-x-4">
-              <Link 
-                href="/admin"
-                className="text-gray-600 hover:text-gray-900 transition-colors"
-              >
-                ← Back to Admin Dashboard
-              </Link>
-              <h1 className="text-3xl font-bold text-gray-900">Create Account</h1>
-            </div>
-            <div className="flex items-center space-x-4">
-              <span className="text-gray-700">Welcome, {user.email}</span>
-              <button
-                onClick={() => router.push('/login')}
-                className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700"
-              >
-                Logout
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
+      <AdminHeader 
+        title="Create Account" 
+        subtitle="Add new parent and child accounts"
+      />
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="bg-white rounded-lg shadow-lg p-8">

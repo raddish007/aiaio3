@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import { supabase } from '@/lib/supabase';
 import Image from 'next/image';
 import Link from 'next/link';
+import AdminHeader from '@/components/AdminHeader';
 
 interface VideoMetadata {
   id: string;
@@ -706,28 +707,21 @@ export default function VideoMetadata() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Video Metadata Management</h1>
-            <p className="text-gray-600 mt-2">Manage consumer-facing information for approved videos</p>
-          </div>
-          <div className="flex space-x-4">
-            <Link
-              href="/admin/template-defaults"
-              className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
-            >
-              Template Defaults
-            </Link>
-            <Link
-              href="/admin"
-              className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
-            >
-              Back to Dashboard
-            </Link>
-          </div>
+    <div className="min-h-screen bg-gray-50">
+      <AdminHeader 
+        title="Video Metadata Moderation" 
+        subtitle="Manage consumer-facing information for approved videos"
+      />
+      
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Action Buttons */}
+        <div className="flex justify-end mb-6">
+          <Link
+            href="/admin/template-defaults"
+            className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
+          >
+            Template Defaults
+          </Link>
         </div>
 
         {/* Search and Filters */}

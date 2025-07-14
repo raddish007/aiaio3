@@ -21,59 +21,34 @@ interface Video {
   id: string;
   title: string;
   description: string;
-  thumbnail: string;
+  parent_tip: string;
+  display_image: string;
+  video_url: string;
+  publish_date: string;
+  personalization_level: string;
+  child_theme: string;
+  duration_seconds?: number;
+  metadata?: any;
 }
 
 export default function Dashboard() {
   const [user, setUser] = useState<User | null>(null);
   const [children, setChildren] = useState<Child[]>([]);
   const [selectedChild, setSelectedChild] = useState<Child | null>(null);
+  const [videos, setVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(true);
+  const [videosLoading, setVideosLoading] = useState(false);
   const router = useRouter();
-
-  // Mock video data
-  const mockVideos: Video[] = [
-    {
-      id: '1',
-      title: 'Adventure in the Forest',
-      description: 'Join the magical journey through the enchanted forest',
-      thumbnail: '/icon_bear.png'
-    },
-    {
-      id: '2',
-      title: 'Space Explorer',
-      description: 'Blast off into space with rockets and stars',
-      thumbnail: '/icon_rocket.png'
-    },
-    {
-      id: '3',
-      title: 'Dinosaur Discovery',
-      description: 'Learn about amazing dinosaurs from long ago',
-      thumbnail: '/icon_dinosaur.png'
-    },
-    {
-      id: '4',
-      title: 'Musical Journey',
-      description: 'Discover the joy of music and instruments',
-      thumbnail: '/icon_guitar.png'
-    },
-    {
-      id: '5',
-      title: 'Sports Day',
-      description: 'Fun activities and games for active kids',
-      thumbnail: '/icon_soccer.png'
-    },
-    {
-      id: '6',
-      title: 'Art & Creativity',
-      description: 'Express yourself through drawing and colors',
-      thumbnail: '/icon_pencil.png'
-    }
-  ];
 
   useEffect(() => {
     checkAuthAndLoadData();
   }, []);
+
+  useEffect(() => {
+    if (selectedChild) {
+      loadChildVideos(selectedChild.id);
+    }
+  }, [selectedChild]);
 
   const checkAuthAndLoadData = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -103,7 +78,7 @@ export default function Dashboard() {
       const childrenData = data || [];
       setChildren(childrenData);
       
-      // Set the oldest child as selected (first in alphabetical order)
+      // Set the first child as selected
       if (childrenData.length > 0) {
         setSelectedChild(childrenData[0]);
       }
@@ -111,6 +86,32 @@ export default function Dashboard() {
       console.error('Error loading children:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadChildVideos = async (childId: string) => {
+    setVideosLoading(true);
+    try {
+      // Get the current session
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('No active session');
+      }
+      // Fetch the playlist for this child
+      const { data, error } = await supabase
+        .from('child_playlists')
+        .select('videos')
+        .eq('child_id', childId)
+        .single();
+      if (error) {
+        throw error;
+      }
+      setVideos(data?.videos || []);
+    } catch (error) {
+      console.error('Error fetching child videos:', error);
+      setVideos([]);
+    } finally {
+      setVideosLoading(false);
     }
   };
 
@@ -133,6 +134,22 @@ export default function Dashboard() {
     return emojis[interest] || '👶';
   };
 
+  const formatDuration = (seconds?: number) => {
+    if (!seconds) return '';
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+  };
+
+  const getPersonalizationBadge = (level: string) => {
+    const badges = {
+      child_specific: { text: 'Personal', color: 'bg-blue-100 text-blue-800' },
+      theme_specific: { text: 'Theme', color: 'bg-green-100 text-green-800' },
+      generic: { text: 'General', color: 'bg-gray-100 text-gray-800' }
+    };
+    return badges[level as keyof typeof badges] || badges.generic;
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
@@ -145,120 +162,150 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-white">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <div className="flex items-center space-x-4">
-              <Image
-                src="/HippoPolkaLogo.png"
-                alt="Hippo and Dog Logo"
-                width={60}
-                height={60}
-                priority
-              />
-              <h1 className="text-2xl font-bold text-black">Hippo Polka Beta</h1>
-            </div>
-            <div className="flex items-center space-x-4">
-              {children.length > 1 && (
-                <select
-                  value={selectedChild?.id || ''}
-                  onChange={(e) => {
-                    const child = children.find(c => c.id === e.target.value);
-                    setSelectedChild(child || null);
-                  }}
-                  className="border border-gray-300 rounded-md px-3 py-2 text-black bg-white"
-                >
-                  {children.map((child) => (
-                    <option key={child.id} value={child.id}>
-                      {child.name}
-                    </option>
-                  ))}
-                </select>
-              )}
-              <Link
-                href="/account-management"
-                className="text-black hover:text-gray-600 transition-colors"
-              >
-                Account Settings
-              </Link>
-              <button
-                onClick={handleLogout}
-                className="text-black hover:text-gray-600 transition-colors"
-              >
-                Logout
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Child Display */}
-        {selectedChild && (
-          <div className="mb-8">
-            <div className="flex items-center space-x-4">
-              {(selectedChild.metadata?.icon) ? (
+    <>
+      <div className="min-h-screen bg-white">
+        {/* Header */}
+        <header className="bg-white border-b border-gray-200">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center py-6">
+              <div className="flex items-center space-x-4">
                 <Image
-                  src={`/${selectedChild.metadata.icon}`}
-                  alt={`${selectedChild.name}'s icon`}
+                  src="/HippoPolkaLogo.png"
+                  alt="Hippo and Dog Logo"
                   width={60}
                   height={60}
-                  className="rounded-lg"
+                  priority
                 />
-              ) : (
-                <div className="w-15 h-15 bg-gray-100 rounded-lg flex items-center justify-center">
-                  <span className="text-3xl">{getInterestEmoji(selectedChild.primary_interest)}</span>
-                </div>
-              )}
-              <h2 className="text-2xl font-bold text-black">{selectedChild.name}</h2>
+                <h1 className="text-2xl font-bold text-black">Hippo Polka Beta</h1>
+              </div>
+              <div className="flex items-center space-x-4">
+                {children.length > 1 && (
+                  <select
+                    value={selectedChild?.id || ''}
+                    onChange={(e) => {
+                      const child = children.find(c => c.id === e.target.value);
+                      setSelectedChild(child || null);
+                    }}
+                    className="border border-gray-300 rounded-md px-3 py-2 text-black bg-white"
+                  >
+                    {children.map((child) => (
+                      <option key={child.id} value={child.id}>
+                        {child.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
+                <Link
+                  href="/account-management"
+                  className="text-black hover:text-gray-600 transition-colors"
+                >
+                  Account Settings
+                </Link>
+                <button
+                  onClick={handleLogout}
+                  className="text-black hover:text-gray-600 transition-colors"
+                >
+                  Logout
+                </button>
+              </div>
             </div>
           </div>
-        )}
+        </header>
 
-        {/* Video Gallery - Only show if there are children */}
-        {children.length > 0 && (
-          <div className="mb-8">
-            <h3 className="text-xl font-bold text-black mb-6">Video Gallery</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-              {mockVideos.map((video) => (
-                <div key={video.id} className="bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
-                  <div className="aspect-video relative">
-                    <Image
-                      src={video.thumbnail}
-                      alt={video.title}
-                      fill
-                      className="object-cover"
-                    />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 bg-white">
+          {/* Child Display */}
+          {selectedChild && (
+            <div className="mb-8">
+              <div className="flex items-center space-x-4">
+                {(selectedChild.metadata?.icon) ? (
+                  <Image
+                    src={`/${selectedChild.metadata.icon}`}
+                    alt={`${selectedChild.name}'s icon`}
+                    width={60}
+                    height={60}
+                    className="rounded-lg"
+                  />
+                ) : (
+                  <div className="w-15 h-15 bg-gray-100 rounded-lg flex items-center justify-center">
+                    <span className="text-3xl">{getInterestEmoji(selectedChild.primary_interest)}</span>
                   </div>
-                  <div className="p-4">
-                    <h4 className="font-semibold text-black mb-2">{video.title}</h4>
-                    <p className="text-sm text-gray-600">{video.description}</p>
-                  </div>
+                )}
+                <div>
+                  <h2 className="text-2xl font-bold text-black">{selectedChild.name}</h2>
+                  <p className="text-gray-600">Age {selectedChild.age} • {selectedChild.primary_interest}</p>
                 </div>
-              ))}
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* No Children State */}
-        {children.length === 0 && (
-          <div className="text-center py-12">
-            <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <span className="text-3xl">👶</span>
+          {/* Video Gallery */}
+          {children.length > 0 && (
+            <div className="mb-8">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-bold text-black">Video Gallery</h3>
+              </div>
+              {videos.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                  {videos.map((video) => {
+                    const badge = getPersonalizationBadge(video.personalization_level);
+                    return (
+                      <div
+                        key={video.id}
+                        className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200 flex flex-col cursor-pointer hover:shadow-2xl transition-shadow"
+                        onClick={() => router.push({
+                          pathname: '/video-playback',
+                          query: { videoId: video.id, childId: selectedChild?.id }
+                        })}
+                      >
+                        <div className="relative" style={{ aspectRatio: '4/3' }}>
+                          <img
+                            src={video.display_image}
+                            alt={video.title}
+                            className="object-cover w-full h-full"
+                          />
+                          <div className="absolute top-2 left-2">
+                            <span className="px-2 py-1 bg-gray-200 text-gray-800 text-xs rounded-full">
+                              {badge.text}
+                            </span>
+                          </div>
+                          <div className="absolute bottom-2 right-2 bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded">
+                            {video.duration_seconds ? formatDuration(video.duration_seconds) : ''}
+                          </div>
+                        </div>
+                        <div className="p-4 flex-1 flex flex-col">
+                          <h4 className="font-semibold text-black mb-2 line-clamp-2">{video.title}</h4>
+                          {video.description && (
+                            <p className="text-sm text-gray-600 mb-2 line-clamp-2">{video.description}</p>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : !videosLoading ? (
+                <div className="text-center py-12">
+                  <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <span className="text-3xl">📺</span>
+                  </div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No videos available yet</h3>
+                  <p className="text-gray-600">Videos will appear here once they're generated and approved.</p>
+                </div>
+              ) : null}
             </div>
-            <h3 className="text-lg font-medium text-black mb-2">No children added yet</h3>
-            <p className="text-gray-600 mb-6">Add your first child to get started with personalized videos</p>
-            <Link
-              href="/account-management"
-              className="inline-flex items-center px-4 py-2 bg-black text-white rounded-md hover:bg-gray-800 transition-colors"
-            >
-              Add Your First Child
-            </Link>
-          </div>
-        )}
+          )}
+
+          {/* No Children State */}
+          {children.length === 0 && !loading && (
+            <div className="text-center py-12">
+              <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="text-3xl">👶</span>
+              </div>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No children found</h3>
+              <p className="text-gray-600">Add a child to get started.</p>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+    </>
   );
 } 

@@ -1,68 +1,118 @@
+require('dotenv').config({ path: '.env.local' });
 const { createClient } = require('@supabase/supabase-js');
 
-const supabaseUrl = 'https://etshvxrgbssginmzsczo.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV0c2h2eHJnYnNzZ2lubXpzY3pvIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1MTkyMDc3NywiZXhwIjoyMDY3NDk2Nzc3fQ.BthIB5-UciZn7fjP5Hy1fqrRzan1BQIECuhudvVbEmI';
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-const supabase = createClient(supabaseUrl, supabaseKey);
+if (!supabaseUrl || !supabaseServiceKey) {
+  console.error('❌ Missing environment variables');
+  process.exit(1);
+}
+
+const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 async function checkVideoStatus() {
+  console.log('🔍 Checking video status in database...\n');
+
   try {
-    // Check approved_videos table
-    const { data: approvedVideos, error: approvedError } = await supabase
-      .from('approved_videos')
-      .select('id, video_title, child_name, approval_status, created_at, video_url')
-      .ilike('video_url', '%2qkr8lo2nk%')
-      .order('created_at', { ascending: false })
-      .limit(5);
-
-    console.log('=== APPROVED VIDEOS TABLE ===');
-    if (approvedError) {
-      console.error('Error querying approved_videos:', approvedError);
-    } else {
-      console.log('Found videos:', approvedVideos);
-    }
-
-    // Check video_generation_jobs table
-    const { data: jobData, error: jobError } = await supabase
-      .from('video_generation_jobs')
-      .select('id, status, template_data, created_at, updated_at')
-      .order('created_at', { ascending: false })
-      .limit(10);
-
-    console.log('\n=== RECENT VIDEO GENERATION JOBS ===');
-    if (jobError) {
-      console.error('Error querying video_generation_jobs:', jobError);
-    } else {
-      jobData.forEach(job => {
-        console.log(`Job ${job.id}: ${job.status} - ${job.created_at}`);
-        if (job.template_data?.props?.childName) {
-          console.log(`  Child: ${job.template_data.props.childName}`);
-        }
-      });
-    }
-
-    // Check for any videos created today
-    const today = new Date().toISOString().split('T')[0];
-    const { data: todayVideos, error: todayError } = await supabase
-      .from('approved_videos')
-      .select('id, video_title, child_name, approval_status, created_at, video_url')
-      .gte('created_at', today)
+    // Check all videos in child_approved_videos
+    console.log('1. All videos in child_approved_videos:');
+    const { data: allVideos, error: allVideosError } = await supabase
+      .from('child_approved_videos')
+      .select('*')
       .order('created_at', { ascending: false });
 
-    console.log('\n=== VIDEOS CREATED TODAY ===');
-    if (todayError) {
-      console.error('Error querying today\'s videos:', todayError);
-    } else {
-      console.log(`Found ${todayVideos.length} videos created today:`);
-      todayVideos.forEach(video => {
-        console.log(`- ${video.video_title} (${video.child_name}) - Status: ${video.approval_status}`);
-        console.log(`  URL: ${video.video_url}`);
+    if (allVideosError) {
+      console.error('❌ Error querying all videos:', allVideosError);
+      return;
+    }
+
+    console.log(`✅ Found ${allVideos.length} total videos`);
+
+    // Group by status
+    const statusCounts = {};
+    allVideos.forEach(video => {
+      const status = video.approval_status;
+      statusCounts[status] = (statusCounts[status] || 0) + 1;
+    });
+
+    console.log('\n📊 Status breakdown:');
+    Object.entries(statusCounts).forEach(([status, count]) => {
+      console.log(`  ${status}: ${count} videos`);
+    });
+
+    // Check published status
+    const publishedCount = allVideos.filter(v => v.is_published).length;
+    const activeCount = allVideos.filter(v => v.is_active).length;
+    console.log(`\n📊 Published: ${publishedCount} videos`);
+    console.log(`📊 Active: ${activeCount} videos`);
+
+    // Show sample videos with their metadata
+    if (allVideos.length > 0) {
+      console.log('\n2. Sample videos:');
+      allVideos.slice(0, 5).forEach((video, index) => {
+        console.log(`\nVideo ${index + 1}:`);
+        console.log(`  ID: ${video.id}`);
+        console.log(`  Title: ${video.consumer_title || video.video_title}`);
+        console.log(`  Status: ${video.approval_status}`);
+        console.log(`  Published: ${video.is_published}`);
+        console.log(`  Active: ${video.is_active}`);
+        console.log(`  Personalization: ${video.personalization_level}`);
+        console.log(`  Theme: ${video.child_theme}`);
         console.log(`  Created: ${video.created_at}`);
       });
     }
 
+    // Check video assignments
+    console.log('\n3. Video assignments:');
+    const { data: assignments, error: assignmentsError } = await supabase
+      .from('video_assignments')
+      .select('*')
+      .order('assigned_at', { ascending: false });
+
+    if (assignmentsError) {
+      console.error('❌ Error querying assignments:', assignmentsError);
+    } else {
+      console.log(`✅ Found ${assignments.length} video assignments`);
+      
+      // Group by child_id
+      const assignmentCounts = {};
+      assignments.forEach(assignment => {
+        const childId = assignment.child_id || 'general';
+        assignmentCounts[childId] = (assignmentCounts[childId] || 0) + 1;
+      });
+
+      console.log('\n📊 Assignment breakdown:');
+      Object.entries(assignmentCounts).forEach(([childId, count]) => {
+        const label = childId === 'general' ? 'General (null child_id)' : `Child ${childId}`;
+        console.log(`  ${label}: ${count} assignments`);
+      });
+    }
+
+    // Check if there are any videos that could be published
+    console.log('\n4. Videos that could be published:');
+    const { data: publishableVideos, error: publishableError } = await supabase
+      .from('child_approved_videos')
+      .select('*')
+      .eq('approval_status', 'approved')
+      .eq('is_active', true)
+      .eq('is_published', false);
+
+    if (publishableError) {
+      console.error('❌ Error querying publishable videos:', publishableError);
+    } else {
+      console.log(`✅ Found ${publishableVideos.length} approved videos that are not published`);
+      
+      if (publishableVideos.length > 0) {
+        console.log('\n📝 To make videos appear in dashboard, you need to:');
+        console.log('1. Set is_published = true for these videos');
+        console.log('2. Create video_assignments for them');
+        console.log('3. Ensure they have consumer metadata (title, description, etc.)');
+      }
+    }
+
   } catch (error) {
-    console.error('Error:', error);
+    console.error('❌ Check failed:', error);
   }
 }
 

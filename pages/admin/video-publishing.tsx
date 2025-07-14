@@ -547,17 +547,15 @@ export default function VideoPublishing() {
           });
         });
       } else if (assignment.assignment_type === 'general') {
-        // Assign to all children
-        children.forEach(child => {
-          assignments.push({
-            video_id: assignment.video_id,
-            child_id: child.id,
-            assignment_type: 'individual',
-            publish_date: assignment.publish_date,
-            status: isPublishNow ? 'published' : 'pending',
-            published_at: isPublishNow ? new Date().toISOString() : undefined,
-            assigned_by: user?.id
-          });
+        // Create a single general assignment for all children
+        assignments.push({
+          video_id: assignment.video_id,
+          child_id: null, // null means visible to all children
+          assignment_type: 'general',
+          publish_date: assignment.publish_date,
+          status: isPublishNow ? 'published' : 'pending',
+          published_at: isPublishNow ? new Date().toISOString() : undefined,
+          assigned_by: user?.id
         });
       }
 
@@ -567,6 +565,12 @@ export default function VideoPublishing() {
           .insert(assignments);
 
         if (error) throw error;
+
+        // Set is_published = true for the video
+        await supabase
+          .from('child_approved_videos')
+          .update({ is_published: true })
+          .eq('id', assignment.video_id);
         
         alert(`Video published successfully to ${assignments.length} children!`);
         await fetchData(); // Refresh the data

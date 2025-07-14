@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '@/lib/supabase';
+import AdminHeader from '@/components/AdminHeader';
 
 interface VideoForModeration {
   id: string;
@@ -428,23 +429,13 @@ export default function VideoModeration() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">Video Moderation</h1>
-              <p className="text-gray-600">Review and approve videos for child consumption</p>
-            </div>
-            <a
-              href="/admin"
-              className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors"
-            >
-              ← Back to Admin Dashboard
-            </a>
-          </div>
-        </div>
+    <div className="min-h-screen bg-gray-50">
+      <AdminHeader 
+        title="Video Moderation" 
+        subtitle="Review and approve videos for child consumption"
+      />
+      
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
         {/* Filters and Bulk Actions */}
         <div className="mb-6">

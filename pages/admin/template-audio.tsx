@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '@/lib/supabase';
+import AdminHeader from '@/components/AdminHeader';
 
 interface TemplateAudio {
   id: string;
@@ -212,30 +213,21 @@ export default function TemplateAudioManagement() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <h1 className="text-2xl font-bold text-gray-900">Template Audio Management</h1>
-            <div className="flex space-x-3">
-              <button
-                onClick={() => router.push('/admin/audio-generator')}
-                className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 text-sm"
-              >
-                Audio Generator
-              </button>
-              <button
-                onClick={() => router.push('/admin')}
-                className="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 text-sm"
-              >
-                Dashboard
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
+      <AdminHeader 
+        title="Template Audio" 
+        subtitle="Manage reusable audio templates"
+      />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {/* Action Buttons */}
+        <div className="flex justify-end mb-6">
+          <button
+            onClick={() => router.push('/admin/audio-generator')}
+            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 text-sm"
+          >
+            Audio Generator
+          </button>
+        </div>
         {/* Create Button */}
         <div className="mb-6">
           <button
