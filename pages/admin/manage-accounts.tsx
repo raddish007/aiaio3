@@ -389,7 +389,7 @@ export default function ManageAccounts() {
   };
 
   const handleRemoveChild = async (childId: string, childName: string) => {
-    if (!confirm(`Are you sure you want to remove ${childName}? This action cannot be undone.`)) {
+    if (!confirm(`Are you sure you want to remove ${childName}? This will also delete all their playlists. This action cannot be undone.`)) {
       return;
     }
 
@@ -398,16 +398,29 @@ export default function ManageAccounts() {
     setMessage('');
 
     try {
-      const { error } = await supabase
+      // First, delete all child playlists
+      console.log('🗑️ Deleting child playlists for child:', childId);
+      const { error: playlistError } = await supabase
+        .from('child_playlists')
+        .delete()
+        .eq('child_id', childId);
+
+      if (playlistError) {
+        throw new Error(`Error removing child playlists: ${playlistError.message}`);
+      }
+
+      // Then delete the child
+      console.log('🗑️ Deleting child:', childId);
+      const { error: childError } = await supabase
         .from('children')
         .delete()
         .eq('id', childId);
 
-      if (error) {
-        throw new Error(`Error removing child: ${error.message}`);
+      if (childError) {
+        throw new Error(`Error removing child: ${childError.message}`);
       }
 
-      setMessage(`Child "${childName}" removed successfully`);
+      setMessage(`Child "${childName}" and their playlists removed successfully`);
       
       // Reload data
       await loadParentAccounts();
