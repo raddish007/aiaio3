@@ -5,15 +5,12 @@ import { AssetStats } from '@/components/assets/AssetStats';
 import { AssetFilters } from '@/components/assets/AssetFilters';
 import { AssetTable } from '@/components/assets/AssetTable';
 import { AssetUploadModal } from '@/components/assets/AssetUpload/AssetUploadModal';
-import { AssetDetailModal } from '@/components/assets/AssetModal';
 import { useAssets } from '@/hooks/assets/useAssets';
 import { useAssetStats } from '@/hooks/assets/useAssetStats';
 import { useAssetFilters } from '@/hooks/assets/useAssetFilters';
 import { useAssetModal } from '@/hooks/assets/useAssetModal';
-import { useAssetReview } from '@/hooks/assets/useAssetReview';
 import { useTableSelection } from '@/hooks/assets/useTableSelection';
-import { updateAsset } from '@/lib/assets/asset-api';
-import { ViewMode, EditForm } from '@/lib/assets/asset-types';
+import { ViewMode } from '@/lib/assets/asset-types';
 
 export default function AssetsPage() {
   // View mode state
@@ -54,27 +51,7 @@ export default function AssetsPage() {
     selectedAsset,
     openModal,
     closeModal,
-    goToNextAsset,
-    goToPreviousAsset,
-    hasNextAsset,
-    hasPreviousAsset,
-  } = useAssetModal({ 
-    assets, 
-    enableKeyboardShortcuts: true 
-  });
-
-  const {
-    approveQuick,
-    rejectQuick,
-    getNextPendingAsset,
-  } = useAssetReview({
-    assets,
-    autoAdvance: true,
-    onAssetReviewed: async () => {
-      await refetchAssets();
-      await refetchStats();
-    },
-  });
+  } = useAssetModal();
 
   const {
     selectedIds,
@@ -118,65 +95,6 @@ export default function AssetsPage() {
 
   const handleAssetClick = (asset: any) => {
     openModal(asset);
-  };
-
-  const handleModalNext = () => {
-    goToNextAsset();
-  };
-
-  const handleModalPrevious = () => {
-    goToPreviousAsset();
-  };
-
-  const handleAssetApprove = async (asset: any) => {
-    try {
-      await approveQuick(asset.id);
-      // Auto-advance to next pending asset or close modal
-      const nextPending = getNextPendingAsset(asset.id);
-      if (nextPending) {
-        openModal(nextPending);
-      } else {
-        closeModal();
-      }
-    } catch (error) {
-      console.error('Failed to approve asset:', error);
-    }
-  };
-
-  const handleAssetReject = async (asset: any) => {
-    try {
-      await rejectQuick(asset.id, 'Rejected by admin');
-      // Auto-advance to next pending asset or close modal
-      const nextPending = getNextPendingAsset(asset.id);
-      if (nextPending) {
-        openModal(nextPending);
-      } else {
-        closeModal();
-      }
-    } catch (error) {
-      console.error('Failed to reject asset:', error);
-    }
-  };
-
-  const handleAssetSave = async (asset: any, updates: Partial<EditForm>) => {
-    try {
-      const result = await updateAsset(asset.id, updates);
-      if (result.success) {
-        // Refresh data to show updated asset
-        await refetchAssets();
-        await refetchStats();
-        // Update the modal with the new asset data
-        if (result.asset) {
-          openModal(result.asset);
-        }
-      } else {
-        console.error('Failed to update asset:', result.error);
-        alert('Failed to update asset: ' + result.error);
-      }
-    } catch (error) {
-      console.error('Failed to update asset:', error);
-      alert('Failed to update asset. Please try again.');
-    }
   };
 
   const handleUploadSuccess = () => {
@@ -245,18 +163,7 @@ export default function AssetsPage() {
         />
       )}
 
-      {/* Asset Detail Modal */}
-      <AssetDetailModal
-        asset={selectedAsset}
-        isOpen={isModalOpen}
-        onClose={closeModal}
-        onNext={hasNextAsset ? handleModalNext : undefined}
-        onPrevious={hasPreviousAsset ? handleModalPrevious : undefined}
-        onApprove={selectedAsset?.status === 'pending' ? handleAssetApprove : undefined}
-        onReject={selectedAsset?.status === 'pending' ? handleAssetReject : undefined}
-        onSave={handleAssetSave}
-      />
-
+      {/* TODO: Add Asset Detail Modal */}
       {/* TODO: Add Bulk Upload Modal */}
     </AssetsLayout>
   );

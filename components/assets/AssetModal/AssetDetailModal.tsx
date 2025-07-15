@@ -1,6 +1,14 @@
-import React, { useEffect } from 'react';
-import { Asset } from '@/lib/assets/asset-types';
+import React, { useEffect, useState } from 'react';
+import { Asset, EditForm } from '@/lib/assets/asset-types';
 import { formatDate, formatFileSize, getAssetTypeIcon } from '@/lib/assets/asset-utils';
+import { 
+  TEMPLATES, 
+  PERSONALIZATION_OPTIONS, 
+  SAFE_ZONE_OPTIONS, 
+  IMAGE_TYPES, 
+  ASPECT_RATIOS,
+  DEFAULT_EDIT_FORM 
+} from '@/lib/assets/asset-constants';
 
 interface AssetDetailModalProps {
   asset: Asset | null;
@@ -10,6 +18,7 @@ interface AssetDetailModalProps {
   onPrevious?: () => void;
   onApprove?: (asset: Asset) => void;
   onReject?: (asset: Asset) => void;
+  onSave?: (asset: Asset, updates: Partial<EditForm>) => void;
 }
 
 // Icon renderer function for asset types
@@ -56,32 +65,128 @@ export function AssetDetailModal({
   onPrevious,
   onApprove,
   onReject,
+  onSave,
 }: AssetDetailModalProps) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState<EditForm>(DEFAULT_EDIT_FORM);
+  const [hasChanges, setHasChanges] = useState(false);
+
+  // Initialize edit form when asset changes
+  useEffect(() => {
+    if (asset) {
+      setEditForm({
+        title: asset.title || '',
+        theme: asset.theme || '',
+        description: asset.metadata?.description || '',
+        tags: asset.tags ? asset.tags.join(', ') : '',
+        prompt: asset.prompt || asset.metadata?.prompt || '',
+        personalization: asset.metadata?.personalization || 'general',
+        child_name: asset.metadata?.child_name || '',
+        template: asset.metadata?.template || '',
+        volume: asset.metadata?.volume || 1.0,
+        audio_class: asset.metadata?.audio_class || '',
+        letter: asset.metadata?.letter || '',
+        imageType: asset.metadata?.imageType || '',
+        artStyle: asset.metadata?.artStyle || '',
+        aspectRatio: asset.metadata?.aspectRatio || '16:9',
+        ageRange: asset.metadata?.ageRange || '',
+        safeZone: asset.metadata?.safeZone || 'center_safe',
+        targetLetter: asset.metadata?.targetLetter || '',
+        additionalContext: asset.metadata?.additionalContext || '',
+      });
+      setHasChanges(false);
+      setIsEditing(false);
+    }
+  }, [asset]);
+
+  const handleFormChange = (field: keyof EditForm, value: any) => {
+    setEditForm(prev => ({ ...prev, [field]: value }));
+    setHasChanges(true);
+  };
+
+  const handleSave = () => {
+    if (asset && onSave && hasChanges) {
+      onSave(asset, editForm);
+      setHasChanges(false);
+      setIsEditing(false);
+    }
+  };
+
+  const handleCancel = () => {
+    if (asset) {
+      // Reset form to original values
+      setEditForm({
+        title: asset.title || '',
+        theme: asset.theme || '',
+        description: asset.metadata?.description || '',
+        tags: asset.tags ? asset.tags.join(', ') : '',
+        prompt: asset.prompt || asset.metadata?.prompt || '',
+        personalization: asset.metadata?.personalization || 'general',
+        child_name: asset.metadata?.child_name || '',
+        template: asset.metadata?.template || '',
+        volume: asset.metadata?.volume || 1.0,
+        audio_class: asset.metadata?.audio_class || '',
+        letter: asset.metadata?.letter || '',
+        imageType: asset.metadata?.imageType || '',
+        artStyle: asset.metadata?.artStyle || '',
+        aspectRatio: asset.metadata?.aspectRatio || '16:9',
+        ageRange: asset.metadata?.ageRange || '',
+        safeZone: asset.metadata?.safeZone || 'center_safe',
+        targetLetter: asset.metadata?.targetLetter || '',
+        additionalContext: asset.metadata?.additionalContext || '',
+      });
+      setHasChanges(false);
+      setIsEditing(false);
+    }
+  };
   // Keyboard shortcuts
   useEffect(() => {
     if (!isOpen) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't handle shortcuts when editing and in form fields
+      if (isEditing && (e.target as HTMLElement).tagName.match(/INPUT|TEXTAREA|SELECT/)) {
+        return;
+      }
+
       switch (e.key) {
         case 'Escape':
-          onClose();
+          if (isEditing && hasChanges) {
+            // Ask for confirmation if there are unsaved changes
+            if (confirm('You have unsaved changes. Are you sure you want to close?')) {
+              handleCancel();
+              onClose();
+            }
+          } else {
+            onClose();
+          }
           break;
         case 'ArrowLeft':
-          onPrevious?.();
+          if (!isEditing) {
+            onPrevious?.();
+          }
           break;
         case 'ArrowRight':
-          onNext?.();
+          if (!isEditing) {
+            onNext?.();
+          }
           break;
         case 'a':
         case 'A':
-          if (asset && onApprove) {
+          if (!isEditing && asset && onApprove) {
             onApprove(asset);
           }
           break;
         case 'r':
         case 'R':
-          if (asset && onReject) {
+          if (!isEditing && asset && onReject) {
             onReject(asset);
+          }
+          break;
+        case 'e':
+        case 'E':
+          if (!isEditing) {
+            setIsEditing(true);
           }
           break;
       }
@@ -89,7 +194,7 @@ export function AssetDetailModal({
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, asset, onClose, onNext, onPrevious, onApprove, onReject]);
+  }, [isOpen, isEditing, hasChanges, asset, onClose, onNext, onPrevious, onApprove, onReject]);
 
   if (!isOpen || !asset) return null;
 
@@ -112,29 +217,61 @@ export function AssetDetailModal({
             >
               Close (Esc)
             </button>
+
+            {/* Edit Mode Controls */}
+            {isEditing ? (
+              <div className="flex space-x-2 sm:mr-3">
+                <button
+                  onClick={handleSave}
+                  disabled={!hasChanges}
+                  className={`inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 text-base font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 sm:text-sm ${
+                    hasChanges 
+                      ? 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500' 
+                      : 'bg-gray-400 cursor-not-allowed'
+                  }`}
+                >
+                  Save Changes
+                </button>
+                <button
+                  onClick={handleCancel}
+                  className="inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 sm:text-sm"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setIsEditing(true)}
+                className="inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 sm:mr-3 sm:text-sm"
+              >
+                Edit (E)
+              </button>
+            )}
             
             {/* Navigation */}
-            <div className="flex space-x-2 sm:mr-3">
-              {onPrevious && (
-                <button
-                  onClick={onPrevious}
-                  className="inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 sm:text-sm"
-                >
-                  ← Previous
-                </button>
-              )}
-              {onNext && (
-                <button
-                  onClick={onNext}
-                  className="inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 sm:text-sm"
-                >
-                  Next →
-                </button>
-              )}
-            </div>
+            {!isEditing && (
+              <div className="flex space-x-2 sm:mr-3">
+                {onPrevious && (
+                  <button
+                    onClick={onPrevious}
+                    className="inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 sm:text-sm"
+                  >
+                    ← Previous
+                  </button>
+                )}
+                {onNext && (
+                  <button
+                    onClick={onNext}
+                    className="inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 sm:text-sm"
+                  >
+                    Next →
+                  </button>
+                )}
+              </div>
+            )}
 
             {/* Review Actions */}
-            {asset.status === 'pending' && (
+            {!isEditing && asset?.status === 'pending' && (
               <div className="flex space-x-2 sm:mr-3">
                 {onApprove && (
                   <button
@@ -220,119 +357,402 @@ export function AssetDetailModal({
 
               {/* Right Column - Metadata */}
               <div className="space-y-6">
-                <h3 className="text-lg font-medium text-gray-900">Asset Details</h3>
-                
-                {/* Basic Info */}
-                <div className="bg-gray-50 rounded-lg p-4 space-y-3">
-                  <div>
-                    <label className="text-sm font-medium text-gray-500">Title</label>
-                    <p className="text-sm text-gray-900">{asset.title || 'Untitled Asset'}</p>
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-sm font-medium text-gray-500">Type</label>
-                      <div className="flex items-center space-x-2">
-                        <div className="text-gray-400">
-                          {renderAssetIcon(getAssetTypeIcon(asset.type))}
-                        </div>
-                        <p className="text-sm text-gray-900 capitalize">{asset.type}</p>
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <label className="text-sm font-medium text-gray-500">Status</label>
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        asset.status === 'approved' 
-                          ? 'bg-green-100 text-green-800'
-                          : asset.status === 'rejected'
-                          ? 'bg-red-100 text-red-800'
-                          : 'bg-yellow-100 text-yellow-800'
-                      }`}>
-                        {asset.status}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-sm font-medium text-gray-500">Theme</label>
-                      <p className="text-sm text-gray-900">{asset.theme}</p>
-                    </div>
-                    
-                    <div>
-                      <label className="text-sm font-medium text-gray-500">Created</label>
-                      <p className="text-sm text-gray-900">{formatDate(asset.created_at)}</p>
-                    </div>
-                  </div>
-
-                  {asset.file_size && (
-                    <div>
-                      <label className="text-sm font-medium text-gray-500">File Size</label>
-                      <p className="text-sm text-gray-900">{formatFileSize(asset.file_size)}</p>
-                    </div>
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-medium text-gray-900">Asset Details</h3>
+                  {isEditing && (
+                    <span className="text-sm text-blue-600">Edit Mode</span>
                   )}
                 </div>
+                
+                {isEditing ? (
+                  /* Edit Form */
+                  <div className="space-y-6">
+                    {/* Basic Information */}
+                    <div className="bg-gray-50 rounded-lg p-4 space-y-4">
+                      <h4 className="text-sm font-medium text-gray-900">Basic Information</h4>
+                      
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+                          <input
+                            type="text"
+                            value={editForm.title}
+                            onChange={(e) => handleFormChange('title', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="Asset title"
+                          />
+                        </div>
+                        
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Theme</label>
+                          <input
+                            type="text"
+                            value={editForm.theme}
+                            onChange={(e) => handleFormChange('theme', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="Theme"
+                          />
+                        </div>
+                      </div>
 
-                {/* Metadata */}
-                {asset.metadata && (
-                  <div className="bg-gray-50 rounded-lg p-4 space-y-3">
-                    <h4 className="text-sm font-medium text-gray-900">Additional Metadata</h4>
-                    
-                    {asset.metadata.template && (
                       <div>
-                        <label className="text-sm font-medium text-gray-500">Template</label>
-                        <p className="text-sm text-gray-900 capitalize">{asset.metadata.template}</p>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                        <textarea
+                          value={editForm.description}
+                          onChange={(e) => handleFormChange('description', e.target.value)}
+                          rows={3}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          placeholder="Asset description"
+                        />
                       </div>
-                    )}
-                    
-                    {asset.metadata.child_name && (
+
                       <div>
-                        <label className="text-sm font-medium text-gray-500">Child Name</label>
-                        <p className="text-sm text-gray-900">{asset.metadata.child_name}</p>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Tags</label>
+                        <input
+                          type="text"
+                          value={editForm.tags}
+                          onChange={(e) => handleFormChange('tags', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          placeholder="Comma-separated tags"
+                        />
                       </div>
-                    )}
-                    
-                    {asset.metadata.description && (
-                      <div>
-                        <label className="text-sm font-medium text-gray-500">Description</label>
-                        <p className="text-sm text-gray-900">{asset.metadata.description}</p>
+                    </div>
+
+                    {/* Template Configuration */}
+                    <div className="bg-gray-50 rounded-lg p-4 space-y-4">
+                      <h4 className="text-sm font-medium text-gray-900">Template Configuration</h4>
+                      
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Template</label>
+                          <select
+                            value={editForm.template}
+                            onChange={(e) => handleFormChange('template', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          >
+                            <option value="">Select template</option>
+                            {TEMPLATES.map(template => (
+                              <option key={template} value={template}>
+                                {template.charAt(0).toUpperCase() + template.slice(1).replace('-', ' ')}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Personalization</label>
+                          <select
+                            value={editForm.personalization}
+                            onChange={(e) => handleFormChange('personalization', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          >
+                            {PERSONALIZATION_OPTIONS.map(option => (
+                              <option key={option} value={option}>
+                                {option.charAt(0).toUpperCase() + option.slice(1)}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Child Name</label>
+                          <input
+                            type="text"
+                            value={editForm.child_name}
+                            onChange={(e) => handleFormChange('child_name', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="Child's name"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Safe Zone</label>
+                          <select
+                            value={editForm.safeZone}
+                            onChange={(e) => handleFormChange('safeZone', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          >
+                            {SAFE_ZONE_OPTIONS.map(zone => (
+                              <option key={zone} value={zone}>
+                                {zone.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Type-Specific Fields */}
+                    {asset?.type === 'audio' && (
+                      <div className="bg-gray-50 rounded-lg p-4 space-y-4">
+                        <h4 className="text-sm font-medium text-gray-900">Audio Configuration</h4>
+                        
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Volume</label>
+                            <input
+                              type="number"
+                              min="0"
+                              max="2"
+                              step="0.1"
+                              value={editForm.volume}
+                              onChange={(e) => handleFormChange('volume', parseFloat(e.target.value))}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Audio Class</label>
+                            <input
+                              type="text"
+                              value={editForm.audio_class}
+                              onChange={(e) => handleFormChange('audio_class', e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              placeholder="Audio classification"
+                            />
+                          </div>
+                        </div>
                       </div>
                     )}
 
-                    {asset.metadata.duration && (
-                      <div>
-                        <label className="text-sm font-medium text-gray-500">Duration</label>
-                        <p className="text-sm text-gray-900">{asset.metadata.duration}s</p>
+                    {asset?.type === 'image' && (
+                      <div className="bg-gray-50 rounded-lg p-4 space-y-4">
+                        <h4 className="text-sm font-medium text-gray-900">Image Configuration</h4>
+                        
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Image Type</label>
+                            <select
+                              value={editForm.imageType}
+                              onChange={(e) => handleFormChange('imageType', e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            >
+                              <option value="">Select image type</option>
+                              {IMAGE_TYPES.map(type => (
+                                <option key={type} value={type}>
+                                  {type.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Aspect Ratio</label>
+                            <select
+                              value={editForm.aspectRatio}
+                              onChange={(e) => handleFormChange('aspectRatio', e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            >
+                              {ASPECT_RATIOS.map(ratio => (
+                                <option key={ratio} value={ratio}>
+                                  {ratio}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Art Style</label>
+                            <input
+                              type="text"
+                              value={editForm.artStyle}
+                              onChange={(e) => handleFormChange('artStyle', e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              placeholder="Art style description"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Age Range</label>
+                            <input
+                              type="text"
+                              value={editForm.ageRange}
+                              onChange={(e) => handleFormChange('ageRange', e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              placeholder="Target age range"
+                            />
+                          </div>
+                        </div>
                       </div>
                     )}
-                  </div>
-                )}
 
-                {/* Tags */}
-                {asset.tags && asset.tags.length > 0 && (
-                  <div>
-                    <label className="text-sm font-medium text-gray-500 mb-2 block">Tags</label>
-                    <div className="flex flex-wrap gap-2">
-                      {asset.tags.map((tag, index) => (
-                        <span
-                          key={index}
-                          className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
-                        >
-                          {tag}
-                        </span>
-                      ))}
+                    {/* Letter Hunt Specific */}
+                    {editForm.template === 'letter-hunt' && (
+                      <div className="bg-gray-50 rounded-lg p-4 space-y-4">
+                        <h4 className="text-sm font-medium text-gray-900">Letter Hunt Configuration</h4>
+                        
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Letter</label>
+                            <input
+                              type="text"
+                              maxLength={1}
+                              value={editForm.letter}
+                              onChange={(e) => handleFormChange('letter', e.target.value.toUpperCase())}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              placeholder="A"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Target Letter</label>
+                            <input
+                              type="text"
+                              maxLength={1}
+                              value={editForm.targetLetter}
+                              onChange={(e) => handleFormChange('targetLetter', e.target.value.toUpperCase())}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              placeholder="A"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Prompt */}
+                    <div className="bg-gray-50 rounded-lg p-4 space-y-4">
+                      <h4 className="text-sm font-medium text-gray-900">Generation Prompt</h4>
+                      <textarea
+                        value={editForm.prompt}
+                        onChange={(e) => handleFormChange('prompt', e.target.value)}
+                        rows={4}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="Detailed prompt for asset generation"
+                      />
+                    </div>
+
+                    {/* Additional Context */}
+                    <div className="bg-gray-50 rounded-lg p-4 space-y-4">
+                      <h4 className="text-sm font-medium text-gray-900">Additional Context</h4>
+                      <textarea
+                        value={editForm.additionalContext}
+                        onChange={(e) => handleFormChange('additionalContext', e.target.value)}
+                        rows={3}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="Additional context or notes"
+                      />
                     </div>
                   </div>
-                )}
+                ) : (
+                  /* View Mode */
+                  <div className="space-y-6">
+                    {/* Basic Info */}
+                    <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+                      <div>
+                        <label className="text-sm font-medium text-gray-500">Title</label>
+                        <p className="text-sm text-gray-900">{asset.title || 'Untitled Asset'}</p>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="text-sm font-medium text-gray-500">Type</label>
+                          <div className="flex items-center space-x-2">
+                            <div className="text-gray-400">
+                              {renderAssetIcon(getAssetTypeIcon(asset.type))}
+                            </div>
+                            <p className="text-sm text-gray-900 capitalize">{asset.type}</p>
+                          </div>
+                        </div>
+                        
+                        <div>
+                          <label className="text-sm font-medium text-gray-500">Status</label>
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            asset.status === 'approved' 
+                              ? 'bg-green-100 text-green-800'
+                              : asset.status === 'rejected'
+                              ? 'bg-red-100 text-red-800'
+                              : 'bg-yellow-100 text-yellow-800'
+                          }`}>
+                            {asset.status}
+                          </span>
+                        </div>
+                      </div>
 
-                {/* Prompt */}
-                {asset.prompt && (
-                  <div>
-                    <label className="text-sm font-medium text-gray-500 mb-2 block">Prompt</label>
-                    <div className="bg-gray-100 rounded-lg p-3">
-                      <p className="text-sm text-gray-900 whitespace-pre-wrap">{asset.prompt}</p>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="text-sm font-medium text-gray-500">Theme</label>
+                          <p className="text-sm text-gray-900">{asset.theme}</p>
+                        </div>
+                        
+                        <div>
+                          <label className="text-sm font-medium text-gray-500">Created</label>
+                          <p className="text-sm text-gray-900">{formatDate(asset.created_at)}</p>
+                        </div>
+                      </div>
+
+                      {asset.file_size && (
+                        <div>
+                          <label className="text-sm font-medium text-gray-500">File Size</label>
+                          <p className="text-sm text-gray-900">{formatFileSize(asset.file_size)}</p>
+                        </div>
+                      )}
                     </div>
+
+                    {/* Metadata */}
+                    {asset.metadata && (
+                      <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+                        <h4 className="text-sm font-medium text-gray-900">Additional Metadata</h4>
+                        
+                        {asset.metadata.template && (
+                          <div>
+                            <label className="text-sm font-medium text-gray-500">Template</label>
+                            <p className="text-sm text-gray-900 capitalize">{asset.metadata.template}</p>
+                          </div>
+                        )}
+                        
+                        {asset.metadata.child_name && (
+                          <div>
+                            <label className="text-sm font-medium text-gray-500">Child Name</label>
+                            <p className="text-sm text-gray-900">{asset.metadata.child_name}</p>
+                          </div>
+                        )}
+                        
+                        {asset.metadata.description && (
+                          <div>
+                            <label className="text-sm font-medium text-gray-500">Description</label>
+                            <p className="text-sm text-gray-900">{asset.metadata.description}</p>
+                          </div>
+                        )}
+
+                        {asset.metadata.duration && (
+                          <div>
+                            <label className="text-sm font-medium text-gray-500">Duration</label>
+                            <p className="text-sm text-gray-900">{asset.metadata.duration}s</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Tags */}
+                    {asset.tags && asset.tags.length > 0 && (
+                      <div>
+                        <label className="text-sm font-medium text-gray-500 mb-2 block">Tags</label>
+                        <div className="flex flex-wrap gap-2">
+                          {asset.tags.map((tag, index) => (
+                            <span
+                              key={index}
+                              className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                            >
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Prompt */}
+                    {asset.prompt && (
+                      <div>
+                        <label className="text-sm font-medium text-gray-500 mb-2 block">Prompt</label>
+                        <div className="bg-gray-100 rounded-lg p-3">
+                          <p className="text-sm text-gray-900 whitespace-pre-wrap">{asset.prompt}</p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
