@@ -77,6 +77,7 @@ export interface Asset {
   type: AssetType;
   status: AssetStatus;
   file_url?: string;
+  file_size?: number;
   prompt?: string;
   tags?: string[];
   created_at: string;
@@ -171,4 +172,12 @@ export interface UploadProgress {
   progress: number;
   status: 'uploading' | 'processing' | 'complete' | 'error';
   error?: string;
+}
+
+export interface FilterPreset {
+  id: string;
+  name: string;
+  filters: AssetFilters;
+  created_at: string;
+  user_id?: string;
 }

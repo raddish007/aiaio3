@@ -393,3 +393,35 @@ export function deepClone<T>(obj: T): T {
   }
   return obj;
 }
+
+/**
+ * Format a date string for display
+ */
+export function formatDate(dateString: string): string {
+  const date = new Date(dateString);
+  return date.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+/**
+ * Get icon type for asset type (returns string identifier)
+ */
+export function getAssetTypeIcon(type: AssetType): string {
+  switch (type) {
+    case 'image':
+      return 'image';
+    case 'audio':
+      return 'audio';
+    case 'video':
+      return 'video';
+    case 'prompt':
+      return 'prompt';
+    default:
+      return 'file';
+  }
+}
