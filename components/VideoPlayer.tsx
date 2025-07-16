@@ -73,13 +73,24 @@ export default function VideoPlayer({ video, className = "", autoPlay = false }:
       videoElement.removeEventListener('canplay', handleCanPlay);
       videoElement.removeEventListener('loadstart', handleLoadStart);
     };
-  }, []);
+  }, [video.id, optimizedVideoUrl]); // Re-run when video changes
 
-  // Reset loading state when video URL changes
+  // Reset state when video changes
   useEffect(() => {
     setIsLoading(true);
     setIsBuffering(false);
-  }, [optimizedVideoUrl]);
+    setIsPlaying(false);
+    setCurrentTime(0);
+    setDuration(0);
+    
+    // Pause and reset the video element
+    const videoElement = videoRef.current;
+    if (videoElement) {
+      videoElement.pause();
+      videoElement.currentTime = 0;
+      videoElement.load(); // Force reload with new source
+    }
+  }, [video.id, optimizedVideoUrl]);
 
   useEffect(() => {
     const videoElement = videoRef.current;
