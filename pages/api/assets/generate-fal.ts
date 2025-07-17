@@ -129,6 +129,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           seed: generationJob.result.seed,
           fal_original_url: originalUrl, // Store original FAL URL for reference
           file_size_bytes: fileSize,
+          // Ensure imageType is explicitly preserved
+          imageType: req.body.imageType || promptData?.metadata?.imageType || '',
         };
 
         // For lullaby slideshow assets, ensure correct fields are set
@@ -203,6 +205,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             style: style,
             fal_original_url: originalUrl, // Store original FAL URL for reference
             file_size_bytes: fileSize,
+            // Ensure imageType is explicitly preserved for audio assets too
+            imageType: req.body.imageType || promptData?.metadata?.imageType || '',
           },
         };
       }

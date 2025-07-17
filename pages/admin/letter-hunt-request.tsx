@@ -69,7 +69,7 @@ async function getAvailableAssetsForSection({
   targetLetter: string;
 }) {
   // Fetch all relevant assets (same as in initializePayload)
-  const [specificAssets, letterSpecificAssets, letterSpecificAudioAssets, genericVideoAssets, genericAudioAssets, letterSpecificImageAssets] = await Promise.all([
+  const [specificAssets, letterSpecificAssets, letterSpecificAudioAssets, genericVideoAssets, genericAudioAssets, letterSpecificImageAssets, titleCardAssets] = await Promise.all([
     supabase
       .from('assets')
       .select('*')
@@ -115,7 +115,15 @@ async function getAvailableAssetsForSection({
       .eq('metadata->>template', 'letter-hunt')
       .eq('type', 'image')
       .eq('metadata->>targetLetter', targetLetter)
-      .or('metadata->>child_name.is.null,metadata->>child_name.eq.')
+      .or('metadata->>child_name.is.null,metadata->>child_name.eq.'),
+    // Add specific query for title cards
+    supabase
+      .from('assets')
+      .select('*')
+      .in('status', ['approved', 'pending'])
+      .eq('metadata->>template', 'letter-hunt')
+      .eq('metadata->>imageType', 'titleCard')
+      .eq('metadata->>child_name', nameToUse)
   ]).then(results => results.map(r => r.data || []));
 
   const existingAssets = [
@@ -124,13 +132,29 @@ async function getAvailableAssetsForSection({
     ...letterSpecificAudioAssets,
     ...genericVideoAssets,
     ...genericAudioAssets,
-    ...letterSpecificImageAssets
+    ...letterSpecificImageAssets,
+    ...titleCardAssets
   ];
 
   // Map assets by type (same logic as before)
   const assetsByType: Record<string, any[]> = {};
   existingAssets.forEach(asset => {
     let assetKey = asset.metadata?.imageType || asset.metadata?.assetPurpose || asset.metadata?.videoType;
+    
+    // If no specific imageType is set, try to infer from the prompt content
+    if (!assetKey && asset.type === 'image' && asset.metadata?.prompt) {
+      const prompt = asset.metadata.prompt.toLowerCase();
+      if (prompt.includes('street sign') || prompt.includes('sign') || prompt.includes('road sign')) {
+        assetKey = 'signImage';
+      } else if (prompt.includes('book') || prompt.includes('cover') || prompt.includes('reading')) {
+        assetKey = 'bookImage';
+      } else if (prompt.includes('grocery') || prompt.includes('store') || prompt.includes('cereal') || prompt.includes('food')) {
+        assetKey = 'groceryImage';
+      } else if (prompt.includes('ending') || prompt.includes('goodbye') || prompt.includes('wave')) {
+        assetKey = 'endingImage';
+      }
+    }
+    
     if (!assetKey && asset.type === 'audio' && asset.metadata?.template_context?.asset_purpose) {
       assetKey = asset.metadata.template_context.asset_purpose;
     }

@@ -11,6 +11,8 @@ interface S3Object {
   databaseId?: string;
   duration?: number;
   metadata?: any;
+  source?: string;
+  type?: string;
 }
 
 interface S3ListResponse {
@@ -124,7 +126,7 @@ export default function S3Browser() {
   return (
     <>
       <Head>
-        <title>Video Files Browser - Admin</title>
+        <title>S3 Files Browser - Admin</title>
       </Head>
       
       <div className="min-h-screen bg-gray-50">
@@ -133,9 +135,9 @@ export default function S3Browser() {
           <div className="mb-8">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-3xl font-bold text-gray-900">Video Files Browser</h1>
+                <h1 className="text-3xl font-bold text-gray-900">S3 Files Browser</h1>
                 <p className="mt-2 text-gray-600">
-                  Browse and view video files from your database
+                  Browse and view files from your S3 bucket and database
                 </p>
               </div>
               <button
@@ -153,7 +155,7 @@ export default function S3Browser() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
                   <h2 className="text-lg font-medium text-gray-900">
-                    Video Files
+                    Files
                   </h2>
                 </div>
                 <button
@@ -198,7 +200,59 @@ export default function S3Browser() {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
-                  Loading video files...
+                  Loading files...
+                </div>
+              </div>
+            )}
+
+            {/* Breadcrumb Navigation */}
+            {!loading && (currentPrefix || folders.length > 0) && (
+              <div className="px-6 py-4 border-b border-gray-200">
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => loadObjects('')}
+                    className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                  >
+                    Root
+                  </button>
+                  {currentPrefix && currentPrefix.split('/').filter(p => p).map((part, index, parts) => (
+                    <React.Fragment key={index}>
+                      <span className="text-gray-400">/</span>
+                      <button
+                        onClick={() => {
+                          const newPrefix = parts.slice(0, index + 1).join('/') + '/';
+                          loadObjects(newPrefix);
+                        }}
+                        className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                      >
+                        {part}
+                      </button>
+                    </React.Fragment>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Folder Navigation */}
+            {!loading && folders.length > 0 && (
+              <div className="px-6 py-4 border-b border-gray-200">
+                <h3 className="text-sm font-medium text-gray-900 mb-3">Folders</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                  {folders.map((folder) => {
+                    const folderName = folder.replace(currentPrefix, '').replace('/', '');
+                    return (
+                      <button
+                        key={folder}
+                        onClick={() => navigateToFolder(folderName)}
+                        className="flex items-center p-3 text-left border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-colors"
+                      >
+                        <svg className="w-5 h-5 text-yellow-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                          <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
+                        </svg>
+                        <span className="text-sm font-medium text-gray-900 truncate">{folderName}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -210,7 +264,7 @@ export default function S3Browser() {
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Video Title / File Name
+                        File Name / Title
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Type
@@ -232,7 +286,8 @@ export default function S3Browser() {
                   <tbody className="bg-white divide-y divide-gray-200">
                     {/* Video Files */}
                     {objects.map((object) => {
-                      const fileType = getFileType(object.key);
+                      // Use asset type from database if available, otherwise infer from file extension
+                      const fileType = object.type || getFileType(object.key);
                       
                       return (
                         <tr key={object.key} className="hover:bg-gray-50">
@@ -249,6 +304,11 @@ export default function S3Browser() {
                                 {object.databaseId && (
                                   <div className="text-xs text-blue-600">
                                     ID: {object.databaseId}
+                                  </div>
+                                )}
+                                {object.source && (
+                                  <div className="text-xs text-purple-600">
+                                    Source: {object.source}
                                   </div>
                                 )}
                               </div>
@@ -296,8 +356,8 @@ export default function S3Browser() {
                           <svg className="w-12 h-12 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 4V2a1 1 0 011-1h4a1 1 0 011 1v2h4a1 1 0 110 2h-1v12a2 2 0 01-2 2H6a2 2 0 01-2-2V6H3a1 1 0 110-2h4z" />
                           </svg>
-                          <p className="text-lg font-medium mb-2">No video files found</p>
-                          <p className="text-sm">Upload some videos using the General Video Upload tool to see them here.</p>
+                          <p className="text-lg font-medium mb-2">No files found</p>
+                          <p className="text-sm">This folder is empty. Navigate to other folders or upload files to see them here.</p>
                         </td>
                       </tr>
                     )}
@@ -319,7 +379,7 @@ export default function S3Browser() {
                     </svg>
                     <div>
                       <p className="text-2xl font-bold text-green-600">{objects.length}</p>
-                      <p className="text-sm text-green-800">Video Files</p>
+                      <p className="text-sm text-green-800">Files</p>
                     </div>
                   </div>
                 </div>

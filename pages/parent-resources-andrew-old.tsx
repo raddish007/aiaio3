@@ -1,0 +1,174 @@
+import React from 'react';
+import ParentResourcesTemplate from '../components/ParentResourcesTemplate';
+
+export default function ParentResourcesAndrewPage() {
+  return (
+    <ParentResourcesTemplate 
+      childName="Andrew"
+      childIcon="🐕"
+      primaryColor="#4A90E2"
+    />
+  );
+}
+        return {
+          title: "Andrew's Letter Hunt",
+          description: "Visual recognition of letters in different settings",
+          activity: "Look for Andrew's special letters on rocket ship books, space adventure stories, or toy packaging. Each time Andrew finds one, do a \"rocket blast-off dance\" together! This builds Andrew's recognition across contexts, a key skill in early reading.",
+          videoLink: video.video_url
+        };
+      case 'name-video':
+        return {
+          title: "Andrew's Name Song",
+          description: "Letter identification and name recognition",
+          activity: "Cut out letters from space magazines or toy catalogs and help Andrew make a name collage. Seeing \"ANDREW\" in different fonts boosts print awareness—and pride in learning to read something so personal to him.",
+          videoLink: video.video_url
+        };
+      case 'lullaby':
+        return {
+          title: "Andrew's Sleepy Song",
+          description: "Language patterns, routines, emotional connection",
+          activity: "As part of Andrew's bedtime routine, say goodnight to his favorite characters—\"Goodnight, rocket,\" \"Goodnight, astronaut,\" \"Goodnight, Andrew.\" Predictable phrasing and repetition help build Andrew's language memory and emotional security.",
+          videoLink: video.video_url
+        };
+      default:
+        return {
+          title: `Andrew's ${video.consumer_title || video.video_title}`,
+          description: "Learning through play and exploration",
+          activity: "After watching this video with Andrew, extend the learning by finding related activities in your daily routine. Talk about what Andrew noticed and encourage him to share his thoughts and observations.",
+          videoLink: video.video_url
+        };
+    }
+  };
+  return (
+    <>
+      <Head>
+        <title>Parent Resources for Andrew - Supporting Your Child's Early Literacy</title>
+        <meta name="description" content="Personalized resources and tips for supporting Andrew's early literacy development" />
+      </Head>
+
+      <div className="min-h-screen bg-white">
+        {/* Header */}
+        <header className="bg-white border-b border-gray-200">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center py-6">
+              <div className="flex items-center space-x-4">
+                <img 
+                  src="/HippoPolkaLogo.png" 
+                  alt="Hippo Polka" 
+                  className="h-12 w-12"
+                />
+                <div>
+                  <h1 className="text-2xl font-bold text-gray-900">Parent Resources for Andrew</h1>
+                  <div className="flex items-center space-x-2 mt-1">
+                    <img 
+                      src="/icon_rocket.png" 
+                      alt="Andrew's Profile" 
+                      className="w-6 h-6 rounded-full"
+                    />
+                    <span className="text-sm text-gray-600">Andrew's Learning Journey</span>
+                  </div>
+                </div>
+              </div>
+              
+              <nav className="flex items-center space-x-6">
+                <Link 
+                  href="/demo-andrew" 
+                  className="text-gray-600 hover:text-gray-900 font-medium"
+                >
+                  Back to Andrew's Videos
+                </Link>
+              </nav>
+            </div>
+          </div>
+        </header>
+
+        {/* Main Content */}
+        <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="prose max-w-none">
+            <h1 className="text-4xl font-bold text-black mb-8">Supporting Andrew's Early Literacy</h1>
+            
+            <p className="text-lg text-black leading-relaxed mb-6">
+              Helping Andrew learn to read doesn't mean flashcards or long lessons—it means noticing letters on his favorite rocket books, singing his name in the car, and turning everyday moments into joyful, shared experiences. The foundation of literacy is built through connection, repetition, and play, especially in the early years.
+            </p>
+
+            <p className="text-lg text-black leading-relaxed mb-8">
+              Every video in Andrew's series is designed to spark his curiosity, introduce foundational skills, and give you fun ways to keep the learning going long after the screen turns off.
+            </p>
+
+            <h2 className="text-2xl font-bold text-black mb-6 border-b border-gray-200 pb-2">Why Video for Andrew?</h2>
+            
+            <p className="text-lg text-black leading-relaxed mb-4">
+              Think of video as a starting point, not a substitute. Andrew's short, personalized videos are designed to:
+            </p>
+
+            <ul className="list-disc pl-6 mb-6 space-y-2 text-lg text-black">
+              <li>Introduce letters, words, and concepts in playful, familiar ways that connect to Andrew's interests</li>
+              <li>Connect to Andrew's love of rockets, adventures, and exploration</li>
+              <li>Invite you to join in, pause, and build on what you see together with Andrew</li>
+            </ul>
+
+            <p className="text-lg text-black leading-relaxed mb-8">
+              The real magic happens when you bring the ideas into your everyday life with Andrew—no special materials or prep required.
+            </p>
+
+            <h2 className="text-2xl font-bold text-black mb-6 border-b border-gray-200 pb-2">Extension Ideas for Andrew's Videos</h2>
+
+            {loading ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
+                <p className="mt-2 text-gray-600">Loading Andrew's videos...</p>
+              </div>
+            ) : videos.length > 0 ? (
+              <div className="space-y-8">
+                {videos.map((video, index) => {
+                  const extensionIdea = getExtensionIdeasForVideo(video);
+                  return (
+                    <div key={video.id} className="border-l-4 border-blue-500 pl-6">
+                      <div className="flex items-start justify-between mb-3">
+                        <h3 className="text-xl font-bold text-black">{index + 1}. {extensionIdea.title}</h3>
+                        <a
+                          href={extensionIdea.videoLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="ml-4 bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 transition-colors"
+                        >
+                          Watch Video
+                        </a>
+                      </div>
+                      <p className="text-base text-black mb-3">
+                        <strong>What it teaches Andrew:</strong> {extensionIdea.description}
+                      </p>
+                      <p className="text-base text-black mb-2"><strong>Try this with Andrew:</strong></p>
+                      <p className="text-base text-black leading-relaxed">
+                        {extensionIdea.activity}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <div className="text-gray-500 mb-4">
+                  <svg className="w-16 h-16 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No Published Videos Yet</h3>
+                <p className="text-gray-600">
+                  Andrew's personalized videos will appear here once they're created and published. 
+                  Check back soon to see extension activities tailored to his specific videos!
+                </p>
+              </div>
+            )}
+
+            <div className="mt-12 p-6 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-base text-black leading-relaxed">
+                Remember: The goal isn't perfection—it's connection. Every small moment of shared discovery builds Andrew's confidence and love of learning. You're already doing more than you know to support Andrew's literacy journey.
+              </p>
+            </div>
+          </div>
+        </main>
+      </div>
+    </>
+  );
+}
