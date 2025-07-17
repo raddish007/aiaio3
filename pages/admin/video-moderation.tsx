@@ -674,6 +674,42 @@ export default function VideoModeration() {
                       </div>
                     </div>
 
+                    {/* Video URL Link */}
+                    <div className="mb-4">
+                      <div className="flex items-center space-x-2">
+                        <span className="text-sm font-medium text-gray-700">Video URL:</span>
+                        <a
+                          href={video.video_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm text-blue-600 hover:text-blue-800 underline flex items-center space-x-1"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                          </svg>
+                          <span>View Video</span>
+                        </a>
+                      </div>
+                    </div>
+
+                    {/* Supabase URL Link */}
+                    <div className="mb-4">
+                      <div className="flex items-center space-x-2">
+                        <span className="text-sm font-medium text-gray-700">Database Record:</span>
+                        <a
+                          href={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/app/editor/table/child_approved_videos?row=${video.id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm text-blue-600 hover:text-blue-800 underline flex items-center space-x-1"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                          </svg>
+                          <span>View in Supabase</span>
+                        </a>
+                      </div>
+                    </div>
+
                     {/* Video Preview */}
                     <div className="mb-4">
                       <video
@@ -746,6 +782,42 @@ export default function VideoModeration() {
                 >
                   Your browser does not support the video tag.
                 </video>
+              </div>
+
+              {/* Video URL Link in Modal */}
+              <div className="mb-4">
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm font-medium text-gray-700">Video URL:</span>
+                  <a
+                    href={selectedVideo.video_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-blue-600 hover:text-blue-800 underline flex items-center space-x-1"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                    <span>View Video</span>
+                  </a>
+                </div>
+              </div>
+
+              {/* Supabase URL Link in Modal */}
+              <div className="mb-4">
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm font-medium text-gray-700">Database Record:</span>
+                  <a
+                    href={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/app/editor/table/child_approved_videos?row=${selectedVideo.id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-blue-600 hover:text-blue-800 underline flex items-center space-x-1"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                    <span>View in Supabase</span>
+                  </a>
+                </div>
               </div>
 
               {/* Migration Status Indicator */}
