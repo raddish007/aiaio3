@@ -144,6 +144,16 @@ export default function WishButtonRequest() {
   const [selectedAsset, setSelectedAsset] = useState<any>(null);
   const [isAssetModalOpen, setIsAssetModalOpen] = useState(false);
 
+  // Video submission state
+  const [submittingVideo, setSubmittingVideo] = useState(false);
+  const [videoSubmissionResult, setVideoSubmissionResult] = useState<{
+    success: boolean;
+    job_id?: string;
+    render_id?: string;
+    output_url?: string;
+    error?: string;
+  } | null>(null);
+
   useEffect(() => {
     checkAuth();
   }, []);
@@ -324,12 +334,34 @@ export default function WishButtonRequest() {
           
           console.log(`📝 Status mapping for ${assetKey}: ${dbAsset.status} → ${mappedStatus}`);
           
-          updatedAssets[assetKey as keyof WishButtonAssets] = {
-            ...currentAsset,
-            status: mappedStatus,
-            url: dbAsset.file_url, // Use file_url instead of url
-            id: dbAsset.id
-          };
+          // Special protection for background music - only update if we have a real background music asset
+          if (assetKey === 'background_music') {
+            // Only update background music if this is actually a background music asset from DB
+            const isRealBackgroundMusic = dbAsset.metadata?.asset_purpose === 'background_music' || 
+                                         dbAsset.metadata?.template_context?.asset_purpose === 'background_music' ||
+                                         dbAsset.id === 'a2c42732-d0f3-499a-8c6c-f2afdf0bc6a9'; // Our known BG music ID
+            
+            if (isRealBackgroundMusic) {
+              console.log('🎵 Updating background music with real database asset');
+              updatedAssets[assetKey as keyof WishButtonAssets] = {
+                ...currentAsset,
+                status: mappedStatus,
+                url: dbAsset.file_url,
+                id: dbAsset.id
+              };
+            } else {
+              console.log('🎵 Protecting pre-set background music, not updating');
+            }
+          } else {
+            // Normal update for non-background-music assets
+            updatedAssets[assetKey as keyof WishButtonAssets] = {
+              ...currentAsset,
+              status: mappedStatus,
+              url: dbAsset.file_url, // Use file_url instead of url
+              id: dbAsset.id
+            };
+          }
+          
           console.log(`✅ Updated UI asset ${assetKey}:`, updatedAssets[assetKey as keyof WishButtonAssets]);
 
           // Final debug for audio assets
@@ -355,6 +387,60 @@ export default function WishButtonRequest() {
 
       setAssets(updatedAssets);
       console.log('✅ Assets refreshed from database', updatedAssets);
+      
+      // Separately fetch and update background music if it's not already set correctly
+      if (!updatedAssets.background_music || updatedAssets.background_music.status === 'missing' || !updatedAssets.background_music.url) {
+        console.log('🎵 Background music needs updating, fetching from database...');
+        try {
+          const { data: bgMusicAsset, error } = await supabase
+            .from('assets')
+            .select('*')
+            .eq('id', 'a2c42732-d0f3-499a-8c6c-f2afdf0bc6a9')
+            .single();
+            
+          if (!error && bgMusicAsset) {
+            console.log('✅ Found background music asset in database:', bgMusicAsset);
+            updatedAssets.background_music = {
+              type: 'audio',
+              name: 'Wish Button Background Music',
+              description: bgMusicAsset.metadata?.description || 'Pre-approved background music for wish-button template',
+              status: bgMusicAsset.status === 'approved' ? 'ready' : bgMusicAsset.status,
+              id: bgMusicAsset.id,
+              url: bgMusicAsset.file_url
+            };
+            setAssets(updatedAssets);
+            console.log('🎵 Updated background music asset:', updatedAssets.background_music);
+          } else {
+            console.warn('⚠️ Background music not found in database, using fallback');
+            // Use fallback background music asset
+            updatedAssets.background_music = {
+              type: 'audio',
+              name: 'Wish Button Background Music',
+              description: 'Pre-approved background music for wish-button template',
+              status: 'ready',
+              id: 'a2c42732-d0f3-499a-8c6c-f2afdf0bc6a9',
+              url: 'https://etshvxrgbssginmzsczo.supabase.co/storage/v1/object/public/assets/assets/audio/1752847321295.MP3'
+            };
+            setAssets(updatedAssets);
+            console.log('🎵 Using fallback background music asset:', updatedAssets.background_music);
+          }
+        } catch (error) {
+          console.error('❌ Error fetching background music:', error);
+          // Use fallback background music asset
+          updatedAssets.background_music = {
+            type: 'audio',
+            name: 'Wish Button Background Music',
+            description: 'Pre-approved background music for wish-button template',
+            status: 'ready',
+            id: 'a2c42732-d0f3-499a-8c6c-f2afdf0bc6a9',
+            url: 'https://etshvxrgbssginmzsczo.supabase.co/storage/v1/object/public/assets/assets/audio/1752847321295.MP3'
+          };
+          setAssets(updatedAssets);
+          console.log('🎵 Using fallback background music asset after error:', updatedAssets.background_music);
+        }
+      } else {
+        console.log('✅ Background music already properly set:', updatedAssets.background_music);
+      }
       
     } catch (error) {
       console.error('Error refreshing assets:', error);
@@ -681,6 +767,23 @@ export default function WishButtonRequest() {
       return;
     }
 
+    console.log('🔍 Building payload with assets:', {
+      hasBackgroundMusic: !!assets.background_music,
+      backgroundMusicStatus: assets.background_music?.status,
+      backgroundMusicUrl: assets.background_music?.url,
+      allAssetKeys: Object.keys(assets)
+    });
+
+    // Ensure background music is included - use fallback if needed
+    const backgroundMusicAsset = assets.background_music || {
+      type: 'audio',
+      name: 'Wish Button Background Music',
+      description: 'Pre-approved background music for wish-button template',
+      status: 'ready',
+      id: 'a2c42732-d0f3-499a-8c6c-f2afdf0bc6a9',
+      url: 'https://etshvxrgbssginmzsczo.supabase.co/storage/v1/object/public/assets/assets/audio/1752847321295.MP3'
+    };
+
     const newPayload: WishButtonPayload = {
       childName: storyVariables.childName,
       theme: storyVariables.theme,
@@ -697,7 +800,7 @@ export default function WishButtonRequest() {
         page1_audio: assets.page1_audio,
         page2_image: assets.page2_image,
         page2_audio: assets.page2_audio,
-        background_music: assets.background_music,
+        background_music: backgroundMusicAsset,
         
         // Future expansion - all other pages
         page3_image: assets.page3_image,
@@ -719,6 +822,115 @@ export default function WishButtonRequest() {
 
     setPayload(newPayload);
     console.log('🏗️ Built Wish Button payload:', newPayload);
+    console.log('🎵 Background music in payload:', newPayload.assets.background_music);
+  };
+
+  const submitToRemotionPipeline = async () => {
+    if (!payload || !selectedChild || !storyVariables) {
+      console.error('Missing required data for video submission');
+      alert('Missing required data for video submission');
+      return;
+    }
+
+    // Validate that required assets are ready
+    const requiredAssets = ['page1_image', 'page1_audio', 'page2_image', 'page2_audio', 'background_music'];
+    const missingAssets = requiredAssets.filter(key => {
+      const asset = payload.assets[key as keyof typeof payload.assets];
+      return !asset || asset.status !== 'ready' && asset.status !== 'approved';
+    });
+
+    if (missingAssets.length > 0) {
+      alert(`Cannot submit video: Missing ready assets: ${missingAssets.join(', ')}`);
+      return;
+    }
+
+    setSubmittingVideo(true);
+    setVideoSubmissionResult(null);
+
+    try {
+      console.log('🎬 Submitting Wish Button video generation...');
+
+      // Clean asset objects to only include url and status
+      const cleanedAssets: any = {};
+      requiredAssets.forEach(key => {
+        const asset = payload.assets[key as keyof typeof payload.assets];
+        cleanedAssets[key] = {
+          url: asset.url || '',
+          status: asset.status
+        };
+      });
+
+      console.log('🧹 Cleaned assets for API:', cleanedAssets);
+
+      // Call our new Wish Button generation API
+      const response = await fetch('/api/videos/generate-wish-button', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          childName: payload.childName,
+          theme: payload.theme,
+          childId: selectedChild.id,
+          storyVariables: payload.storyVariables,
+          assets: cleanedAssets,
+          submitted_by: user?.id
+        })
+      });
+
+      const result = await response.json();
+
+      if (response.ok && result.success) {
+        console.log('✅ Video generation submitted successfully:', result);
+        setVideoSubmissionResult({
+          success: true,
+          job_id: result.job_id,
+          render_id: result.render_id,
+          output_url: result.output_url
+        });
+        alert(`✅ Wish Button video generation started successfully!\n\nJob ID: ${result.job_id}\nRender ID: ${result.render_id}\nOutput URL: ${result.output_url}`);
+      } else {
+        console.error('❌ Video generation failed:', result);
+        setVideoSubmissionResult({
+          success: false,
+          error: result.error || 'Unknown error'
+        });
+        alert(`❌ Failed to submit video: ${result.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('💥 Error submitting video:', error);
+      setVideoSubmissionResult({
+        success: false,
+        error: error instanceof Error ? error.message : 'Network error'
+      });
+      alert(`💥 Error submitting video: ${error instanceof Error ? error.message : 'Network error'}`);
+    } finally {
+      setSubmittingVideo(false);
+    }
+  };
+
+  const canSubmitVideo = () => {
+    if (!payload || !selectedChild || !storyVariables) return false;
+    
+    // Check that required assets are ready
+    const requiredAssets = ['page1_image', 'page1_audio', 'page2_image', 'page2_audio', 'background_music'];
+    const assetStatuses = requiredAssets.map(key => {
+      const asset = payload.assets[key as keyof typeof payload.assets];
+      return {
+        key,
+        asset: !!asset,
+        status: asset?.status,
+        ready: asset && (asset.status === 'ready' || asset.status === 'approved')
+      };
+    });
+    
+    console.log('🔍 Asset readiness check:', assetStatuses);
+    
+    const allReady = requiredAssets.every(key => {
+      const asset = payload.assets[key as keyof typeof payload.assets];
+      return asset && (asset.status === 'ready' || asset.status === 'approved');
+    });
+    
+    console.log('🎯 Can submit video:', allReady);
+    return allReady;
   };
 
   const generateStoryVariables = async (child: Child) => {
@@ -744,7 +956,7 @@ export default function WishButtonRequest() {
         const storyProject = await createOrUpdateStoryProject(child, data.storyVariables);
         setCurrentStoryProject(storyProject);
         
-        initializeAssets(data.storyVariables);
+        await initializeAssets(data.storyVariables);
       } else {
         throw new Error(data.error);
       }
@@ -839,7 +1051,7 @@ export default function WishButtonRequest() {
     }
   };
 
-  const initializeAssets = (variables: StoryVariables) => {
+  const initializeAssets = async (variables: StoryVariables) => {
     const initialAssets: WishButtonAssets = {
       // Page 1: Title Page
       page1_image: {
@@ -967,16 +1179,43 @@ export default function WishButtonRequest() {
         status: 'missing'
       },
 
-      // Background Music - Use existing approved asset
+      // Background Music - Fetch from database
       background_music: {
         type: 'audio',
         name: 'Wish Button Background Music',
         description: 'Pre-approved background music for wish-button template',
         status: 'approved',
         id: 'a2c42732-d0f3-499a-8c6c-f2afdf0bc6a9',
-        url: 'https://storage.supabase.com/existing-bg-music' // Will be fetched from DB
+        url: 'https://etshvxrgbssginmzsczo.supabase.co/storage/v1/object/public/assets/assets/audio/1752847321295.MP3'
       }
     };
+    
+    // Fetch the real background music asset from database
+    try {
+      console.log('🎵 Fetching background music asset from database...');
+      const { data: bgMusicAsset, error } = await supabase
+        .from('assets')
+        .select('*')
+        .eq('id', 'a2c42732-d0f3-499a-8c6c-f2afdf0bc6a9')
+        .single();
+        
+      if (!error && bgMusicAsset) {
+        console.log('✅ Found background music asset in database:', bgMusicAsset);
+        initialAssets.background_music = {
+          type: 'audio',
+          name: 'Wish Button Background Music',
+          description: bgMusicAsset.metadata?.description || 'Pre-approved background music for wish-button template',
+          status: bgMusicAsset.status === 'approved' ? 'ready' : bgMusicAsset.status,
+          id: bgMusicAsset.id,
+          url: bgMusicAsset.file_url
+        };
+        console.log('🎵 Updated background music asset:', initialAssets.background_music);
+      } else {
+        console.warn('⚠️ Could not fetch background music from database, using fallback');
+      }
+    } catch (error) {
+      console.error('❌ Error fetching background music:', error);
+    }
     
     setAssets(initialAssets);
   };
@@ -3215,13 +3454,13 @@ export default function WishButtonRequest() {
                       </h3>
                       <div className="border border-gray-200 rounded-lg p-3 bg-white">
                         <h4 className="font-medium text-gray-900 mb-2 flex items-center">
-                          🎵 {payload.assets.background_music.name}
+                          🎵 {payload.assets.background_music?.name || 'Background Music'}
                           <span className="ml-2 text-xs font-bold uppercase px-2 py-1 rounded bg-green-100 text-green-800">
-                            {payload.assets.background_music.status}
+                            {payload.assets.background_music?.status || 'unknown'}
                           </span>
                         </h4>
                         <div className="text-xs text-gray-600">Pre-approved background music for wish-button template</div>
-                        <div className="text-xs text-gray-600 mt-1">ID: {payload.assets.background_music.id}</div>
+                        <div className="text-xs text-gray-600 mt-1">ID: {payload.assets.background_music?.id || 'none'}</div>
                       </div>
                     </div>
 
@@ -3242,6 +3481,55 @@ export default function WishButtonRequest() {
                           <li>Page 8: Learning moderation and wisdom</li>
                           <li>Page 9: Happy ending with lesson learned</li>
                         </ul>
+                      </div>
+                    </div>
+
+                    {/* Asset Status Summary */}
+                    <div className="border border-blue-200 rounded-lg p-4 bg-blue-50">
+                      <h3 className="font-medium text-blue-900 mb-3">📊 Asset Status Summary</h3>
+                      <div className="grid grid-cols-2 gap-3 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-gray-700">Page 1 Image:</span>
+                          <span className={payload.assets.page1_image?.status === 'ready' || payload.assets.page1_image?.status === 'approved' ? 'text-green-600' : 'text-yellow-600'}>
+                            {payload.assets.page1_image?.status === 'ready' || payload.assets.page1_image?.status === 'approved' ? '✅ Ready' : '⚠️ Not ready'}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-700">Page 1 Audio:</span>
+                          <span className={payload.assets.page1_audio?.status === 'ready' || payload.assets.page1_audio?.status === 'approved' ? 'text-green-600' : 'text-yellow-600'}>
+                            {payload.assets.page1_audio?.status === 'ready' || payload.assets.page1_audio?.status === 'approved' ? '✅ Ready' : '⚠️ Not ready'}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-700">Page 2 Image:</span>
+                          <span className={payload.assets.page2_image?.status === 'ready' || payload.assets.page2_image?.status === 'approved' ? 'text-green-600' : 'text-yellow-600'}>
+                            {payload.assets.page2_image?.status === 'ready' || payload.assets.page2_image?.status === 'approved' ? '✅ Ready' : '⚠️ Not ready'}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-700">Page 2 Audio:</span>
+                          <span className={payload.assets.page2_audio?.status === 'ready' || payload.assets.page2_audio?.status === 'approved' ? 'text-green-600' : 'text-yellow-600'}>
+                            {payload.assets.page2_audio?.status === 'ready' || payload.assets.page2_audio?.status === 'approved' ? '✅ Ready' : '⚠️ Not ready'}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-700">Background Music:</span>
+                          <span className={payload.assets.background_music?.status === 'ready' || payload.assets.background_music?.status === 'approved' ? 'text-green-600' : 'text-yellow-600'}>
+                            {payload.assets.background_music?.status === 'ready' || payload.assets.background_music?.status === 'approved' ? '✅ Ready' : '⚠️ Not ready'}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-700 font-medium">Total Ready:</span>
+                          <span className="font-medium text-blue-800">
+                            {[
+                              payload.assets.page1_image?.status === 'ready' || payload.assets.page1_image?.status === 'approved',
+                              payload.assets.page1_audio?.status === 'ready' || payload.assets.page1_audio?.status === 'approved',
+                              payload.assets.page2_image?.status === 'ready' || payload.assets.page2_image?.status === 'approved',
+                              payload.assets.page2_audio?.status === 'ready' || payload.assets.page2_audio?.status === 'approved',
+                              payload.assets.background_music?.status === 'ready' || payload.assets.background_music?.status === 'approved'
+                            ].filter(Boolean).length} / 5
+                          </span>
+                        </div>
                       </div>
                     </div>
 
@@ -3266,14 +3554,29 @@ export default function WishButtonRequest() {
                 >
                   Back to Audio Review
                 </button>
-                {payload && (
-                  <button
-                    onClick={() => setCurrentStep('review')}
-                    className="bg-green-600 text-white px-6 py-2 rounded-md hover:bg-green-700"
-                  >
-                    Continue to Final Review →
-                  </button>
-                )}
+                <div className="flex space-x-3">
+                  {payload && (
+                    <button
+                      onClick={submitToRemotionPipeline}
+                      disabled={submittingVideo || !canSubmitVideo()}
+                      className={`px-6 py-2 rounded-md font-medium ${
+                        canSubmitVideo() && !submittingVideo
+                          ? 'bg-blue-600 text-white hover:bg-blue-700'
+                          : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      }`}
+                    >
+                      {submittingVideo ? 'Submitting to Remotion...' : 'Submit to Video Pipeline'}
+                    </button>
+                  )}
+                  {payload && (
+                    <button
+                      onClick={() => setCurrentStep('review')}
+                      className="bg-green-600 text-white px-6 py-2 rounded-md hover:bg-green-700"
+                    >
+                      Continue to Final Review →
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -3500,15 +3803,42 @@ export default function WishButtonRequest() {
                     Back to Audio
                   </button>
                   <button
-                    // onClick={submitToRemotionPipeline}
-                    className="bg-green-600 text-white px-6 py-2 rounded-md hover:bg-green-700"
-                    disabled
+                    onClick={submitToRemotionPipeline}
+                    disabled={submittingVideo || !canSubmitVideo()}
+                    className={`px-6 py-2 rounded-md font-medium ${
+                      canSubmitVideo() && !submittingVideo
+                        ? 'bg-green-600 text-white hover:bg-green-700'
+                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    }`}
                   >
-                    Submit to Video Pipeline (Coming Soon)
+                    {submittingVideo ? 'Submitting to Remotion...' : 'Submit to Video Pipeline'}
                   </button>
                 </div>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Video Submission Results */}
+        {videoSubmissionResult && (
+          <div className="mt-8 p-6 rounded-lg border-2 border-blue-500 bg-blue-50">
+            <h2 className="text-2xl font-bold mb-4 text-blue-800">
+              Video Submission Status
+            </h2>
+            {videoSubmissionResult.success ? (
+              <div className="text-green-800">
+                <p className="font-medium">✅ Video submission successful!</p>
+                <p>Job ID: {videoSubmissionResult.job_id}</p>
+                <p className="mt-2 text-sm">
+                  Your video is being processed. You can check the status in the video management panel.
+                </p>
+              </div>
+            ) : (
+              <div className="text-red-800">
+                <p className="font-medium">❌ Video submission failed</p>
+                <p className="mt-2">Error: {videoSubmissionResult.error}</p>
+              </div>
+            )}
           </div>
         )}
       </div>

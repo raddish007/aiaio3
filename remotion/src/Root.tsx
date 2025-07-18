@@ -3,6 +3,7 @@ import { Composition } from 'remotion';
 import { NameVideo } from './compositions/NameVideo';
 import { Lullaby } from './compositions/Lullaby';
 import { LetterHunt } from './compositions/LetterHunt';
+import { WishButton } from './compositions/WishButton';
 import { HelloWorld } from './compositions/HelloWorld';
 import { HelloWorldWithImage } from './compositions/HelloWorldWithImage';
 import { HelloWorldWithImageAndAudio } from './compositions/HelloWorldWithImageAndAudio';
@@ -210,6 +211,41 @@ export const RemotionRoot: React.FC = () => {
           return {
             durationInFrames: totalDurationFrames,
           };
+        }}
+      />
+
+      {/* Wish Button Composition - NEW TEMPLATE */}
+      <Composition
+        id="WishButton"
+        component={WishButton}
+        durationInFrames={480} // 16 seconds at 30fps (2 pages: 8 + 8 seconds)
+        fps={30}
+        width={1920}
+        height={1080}
+        defaultProps={{
+          childName: 'Emma',
+          theme: 'space',
+          storyVariables: {
+            childName: 'Emma',
+            theme: 'space',
+            visualStyle: '2D Pixar Style',
+            mainCharacter: 'Emma, a curious young explorer with bright eyes and a big smile',
+            sidekick: 'Stardust, a friendly alien companion who loves adventures',
+            wishResultItems: 'sparkling star gems',
+            buttonLocation: 'magical space garden',
+            magicButton: 'glowing blue button shaped like a star',
+            chaoticActions: 'float everywhere and make everything sparkly and messy',
+            realizationEmotion: 'overwhelmed but thoughtful',
+            missedSimpleThing: 'sharing with friends',
+            finalScene: 'peaceful space garden with friends gathered around'
+          },
+          assets: {
+            page1_image: { url: '', status: 'missing' },
+            page1_audio: { url: '', status: 'missing' },
+            page2_image: { url: '', status: 'missing' },
+            page2_audio: { url: '', status: 'missing' },
+            background_music: { url: '', status: 'missing' }
+          }
         }}
       />
 
