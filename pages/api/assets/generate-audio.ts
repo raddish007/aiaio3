@@ -167,6 +167,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       theme: isPersonalized ? `Personalized Audio - ${voiceId}` : `Custom Audio - ${voiceId}`,
       tags: [style, 'elevenlabs', voiceId, isPersonalized ? 'personalized' : null].filter(Boolean),
       status: 'pending',
+      project_id: projectId, // Set the actual project_id column
       file_url: publicUrl,
       metadata: {
         generated_at: new Date().toISOString(),
@@ -180,7 +181,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         audio_size_bytes: audioData.length,
         duration: audioDuration, // Store extracted duration
         script: script, // Store script for regeneration
-        audio_data: `data:audio/mpeg;base64,${audioData.toString('base64')}`, // Store audio in metadata for legacy support
+        // Only include audio_data for letter-hunt and other templates that need it
+        // Wish-button uses file_url instead to avoid massive metadata
+        ...(templateContext?.templateType !== 'wish-button' ? {
+          audio_data: `data:audio/mpeg;base64,${audioData.toString('base64')}` // Store audio in metadata for legacy support
+        } : {}),
         // Template-specific metadata (nested format)
         template_context: templateContext ? {
           template_type: templateContext.templateType,
@@ -207,6 +212,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           template: 'namevideo', 
           child_name: templateContext.childName,
           asset_class: templateContext.assetPurpose // Store asset_purpose as asset_class for consistency
+        } : {}),
+        // Wish Button specific metadata (flat format for easy querying)
+        ...(templateContext?.templateType === 'wish-button' ? {
+          template: 'wish-button',
+          child_name: templateContext.childName,
+          asset_purpose: templateContext.assetPurpose, // Save as asset_purpose for wish-button assets
+          page: templateContext.assetPurpose // Also save as page for consistency
         } : {})
       },
     };
@@ -218,6 +230,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       status: assetData.status,
       hasFileUrl: !!assetData.file_url,
       metadataKeys: Object.keys(assetData.metadata),
+      metadataSize: JSON.stringify(assetData.metadata).length,
+      hasAudioData: !!assetData.metadata.audio_data,
+      templateType: templateContext?.templateType,
+      excludedAudioDataForWishButton: templateContext?.templateType === 'wish-button'
     });
 
     const { data: assetRecord, error: assetError } = await supabaseAdmin

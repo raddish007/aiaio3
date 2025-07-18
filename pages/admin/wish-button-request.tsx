@@ -36,7 +36,7 @@ interface AssetStatus {
   type: 'image' | 'audio';
   name: string;
   description: string;
-  status: 'missing' | 'generating' | 'ready' | 'pending_review' | 'completed' | 'approved' | 'rejected' | 'failed';
+  status: 'missing' | 'generating' | 'ready' | 'pending' | 'pending_review' | 'completed' | 'approved' | 'rejected' | 'failed';
   url?: string;
   id?: string; // Database ID for tracking
 }
@@ -82,6 +82,44 @@ interface WishButtonAssets {
   background_music: AssetStatus;
 }
 
+interface WishButtonPayload {
+  childName: string;
+  theme: string;
+  storyVariables: StoryVariables;
+  metadata: {
+    template: string;
+    version: string;
+    generatedAt: string;
+    projectId: string;
+  };
+  assets: {
+    // Page assets for testing (Pages 1-2)
+    page1_image: AssetStatus;
+    page1_audio: AssetStatus;
+    page2_image: AssetStatus;
+    page2_audio: AssetStatus;
+    
+    // Background music
+    background_music: AssetStatus;
+    
+    // Future expansion for all 9 pages
+    page3_image?: AssetStatus;
+    page3_audio?: AssetStatus;
+    page4_image?: AssetStatus;
+    page4_audio?: AssetStatus;
+    page5_image?: AssetStatus;
+    page5_audio?: AssetStatus;
+    page6_image?: AssetStatus;
+    page6_audio?: AssetStatus;
+    page7_image?: AssetStatus;
+    page7_audio?: AssetStatus;
+    page8_image?: AssetStatus;
+    page8_audio?: AssetStatus;
+    page9_image?: AssetStatus;
+    page9_audio?: AssetStatus;
+  };
+}
+
 export default function WishButtonRequest() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -90,7 +128,7 @@ export default function WishButtonRequest() {
   const [currentStoryProject, setCurrentStoryProject] = useState<any | null>(null); // Track the active story/project
   const [storyVariables, setStoryVariables] = useState<StoryVariables | null>(null);
   const [assets, setAssets] = useState<WishButtonAssets | null>(null);
-  const [currentStep, setCurrentStep] = useState<'child' | 'stories' | 'variables' | 'prompts' | 'images' | 'image-review' | 'audio' | 'payload' | 'submit' | 'review'>('child');
+  const [currentStep, setCurrentStep] = useState<'child' | 'stories' | 'variables' | 'prompts' | 'images' | 'image-review' | 'audio' | 'audio-generation' | 'audio-review' | 'payload' | 'submit' | 'review'>('child');
   const [generatingVariables, setGeneratingVariables] = useState(false);
   const [generatingPrompts, setGeneratingPrompts] = useState(false);
   const [generatedPrompts, setGeneratedPrompts] = useState<{ [key: string]: { image: string; audio: string; safeZone: string } } | null>(null);
@@ -98,6 +136,9 @@ export default function WishButtonRequest() {
   const [showPreviousStories, setShowPreviousStories] = useState(false);
   const [expandedPrompt, setExpandedPrompt] = useState<string | null>(null);
   const [promptProgress, setPromptProgress] = useState({ current: 0, total: 0, currentPage: '' });
+  
+  // Payload state
+  const [payload, setPayload] = useState<WishButtonPayload | null>(null);
   
   // Asset review modal state
   const [selectedAsset, setSelectedAsset] = useState<any>(null);
@@ -139,41 +180,46 @@ export default function WishButtonRequest() {
         return;
       }
       
+      // Query for wish-button assets - try both flat template and nested template_context
       const { data: dbAssets, error } = await supabase
         .from('assets')
         .select('*')
-        .eq('project_id', projectId)
-        .eq('metadata->>template', 'wish-button');
+        .eq('project_id', projectId);
 
       if (error) {
         console.error('Error fetching assets:', error);
         return;
       }
 
-      console.log(`Found ${dbAssets?.length || 0} assets in database for project ${projectId}`, dbAssets);
+      console.log(`🔍 Fetched ${dbAssets?.length || 0} total assets for project ${projectId}`);
       
-      if (dbAssets?.length === 0) {
-        console.log('⚠️ No assets found for this project. Checking all wish-button assets...');
-        const { data: allWishButtonAssets, error: allError } = await supabase
-          .from('assets')
-          .select('id, project_id, metadata')
-          .eq('metadata->>template', 'wish-button')
-          .order('created_at', { ascending: false })
-          .limit(5);
-        
-        if (!allError) {
-          console.log('All wish-button assets:', allWishButtonAssets);
-        }
-      }
+      // Special check for the new assets
+      const newAssetIds = ['6e267312-b426-489f-9343-76ebf435a5c4', 'fb258fe1-a7bd-4ace-856a-8d840c751231'];
+      const foundNewAssets = dbAssets?.filter(asset => newAssetIds.includes(asset.id)) || [];
+      console.log(`🎯 Found ${foundNewAssets.length} of the new assets:`, foundNewAssets.map(a => ({ id: a.id, project_id: a.project_id, type: a.type })));
 
-      // Additional debug: check if any assets exist for this project without template filter
-      const { data: allProjectAssets, error: allError } = await supabase
-        .from('assets')
-        .select('id, type, metadata->template, metadata->asset_purpose, metadata->page')
-        .eq('project_id', projectId);
-        
-      if (!allError) {
-        console.log(`🔍 All assets for project ${projectId}:`, allProjectAssets);
+      // Filter for wish-button assets on the client side to avoid SQL operator issues
+      const wishButtonAssets = dbAssets?.filter(asset => {
+        const metadata = asset.metadata || {};
+        const isWishButton = (
+          metadata.template === 'wish-button' ||
+          metadata.template_context?.template_type === 'wish-button'
+        );
+        console.log(`🔍 Checking asset ${asset.id}:`, {
+          type: asset.type,
+          template: metadata.template,
+          template_context_type: metadata.template_context?.template_type,
+          isWishButton: isWishButton,
+          metadata: metadata
+        });
+        return isWishButton;
+      }) || [];
+
+      console.log(`Found ${wishButtonAssets?.length || 0} wish-button assets in database for project ${projectId}`, wishButtonAssets);
+      
+      if (wishButtonAssets?.length === 0) {
+        console.log('⚠️ No wish-button assets found for this project. Checking all project assets...');
+        console.log('All project assets:', dbAssets);
       }
 
       if (!assets) return; // Need initial assets structure
@@ -181,18 +227,26 @@ export default function WishButtonRequest() {
       // Update assets with database data
       const updatedAssets = { ...assets };
 
-      dbAssets?.forEach(dbAsset => {
+      wishButtonAssets?.forEach(dbAsset => {
         console.log(`🔍 Processing asset ${dbAsset.id}:`, {
           type: dbAsset.type,
-          asset_purpose: dbAsset.metadata?.asset_purpose,
-          page: dbAsset.metadata?.page,
           template: dbAsset.metadata?.template,
+          template_context: dbAsset.metadata?.template_context,
+          asset_purpose: dbAsset.metadata?.asset_purpose || dbAsset.metadata?.template_context?.asset_purpose,
+          page: dbAsset.metadata?.page,
           status: dbAsset.status,
-          url: dbAsset.url
+          url: dbAsset.file_url,
+          fullMetadata: dbAsset.metadata
         });
 
-        const assetPurpose = dbAsset.metadata?.asset_purpose || dbAsset.metadata?.page;
+        // Get asset purpose from multiple possible locations
+        const assetPurpose = dbAsset.metadata?.asset_purpose || 
+                           dbAsset.metadata?.template_context?.asset_purpose ||
+                           dbAsset.metadata?.page ||
+                           dbAsset.metadata?.assetPurpose; // Letter hunt format
         const assetType = dbAsset.type;
+        
+        console.log(`🎯 Extracted asset purpose: ${assetPurpose}, type: ${assetType}`);
         
         // Map database assets to UI asset structure
         let assetKey = '';
@@ -206,19 +260,81 @@ export default function WishButtonRequest() {
 
         console.log(`🔗 Mapping ${dbAsset.id} to UI key: ${assetKey}`);
 
+        // Debug for ALL audio assets to understand the metadata issue
+        if (dbAsset.type === 'audio') {
+          console.log('🎵 AUDIO ASSET DEBUG:');
+          console.log('Audio Asset ID:', dbAsset.id);
+          console.log('Asset key:', assetKey);
+          console.log('Asset key exists in updatedAssets?', assetKey && assetKey in updatedAssets);
+          console.log('Metadata size (chars):', JSON.stringify(dbAsset.metadata).length);
+          console.log('Metadata keys:', Object.keys(dbAsset.metadata || {}));
+          
+          // Check if metadata has audio_data
+          if (dbAsset.metadata?.audio_data) {
+            console.log('🚨 HUGE METADATA DETECTED - audio_data size:', dbAsset.metadata.audio_data.length);
+            console.log('Audio_data preview:', dbAsset.metadata.audio_data.substring(0, 100) + '...');
+          } else {
+            console.log('✅ Clean metadata - no audio_data field (using file_url)');
+          }
+          
+          // Special debugging for the new assets
+          if (dbAsset.id === '6e267312-b426-489f-9343-76ebf435a5c4' || dbAsset.id === 'fb258fe1-a7bd-4ace-856a-8d840c751231') {
+            console.log('🚨 NEW ASSET SPECIAL DEBUG:');
+            console.log('Asset ID:', dbAsset.id);
+            console.log('Asset purpose from metadata.asset_purpose:', dbAsset.metadata?.asset_purpose);
+            console.log('Asset purpose from metadata.page:', dbAsset.metadata?.page);
+            console.log('Asset purpose from template_context:', dbAsset.metadata?.template_context?.asset_purpose);
+            console.log('Computed assetPurpose:', assetPurpose);
+            console.log('Computed assetKey:', assetKey);
+            console.log('Does updatedAssets have this key?', assetKey in updatedAssets);
+            console.log('All updatedAssets keys:', Object.keys(updatedAssets));
+          }
+          
+          // Log the clean metadata (without audio_data)
+          const cleanMetadata = { ...dbAsset.metadata };
+          if (cleanMetadata.audio_data) {
+            cleanMetadata.audio_data = `[TRUNCATED - ${cleanMetadata.audio_data.length} chars]`;
+          }
+          console.log('Clean metadata:', cleanMetadata);
+          
+          console.log('updatedAssets keys:', Object.keys(updatedAssets));
+          console.log('updatedAssets[assetKey]:', updatedAssets[assetKey as keyof WishButtonAssets]);
+        }
+
         if (assetKey && updatedAssets[assetKey as keyof WishButtonAssets]) {
           const currentAsset = updatedAssets[assetKey as keyof WishButtonAssets];
+          const mappedStatus = dbAsset.status === 'approved' ? 'ready' : 
+                             dbAsset.status === 'pending' ? 'pending_review' : 
+                             dbAsset.status;
+          
+          console.log(`📝 Status mapping for ${assetKey}: ${dbAsset.status} → ${mappedStatus}`);
+          
           updatedAssets[assetKey as keyof WishButtonAssets] = {
             ...currentAsset,
-            status: dbAsset.status === 'approved' ? 'ready' : 
-                   dbAsset.status === 'pending' ? 'pending_review' : 
-                   dbAsset.status,
-            url: dbAsset.url,
+            status: mappedStatus,
+            url: dbAsset.file_url, // Use file_url instead of url
             id: dbAsset.id
           };
           console.log(`✅ Updated UI asset ${assetKey}:`, updatedAssets[assetKey as keyof WishButtonAssets]);
+
+          // Final debug for audio assets
+          if (dbAsset.type === 'audio') {
+            console.log('🎵 FINAL AUDIO STATE:');
+            console.log(`Final updatedAssets[${assetKey}]:`, updatedAssets[assetKey as keyof WishButtonAssets]);
+            console.log('Should show review button?', 
+              (mappedStatus === 'pending_review' || mappedStatus === 'pending' || mappedStatus === 'ready') && 
+              !!dbAsset.id
+            );
+          }
         } else {
           console.log(`⚠️ No matching UI asset found for key: ${assetKey}`);
+          // Debug for audio assets that don't get mapped
+          if (dbAsset.type === 'audio') {
+            console.log('🎵 AUDIO ASSET NOT MAPPED:');
+            console.log('Asset key:', assetKey);
+            console.log('Asset key exists check:', assetKey && assetKey in updatedAssets);
+            console.log('Available keys:', Object.keys(updatedAssets));
+          }
         }
       });
 
@@ -349,6 +465,52 @@ export default function WishButtonRequest() {
     } catch (error) {
       console.error('Failed to reject asset:', error);
     }
+  };
+
+  const buildPayload = () => {
+    if (!storyVariables || !assets || !currentStoryProject || !selectedChild) {
+      console.error('Missing required data for payload building:', { storyVariables, assets, currentStoryProject, selectedChild });
+      return;
+    }
+
+    const newPayload: WishButtonPayload = {
+      childName: storyVariables.childName,
+      theme: storyVariables.theme,
+      storyVariables: storyVariables,
+      metadata: {
+        template: 'wish-button',
+        version: '1.0',
+        generatedAt: new Date().toISOString(),
+        projectId: currentStoryProject.id
+      },
+      assets: {
+        // Core pages for testing
+        page1_image: assets.page1_image,
+        page1_audio: assets.page1_audio,
+        page2_image: assets.page2_image,
+        page2_audio: assets.page2_audio,
+        background_music: assets.background_music,
+        
+        // Future expansion - all other pages
+        page3_image: assets.page3_image,
+        page3_audio: assets.page3_audio,
+        page4_image: assets.page4_image,
+        page4_audio: assets.page4_audio,
+        page5_image: assets.page5_image,
+        page5_audio: assets.page5_audio,
+        page6_image: assets.page6_image,
+        page6_audio: assets.page6_audio,
+        page7_image: assets.page7_image,
+        page7_audio: assets.page7_audio,
+        page8_image: assets.page8_image,
+        page8_audio: assets.page8_audio,
+        page9_image: assets.page9_image,
+        page9_audio: assets.page9_audio
+      }
+    };
+
+    setPayload(newPayload);
+    console.log('🏗️ Built Wish Button payload:', newPayload);
   };
 
   const generateStoryVariables = async (child: Child) => {
@@ -597,12 +759,14 @@ export default function WishButtonRequest() {
         status: 'missing'
       },
 
-      // Background Music
+      // Background Music - Use existing approved asset
       background_music: {
         type: 'audio',
-        name: 'Background Music',
-        description: `Gentle, whimsical background music for ${variables.theme} theme`,
-        status: 'missing'
+        name: 'Wish Button Background Music',
+        description: 'Pre-approved background music for wish-button template',
+        status: 'approved',
+        id: 'a2c42732-d0f3-499a-8c6c-f2afdf0bc6a9',
+        url: 'https://storage.supabase.com/existing-bg-music' // Will be fetched from DB
       }
     };
     
@@ -832,6 +996,108 @@ export default function WishButtonRequest() {
     }
   };
 
+  const generateSingleAudio = async (page: string) => {
+    if (!storyVariables || !assets || !currentStoryProject || !generatedPrompts) {
+      console.error('Missing required data for audio generation:', { storyVariables, assets, currentStoryProject, generatedPrompts });
+      alert('Missing story context. Please ensure story variables and prompts are generated first.');
+      return;
+    }
+    
+    try {
+      console.log(`🎯 Starting single audio generation for ${page} in project ${currentStoryProject.id}...`);
+      
+      // Update asset status to generating (reset from any previous failed state)
+      setAssets(prev => prev ? {
+        ...prev,
+        [`${page}_audio`]: { ...prev[`${page}_audio` as keyof WishButtonAssets], status: 'generating' }
+      } : null);
+      
+      // Get the audio script for this page
+      const pagePrompts = generatedPrompts[page];
+      if (!pagePrompts?.audio) {
+        throw new Error(`No audio script found for ${page}`);
+      }
+      
+      // Use the existing audio generation API that works with Letter Hunt
+      const response = await fetch('/api/assets/generate-audio', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          script: pagePrompts.audio,
+          voiceId: 'pNInz6obpgDQGcFmaJgB', // Adam voice
+          speed: 0.85,
+          style: 'storytelling',
+          projectId: currentStoryProject.id,
+          isPersonalized: true,
+          templateContext: {
+            templateType: 'wish-button',
+            assetPurpose: page, // e.g., 'page1', 'page2'
+            childName: storyVariables.childName,
+            // Add any wish-button specific context
+            wishItem: storyVariables.wishResultItems
+          }
+        })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Audio Generation API Response Error:', response.status, errorText);
+        
+        // Parse the error to get better user message
+        let userMessage = `Server error (${response.status})`;
+        try {
+          const errorData = JSON.parse(errorText);
+          if (errorData.details && errorData.details.includes('system_busy')) {
+            userMessage = 'ElevenLabs API is experiencing heavy traffic. Please try again in a few minutes. Higher subscriptions have priority.';
+          } else if (errorData.details && errorData.details.includes('429')) {
+            userMessage = 'Rate limit reached. Please wait a moment and try again.';
+          } else if (errorData.error) {
+            userMessage = errorData.error;
+          }
+        } catch (parseError) {
+          // Keep the generic message if parsing fails
+        }
+        
+        throw new Error(userMessage);
+      }
+
+      const data = await response.json();
+      
+      if (data.success) {
+        console.log(`✅ Single audio generation completed for ${page}:`, data.asset);
+        console.log(`🎯 Asset created with status: ${data.asset.status}, ID: ${data.asset.id}, URL: ${data.asset.file_url}`);
+        
+        // Wait a moment to ensure database write is complete
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Refresh assets from database to get the latest status
+        console.log(`🔄 Refreshing assets from database for project: ${currentStoryProject.id}`);
+        await refreshAssetsFromDatabase(currentStoryProject.id);
+        
+        alert(`Audio generation completed for ${page}! Asset created with ID: ${data.asset.id}. Check the review button above.`);
+        
+      } else {
+        console.error('❌ Audio Generation API returned error:', data.error, data.details);
+        throw new Error(data.error || 'Unknown audio generation error');
+      }
+      
+    } catch (error) {
+      console.error('💥 Error in single audio generation:', error);
+      
+      // Reset asset status on error
+      setAssets(prev => prev ? {
+        ...prev,
+        [`${page}_audio`]: { ...prev[`${page}_audio` as keyof WishButtonAssets], status: 'failed' }
+      } : null);
+      
+      if (error instanceof Error) {
+        alert(`Failed to generate audio for ${page}: ${error.message}`);
+      } else {
+        alert(`Failed to generate audio for ${page}. Please check the console for details.`);
+      }
+    }
+  };
+
   const generateAllAudio = async () => {
     if (!storyVariables || !assets) return;
     
@@ -918,21 +1184,24 @@ export default function WishButtonRequest() {
               { key: 'prompts', label: 'Generate Prompts', icon: '✨' },
               { key: 'images', label: 'Generate Images', icon: '🎨' },
               { key: 'image-review', label: 'Review Images', icon: '👀' },
-              { key: 'audio', label: 'Generate Audio', icon: '🎤' },
-              { key: 'review', label: 'Review & Submit', icon: '🎬' }
+              { key: 'audio', label: 'Audio Scripts', icon: '📝' },
+              { key: 'audio-generation', label: 'Generate Audio', icon: '🎤' },
+              { key: 'audio-review', label: 'Review Audio', icon: '🎧' },
+              { key: 'payload', label: 'Build Payload', icon: '📦' },
+              { key: 'review', label: 'Final Review', icon: '🎬' }
             ].map((step, index) => (
               <div key={step.key} className="flex items-center">
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium ${
                   currentStep === step.key 
                     ? 'bg-blue-600 text-white' 
-                    : index <= ['child', 'stories', 'variables', 'prompts', 'images', 'image-review', 'audio', 'review'].indexOf(currentStep)
+                    : index <= ['child', 'stories', 'variables', 'prompts', 'images', 'image-review', 'audio', 'audio-generation', 'audio-review', 'payload', 'review'].indexOf(currentStep)
                     ? 'bg-green-500 text-white'
                     : 'bg-gray-200 text-gray-600'
                 }`}>
                   {step.icon}
                 </div>
                 <span className="ml-2 text-sm font-medium text-gray-600">{step.label}</span>
-                {index < 7 && <div className="w-8 h-px bg-gray-300 mx-4"></div>}
+                {index < 10 && <div className="w-8 h-px bg-gray-300 mx-4"></div>}
               </div>
             ))}
           </div>
@@ -1659,102 +1928,102 @@ export default function WishButtonRequest() {
           </div>
         )}
 
-        {/* Step 6: Audio Generation */}
-        {currentStep === 'audio' && assets && (
+        {/* Step 6a: Audio Prompt Review */}
+        {currentStep === 'audio' && generatedPrompts && (
           <div className="bg-white rounded-lg shadow-sm p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Step 6: Generate Story Audio</h2>
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Step 6a: Review Audio Scripts</h2>
             
             <div className="space-y-6">
-              {/* Audio Status Summary */}
-              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                <h3 className="font-medium text-green-900 mb-2">Audio Generation Status</h3>
-                <p className="text-sm text-green-700">
-                  Generating narration audio for all 9 pages plus background music using ElevenLabs voice synthesis.
+              {/* Instructions */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h3 className="font-medium text-blue-900 mb-2">Audio Script Review</h3>
+                <p className="text-sm text-blue-700 mb-2">
+                  Review and edit the audio scripts for Pages 1-2 before generating the actual audio. These scripts will be converted to speech using ElevenLabs voice synthesis.
                 </p>
+                <div className="text-xs text-blue-600">
+                  💡 Tip: Scripts are automatically saved as you edit them. Click "Generate Audio →" when ready to proceed to audio generation.
+                </div>
               </div>
 
               {/* Background Music Section */}
               <div className="border border-green-200 rounded-lg p-4 bg-green-50">
                 <h3 className="font-medium text-green-900 mb-4">🎵 Background Music</h3>
-                <div className="border border-gray-200 rounded-lg p-4 bg-white">
-                  <h4 className="font-medium text-gray-800 mb-2 flex items-center">
-                    🎼 {assets.background_music.name}
-                    <span className={`ml-2 px-2 py-1 text-xs rounded ${
-                      assets.background_music.status === 'ready' ? 'bg-green-100 text-green-800' :
-                      assets.background_music.status === 'generating' ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-red-100 text-red-800'
-                    }`}>
-                      {assets.background_music.status}
+                <div className="bg-white border border-gray-200 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="font-medium text-gray-800">🎼 Wish Button Background Music</h4>
+                    <span className="px-2 py-1 text-xs rounded bg-green-100 text-green-800">
+                      Pre-approved
                     </span>
-                  </h4>
-                  <p className="text-sm text-gray-600 mb-3">{assets.background_music.description}</p>
-                  
-                  {assets.background_music.status === 'ready' && assets.background_music.url && (
-                    <div className="mb-3">
-                      <audio controls className="w-full">
-                        <source src={assets.background_music.url} type="audio/mpeg" />
-                        Your browser does not support the audio element.
-                      </audio>
-                    </div>
-                  )}
-                  
-                  <button
-                    disabled={assets.background_music.status === 'generating'}
-                    className={`w-full px-4 py-2 rounded text-sm font-medium ${
-                      assets.background_music.status === 'ready' ? 'bg-green-600 text-white' :
-                      assets.background_music.status === 'generating' ? 'bg-yellow-500 text-white cursor-not-allowed' :
-                      'bg-blue-600 text-white hover:bg-blue-700'
-                    }`}
-                  >
-                    {assets.background_music.status === 'ready' ? 'Regenerate' :
-                     assets.background_music.status === 'generating' ? 'Generating...' : 
-                     'Generate Background Music'}
-                  </button>
+                  </div>
+                  <p className="text-sm text-gray-600 mb-3">
+                    Using existing approved background music track (ID: a2c42732-d0f3-499a-8c6c-f2afdf0bc6a9)
+                  </p>
+                  <div className="text-xs text-green-600">
+                    ✅ Background music is already approved and ready to use
+                  </div>
                 </div>
               </div>
 
-              {/* All Page Audio */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {(['page1', 'page2', 'page3', 'page4', 'page5', 'page6', 'page7', 'page8', 'page9'] as const).map((page) => {
-                  const audioAsset = assets[`${page}_audio` as keyof WishButtonAssets];
+              {/* Audio Scripts - Pages 1-2 only for testing */}
+              <div className="space-y-4">
+                <h3 className="font-medium text-gray-900">Audio Scripts (Testing with Pages 1-2)</h3>
+                
+                {(['page1', 'page2'] as const).map((page) => {
+                  const pageNum = parseInt(page.replace('page', ''));
+                  const pagePrompts = generatedPrompts[page];
+                  
+                  if (!pagePrompts) return null;
+                  
                   return (
                     <div key={page} className="border border-gray-200 rounded-lg p-4">
-                      <h4 className="font-medium text-gray-800 mb-2 flex items-center">
-                        🎤 {audioAsset.name}
-                        <span className={`ml-2 px-2 py-1 text-xs rounded ${
-                          audioAsset.status === 'ready' ? 'bg-green-100 text-green-800' :
-                          audioAsset.status === 'generating' ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-red-100 text-red-800'
-                        }`}>
-                          {audioAsset.status}
-                        </span>
+                      <h4 className="font-medium text-gray-800 mb-3">
+                        🎤 Page {pageNum} Audio Script
                       </h4>
-                      <p className="text-sm text-gray-600 mb-3">{audioAsset.description}</p>
                       
-                      {audioAsset.status === 'ready' && audioAsset.url && (
-                        <div className="mb-3">
-                          <audio controls className="w-full">
-                            <source src={audioAsset.url} type="audio/mpeg" />
-                            Your browser does not support the audio element.
-                          </audio>
+                      <div className="space-y-3">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Narration Script
+                          </label>
+                          <textarea
+                            value={pagePrompts.audio}
+                            onChange={(e) => {
+                              setGeneratedPrompts(prev => ({
+                                ...prev!,
+                                [page]: { ...prev![page], audio: e.target.value }
+                              }));
+                              // Note: For production, consider debounced API call to update prompts in database
+                            }}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                            rows={3}
+                            placeholder="Enter the narration script for this page..."
+                          />
                         </div>
-                      )}
-                      
-                      <button
-                        disabled={audioAsset.status === 'generating'}
-                        className={`w-full px-4 py-2 rounded text-sm font-medium ${
-                          audioAsset.status === 'ready' ? 'bg-green-600 text-white' :
-                          audioAsset.status === 'generating' ? 'bg-yellow-500 text-white cursor-not-allowed' :
-                          'bg-blue-600 text-white hover:bg-blue-700'
-                        }`}
-                      >
-                        {audioAsset.status === 'ready' ? 'Regenerate' :
-                         audioAsset.status === 'generating' ? 'Generating...' : 
-                         'Generate Audio'}
-                      </button>
+                        
+                        <div className="text-xs text-gray-500">
+                          Character count: {pagePrompts.audio.length} | Estimated duration: ~{Math.ceil(pagePrompts.audio.length / 15)} seconds
+                        </div>
+                      </div>
                     </div>
                   );
                 })}
+                
+                {/* Disabled pages for testing */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 opacity-50">
+                  {(['page3', 'page4', 'page5', 'page6', 'page7', 'page8', 'page9'] as const).map((page) => {
+                    const pageNum = parseInt(page.replace('page', ''));
+                    return (
+                      <div key={page} className="border border-gray-200 rounded-lg p-4">
+                        <h4 className="font-medium text-gray-800 mb-2">
+                          🎤 Page {pageNum} Audio Script
+                        </h4>
+                        <div className="bg-gray-100 p-3 rounded text-sm text-gray-500">
+                          Disabled for testing - focusing on Pages 1-2 only
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
 
               {/* Navigation */}
@@ -1766,132 +2035,224 @@ export default function WishButtonRequest() {
                   Back to Image Review
                 </button>
                 <button
-                  onClick={() => setCurrentStep('payload')}
-                  className="bg-green-600 text-white px-6 py-2 rounded-md hover:bg-green-700"
+                  onClick={() => setCurrentStep('audio-generation')}
+                  className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700"
                 >
-                  Build Payload →
+                  Generate Audio →
                 </button>
               </div>
             </div>
           </div>
         )}
 
-        {/* Step 7: Build Payload */}
-        {currentStep === 'payload' && assets && storyVariables && generatedPrompts && (
+        {/* Step 6b: Audio Generation & Moderation */}
+        {currentStep === 'audio-generation' && assets && (
           <div className="bg-white rounded-lg shadow-sm p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Step 7: Build Payload for Remotion</h2>
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Step 6b: Generate & Moderate Audio</h2>
+            
+            {/* Debug: Show current audio asset statuses */}
+            {(() => {
+              console.log('🔍 Step 6b - Current audio asset statuses:', {
+                page1_audio: assets.page1_audio ? {
+                  status: assets.page1_audio.status,
+                  id: assets.page1_audio.id,
+                  url: assets.page1_audio.url,
+                  hasId: !!assets.page1_audio.id,
+                  shouldShowReview: (assets.page1_audio.status === 'pending_review' || assets.page1_audio.status === 'pending' || assets.page1_audio.status === 'ready') && !!assets.page1_audio.id
+                } : 'undefined',
+                page2_audio: assets.page2_audio ? {
+                  status: assets.page2_audio.status,
+                  id: assets.page2_audio.id,
+                  url: assets.page2_audio.url,
+                  hasId: !!assets.page2_audio.id,
+                  shouldShowReview: (assets.page2_audio.status === 'pending_review' || assets.page2_audio.status === 'pending' || assets.page2_audio.status === 'ready') && !!assets.page2_audio.id
+                } : 'undefined'
+              });
+              return null;
+            })()}
             
             <div className="space-y-6">
-              {/* Payload Status */}
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <h3 className="font-medium text-blue-900 mb-2">Payload Generation Status</h3>
-                <p className="text-sm text-blue-700">
-                  Building the complete payload for Remotion video generation using Letter Hunt payload structure as reference.
+              {/* Generation Status */}
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                <div className="flex justify-between items-center mb-2">
+                  <h3 className="font-medium text-green-900">Audio Generation Status</h3>
+                  <button
+                    onClick={() => currentStoryProject && refreshAssetsFromDatabase(currentStoryProject.id)}
+                    className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700"
+                    disabled={!currentStoryProject}
+                  >
+                    🔄 Refresh Assets
+                  </button>
+                </div>
+                <p className="text-sm text-green-700 mb-2">
+                  Generate audio for Pages 1-2 using the reviewed scripts. Background music is pre-approved and ready to use.
                 </p>
+                <div className="text-xs text-green-600">
+                  💡 If generation fails due to ElevenLabs being busy, click "Retry Generation" to try again.
+                </div>
               </div>
 
-              {/* Assets Summary */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Images Summary */}
-                <div className="border border-gray-200 rounded-lg p-4">
-                  <h3 className="font-medium text-gray-800 mb-3">🎨 Image Assets Ready</h3>
-                  <div className="space-y-2 text-sm">
-                    {(['page1', 'page2'] as const).map((page) => {
-                      const imageAsset = assets[`${page}_image` as keyof WishButtonAssets];
-                      return (
-                        <div key={page} className="flex justify-between items-center">
-                          <span>{imageAsset.name}</span>
-                          <span className={`px-2 py-1 text-xs rounded ${
-                            imageAsset.status === 'ready' ? 'bg-green-100 text-green-800' :
-                            'bg-red-100 text-red-800'
-                          }`}>
-                            {imageAsset.status}
-                          </span>
-                        </div>
-                      );
-                    })}
+              {/* Background Music - Pre-approved */}
+              <div className="border border-green-200 rounded-lg p-4 bg-green-50">
+                <h3 className="font-medium text-green-900 mb-4">🎵 Background Music</h3>
+                <div className="border border-gray-200 rounded-lg p-4 bg-white">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="font-medium text-gray-800">🎼 Wish Button Background Music</h4>
+                    <span className="px-2 py-1 text-xs rounded bg-green-100 text-green-800">
+                      Approved
+                    </span>
+                  </div>
+                  <p className="text-sm text-gray-600 mb-3">
+                    Using existing approved background music (ID: a2c42732-d0f3-499a-8c6c-f2afdf0bc6a9)
+                  </p>
+                  <div className="text-xs text-green-600">
+                    ✅ Ready to use in video compilation
                   </div>
                 </div>
+              </div>
 
-                {/* Audio Summary */}
-                <div className="border border-gray-200 rounded-lg p-4">
-                  <h3 className="font-medium text-gray-800 mb-3">🎤 Audio Assets Status</h3>
-                  <div className="space-y-2 text-sm">
-                    {(['page1', 'page2'] as const).map((page) => {
-                      const audioAsset = assets[`${page}_audio` as keyof WishButtonAssets];
-                      return (
-                        <div key={page} className="flex justify-between items-center">
-                          <span>{audioAsset.name}</span>
-                          <span className={`px-2 py-1 text-xs rounded ${
-                            audioAsset.status === 'ready' ? 'bg-green-100 text-green-800' :
-                            'bg-yellow-100 text-yellow-800'
-                          }`}>
-                            {audioAsset.status || 'pending'}
-                          </span>
+              {/* Page Audio Generation - Pages 1-2 only */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {(['page1', 'page2'] as const).map((page) => {
+                  const audioAsset = assets[`${page}_audio` as keyof WishButtonAssets];
+                  const pageNum = parseInt(page.replace('page', ''));
+                  
+                  return (
+                    <div key={page} className="border border-gray-200 rounded-lg p-4">
+                      <h4 className="font-medium text-gray-800 mb-2 flex items-center">
+                        🎤 Page {pageNum} Audio
+                        <span className={`ml-2 px-2 py-1 text-xs rounded ${
+                          audioAsset.status === 'ready' ? 'bg-green-100 text-green-800' :
+                          audioAsset.status === 'pending_review' ? 'bg-blue-100 text-blue-800' :
+                          audioAsset.status === 'pending' ? 'bg-blue-100 text-blue-800' :
+                          audioAsset.status === 'generating' ? 'bg-yellow-100 text-yellow-800' :
+                          audioAsset.status === 'approved' ? 'bg-green-100 text-green-800' :
+                          audioAsset.status === 'failed' ? 'bg-red-100 text-red-800' :
+                          'bg-gray-100 text-gray-800'
+                        }`}>
+                          {audioAsset.status === 'pending_review' ? 'Ready for Review' : 
+                           audioAsset.status === 'pending' ? 'Ready for Review' :
+                           audioAsset.status === 'failed' ? 'Failed - Retry' : audioAsset.status}
+                        </span>
+                      </h4>
+                      <p className="text-sm text-gray-600 mb-3">{audioAsset.description}</p>
+                      
+                      {(audioAsset.status === 'ready' || audioAsset.status === 'pending_review' || audioAsset.status === 'pending' || audioAsset.status === 'approved') && audioAsset.url && (
+                        <div className="mb-3 border border-gray-200 rounded p-2">
+                          <audio controls className="w-full">
+                            <source src={audioAsset.url} type="audio/mpeg" />
+                            Your browser does not support the audio element.
+                          </audio>
                         </div>
-                      );
-                    })}
-                    <div className="flex justify-between items-center">
-                      <span>Background Music</span>
-                      <span className={`px-2 py-1 text-xs rounded ${
-                        assets.background_music.status === 'ready' ? 'bg-green-100 text-green-800' :
-                        'bg-yellow-100 text-yellow-800'
-                      }`}>
-                        {assets.background_music.status || 'pending'}
-                      </span>
+                      )}
+                      
+                      <div className="flex gap-2">
+                        <button
+                          disabled={audioAsset.status === 'generating'}
+                          onClick={() => generateSingleAudio(page)}
+                          className={`flex-1 px-3 py-2 rounded text-sm font-medium ${
+                            audioAsset.status === 'generating' 
+                              ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+                              : audioAsset.status === 'failed'
+                              ? 'bg-orange-600 text-white hover:bg-orange-700'
+                              : 'bg-blue-600 text-white hover:bg-blue-700'
+                          }`}
+                        >
+                          {audioAsset.status === 'generating' ? 'Generating...' : 
+                           audioAsset.status === 'failed' ? 'Retry Generation' :
+                           (audioAsset.status === 'ready' || audioAsset.status === 'pending_review' || audioAsset.status === 'pending' || audioAsset.status === 'approved') ? 'Regenerate' : 'Generate'}
+                        </button>
+                        
+                        {(audioAsset.status === 'pending_review' || audioAsset.status === 'pending' || audioAsset.status === 'ready') && audioAsset.id && (
+                          <button
+                            className="flex-1 px-3 py-2 rounded text-sm font-medium bg-green-600 text-white hover:bg-green-700"
+                            onClick={async () => {
+                              console.log(`🎯 Opening review modal for ${page} audio:`, {
+                                id: audioAsset.id,
+                                status: audioAsset.status,
+                                url: audioAsset.url
+                              });
+                              await openAssetModal({ 
+                                id: audioAsset.id, 
+                                url: audioAsset.url,
+                                type: 'audio',
+                                title: `Page ${pageNum} Audio`,
+                                status: audioAsset.status,
+                                metadata: { page: pageNum }
+                              });
+                            }}
+                          >
+                            Review
+                          </button>
+                        )}
+                      </div>
                     </div>
+                  );
+                })}
+              </div>
+
+              {/* Audio Status Summary */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h3 className="font-medium text-blue-900 mb-2">Audio Generation Summary (Testing with Pages 1-2)</h3>
+                <div className="grid grid-cols-4 gap-4 text-sm">
+                  <div>
+                    <span className="text-blue-700">Ready Audio: </span>
+                    <span className="font-medium text-blue-900">
+                      {Object.values(assets).filter(asset => 
+                        asset.type === 'audio' && 
+                        (asset.status === 'ready' || asset.status === 'pending_review' || asset.status === 'pending' || asset.status === 'approved') &&
+                        (asset.name.includes('Page 1') || asset.name.includes('Page 2'))
+                      ).length}/2
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-blue-700">Generating: </span>
+                    <span className="font-medium text-blue-900">
+                      {Object.values(assets).filter(asset => 
+                        asset.type === 'audio' && 
+                        asset.status === 'generating' &&
+                        (asset.name.includes('Page 1') || asset.name.includes('Page 2'))
+                      ).length}/2
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-blue-700">Failed: </span>
+                    <span className="font-medium text-blue-900">
+                      {Object.values(assets).filter(asset => 
+                        asset.type === 'audio' && 
+                        asset.status === 'failed' &&
+                        (asset.name.includes('Page 1') || asset.name.includes('Page 2'))
+                      ).length}/2
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-blue-700">Background Music: </span>
+                    <span className="font-medium text-green-900">✅ Pre-approved</span>
                   </div>
                 </div>
               </div>
 
-              {/* Payload Preview */}
-              <div className="border border-gray-200 rounded-lg p-4">
-                <h3 className="font-medium text-gray-800 mb-3">📦 Payload Structure (Preview)</h3>
-                <div className="bg-gray-50 rounded p-3 text-sm font-mono">
-                  <pre className="whitespace-pre-wrap text-gray-700">
-{`{
-  "childName": "${storyVariables.childName}",
-  "theme": "${storyVariables.theme}",
-  "visualStyle": "${storyVariables.visualStyle}",
-  "storyVariables": {
-    "mainCharacter": "${storyVariables.mainCharacter.substring(0, 50)}...",
-    "sidekick": "${storyVariables.sidekick.substring(0, 50)}...",
-    "buttonLocation": "${storyVariables.buttonLocation}",
-    "wishResultItems": "${storyVariables.wishResultItems}"
-  },
-  "assets": {
-    "page1_image": "${assets.page1_image.url || 'pending'}",
-    "page2_image": "${assets.page2_image.url || 'pending'}",
-    "page1_audio": "${assets.page1_audio.url || 'pending'}",
-    "page2_audio": "${assets.page2_audio.url || 'pending'}",
-    "background_music": "${assets.background_music.url || 'pending'}"
-  },
-  "metadata": {
-    "template": "wish-button",
-    "version": "1.0",
-    "generatedAt": "${new Date().toISOString()}"
-  }
-}`}
-                  </pre>
-                </div>
-              </div>
-
-              {/* Payload Actions */}
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                <h3 className="font-medium text-yellow-900 mb-2">⚠️ Payload Generation (Stubbed)</h3>
-                <p className="text-sm text-yellow-700 mb-3">
-                  This step will build the complete payload structure based on the Letter Hunt implementation. 
-                  The exact Remotion template payload structure needs to be determined.
-                </p>
-                <button
-                  onClick={() => {
-                    // TODO: Implement actual payload generation API call
-                    alert('Payload generation API call will be implemented here, following Letter Hunt pattern');
-                  }}
-                  className="bg-yellow-600 text-white px-4 py-2 rounded-md hover:bg-yellow-700"
-                >
-                  Generate Payload (Stubbed)
-                </button>
+              {/* Disabled pages for testing */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 opacity-50">
+                {(['page3', 'page4', 'page5', 'page6', 'page7', 'page8', 'page9'] as const).map((page) => {
+                  const pageNum = parseInt(page.replace('page', ''));
+                  return (
+                    <div key={page} className="border border-gray-200 rounded-lg p-4">
+                      <h4 className="font-medium text-gray-800 mb-2">
+                        🎤 Page {pageNum} Audio
+                      </h4>
+                      <div className="bg-gray-100 p-3 rounded text-sm text-gray-500 mb-3">
+                        Disabled for testing
+                      </div>
+                      <button
+                        disabled={true}
+                        className="w-full px-3 py-2 rounded text-sm font-medium bg-gray-300 text-gray-500 cursor-not-allowed"
+                      >
+                        Generate (Disabled)
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
 
               {/* Navigation */}
@@ -1900,14 +2261,564 @@ export default function WishButtonRequest() {
                   onClick={() => setCurrentStep('audio')}
                   className="bg-gray-500 text-white px-6 py-2 rounded-md hover:bg-gray-600"
                 >
-                  Back to Audio
+                  Back to Audio Scripts
                 </button>
                 <button
-                  onClick={() => setCurrentStep('submit')}
+                  onClick={() => setCurrentStep('audio-review')}
+                  className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700"
+                >
+                  Review Audio →
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Step 6c: Audio Review & Moderation */}
+        {currentStep === 'audio-review' && assets && (
+          <div className="bg-white rounded-lg shadow-sm p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Step 6c: Review Generated Audio</h2>
+            
+            {/* Debug: Show current audio asset statuses */}
+            {(() => {
+              console.log('🔍 Step 6c - Current audio asset statuses:', {
+                page1_audio: assets.page1_audio ? {
+                  status: assets.page1_audio.status,
+                  id: assets.page1_audio.id,
+                  url: assets.page1_audio.url,
+                  hasId: !!assets.page1_audio.id,
+                  shouldShowReview: (assets.page1_audio.status === 'pending_review' || assets.page1_audio.status === 'pending' || assets.page1_audio.status === 'ready') && !!assets.page1_audio.id
+                } : 'undefined',
+                page2_audio: assets.page2_audio ? {
+                  status: assets.page2_audio.status,
+                  id: assets.page2_audio.id,
+                  url: assets.page2_audio.url,
+                  hasId: !!assets.page2_audio.id,
+                  shouldShowReview: (assets.page2_audio.status === 'pending_review' || assets.page2_audio.status === 'pending' || assets.page2_audio.status === 'ready') && !!assets.page2_audio.id
+                } : 'undefined'
+              });
+              return null;
+            })()}
+            
+            <div className="space-y-6">
+              {/* Review Instructions */}
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+                <h3 className="font-medium text-yellow-900 mb-2">Audio Review Instructions</h3>
+                <p className="text-sm text-yellow-700">
+                  Listen to the generated audio files and approve or reject them. You can regenerate individual audio files if needed.
+                  Use the "Review" button to open the detailed asset review modal.
+                </p>
+              </div>
+
+              {/* Refresh Assets Button */}
+              <div className="mb-6">
+                <button
+                  onClick={() => currentStoryProject && refreshAssetsFromDatabase(currentStoryProject.id)}
+                  className="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700"
+                >
+                  🔄 Refresh Assets
+                </button>
+              </div>
+
+              {/* Background Music - Pre-approved */}
+              <div className="border border-green-200 rounded-lg p-4 bg-green-50">
+                <h3 className="font-medium text-green-900 mb-4">🎵 Background Music</h3>
+                <div className="border border-gray-200 rounded-lg p-4 bg-white">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="font-medium text-gray-800">🎼 Wish Button Background Music</h4>
+                    <span className="px-2 py-1 text-xs rounded bg-green-100 text-green-800">
+                      Approved
+                    </span>
+                  </div>
+                  <p className="text-sm text-gray-600 mb-3">
+                    Using existing approved background music (ID: a2c42732-d0f3-499a-8c6c-f2afdf0bc6a9)
+                  </p>
+                  <div className="text-xs text-green-600">
+                    ✅ Ready to use in video compilation
+                  </div>
+                </div>
+              </div>
+
+              {/* Audio Review Grid - Pages 1-2 only */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {(['page1', 'page2'] as const).map((page) => {
+                  const audioAsset = assets[`${page}_audio` as keyof WishButtonAssets];
+                  const pageNumber = parseInt(page.replace('page', ''));
+                  
+                  return (
+                    <div key={page} className="border border-gray-200 rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="font-medium text-gray-800">
+                          🎤 Page {pageNumber} Audio
+                        </h3>
+                        <span className={`px-2 py-1 text-xs rounded ${
+                          audioAsset.status === 'ready' ? 'bg-green-100 text-green-800' :
+                          audioAsset.status === 'pending_review' ? 'bg-blue-100 text-blue-800' :
+                          audioAsset.status === 'pending' ? 'bg-blue-100 text-blue-800' :
+                          audioAsset.status === 'approved' ? 'bg-green-100 text-green-800' :
+                          audioAsset.status === 'generating' ? 'bg-yellow-100 text-yellow-800' :
+                          audioAsset.status === 'failed' ? 'bg-red-100 text-red-800' :
+                          'bg-gray-100 text-gray-800'
+                        }`}>
+                          {audioAsset.status === 'pending_review' ? 'Ready for Review' : 
+                           audioAsset.status === 'pending' ? 'Ready for Review' :
+                           audioAsset.status === 'approved' ? 'Approved' :
+                           audioAsset.status}
+                        </span>
+                      </div>
+                      
+                      <p className="text-sm text-gray-600 mb-4">{audioAsset.description}</p>
+                      
+                      {/* Audio Player */}
+                      {(audioAsset.status === 'ready' || audioAsset.status === 'pending_review' || audioAsset.status === 'pending' || audioAsset.status === 'approved') && audioAsset.url ? (
+                        <div className="mb-4 border border-gray-200 rounded p-3 bg-gray-50">
+                          <audio controls className="w-full">
+                            <source src={audioAsset.url} type="audio/mpeg" />
+                            Your browser does not support the audio element.
+                          </audio>
+                        </div>
+                      ) : (
+                        <div className="mb-4 p-3 bg-gray-100 border border-gray-200 rounded text-center text-sm text-gray-500">
+                          {audioAsset.status === 'generating' ? '🎤 Generating audio...' :
+                           audioAsset.status === 'failed' ? '❌ Generation failed' :
+                           '⏳ Audio not yet generated'}
+                        </div>
+                      )}
+                      
+                      {/* Action Buttons */}
+                      <div className="flex gap-2">
+                        {audioAsset.status === 'missing' || audioAsset.status === 'failed' ? (
+                          <button
+                            onClick={() => generateSingleAudio(page)}
+                            className="flex-1 px-3 py-2 rounded text-sm font-medium bg-blue-600 text-white hover:bg-blue-700"
+                          >
+                            {audioAsset.status === 'failed' ? 'Retry Generation' : 'Generate Audio'}
+                          </button>
+                        ) : audioAsset.status === 'generating' ? (
+                          <button
+                            disabled
+                            className="flex-1 px-3 py-2 rounded text-sm font-medium bg-gray-300 text-gray-500 cursor-not-allowed"
+                          >
+                            Generating...
+                          </button>
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => generateSingleAudio(page)}
+                              className="flex-1 px-3 py-2 rounded text-sm font-medium bg-orange-600 text-white hover:bg-orange-700"
+                            >
+                              Regenerate
+                            </button>
+                            
+                            {(audioAsset.status === 'pending_review' || audioAsset.status === 'pending' || audioAsset.status === 'ready') && audioAsset.id && (
+                              <button
+                                className="flex-1 px-3 py-2 rounded text-sm font-medium bg-green-600 text-white hover:bg-green-700"
+                                onClick={async () => {
+                                  console.log(`🎯 Opening review modal for ${page} audio from audio-review step:`, {
+                                    id: audioAsset.id,
+                                    status: audioAsset.status,
+                                    url: audioAsset.url
+                                  });
+                                  await openAssetModal({ 
+                                    id: audioAsset.id, 
+                                    url: audioAsset.url,
+                                    type: 'audio',
+                                    title: `Page ${pageNumber} Audio`,
+                                    status: audioAsset.status,
+                                    metadata: { page: pageNumber }
+                                  });
+                                }}
+                              >
+                                Review & Approve
+                              </button>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Audio Status Summary */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h3 className="font-medium text-blue-900 mb-2">Audio Review Summary</h3>
+                <div className="grid grid-cols-4 gap-4 text-sm">
+                  <div>
+                    <span className="text-blue-700">Generated: </span>
+                    <span className="font-medium text-blue-900">
+                      {Object.values(assets).filter(asset => 
+                        asset.type === 'audio' && 
+                        (asset.status === 'ready' || asset.status === 'pending_review' || asset.status === 'pending' || asset.status === 'approved') &&
+                        (asset.name.includes('Page 1') || asset.name.includes('Page 2'))
+                      ).length}/2
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-blue-700">Approved: </span>
+                    <span className="font-medium text-blue-900">
+                      {Object.values(assets).filter(asset => 
+                        asset.type === 'audio' && 
+                        asset.status === 'approved' &&
+                        (asset.name.includes('Page 1') || asset.name.includes('Page 2'))
+                      ).length}/2
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-blue-700">Pending Review: </span>
+                    <span className="font-medium text-blue-900">
+                      {Object.values(assets).filter(asset => 
+                        asset.type === 'audio' && 
+                        (asset.status === 'pending_review' || asset.status === 'pending') &&
+                        (asset.name.includes('Page 1') || asset.name.includes('Page 2'))
+                      ).length}/2
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-blue-700">Background Music: </span>
+                    <span className="font-medium text-green-900">✅ Pre-approved</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Audio Review Tips */}
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                <h3 className="font-medium text-gray-900 mb-2">📋 Audio Review Tips</h3>
+                <ul className="text-sm text-gray-600 space-y-1">
+                  <li>• Listen for clear pronunciation and natural speech patterns</li>
+                  <li>• Check that the audio matches the script content</li>
+                  <li>• Ensure appropriate pacing for the target age group</li>
+                  <li>• Verify audio quality (no distortion, clear voice)</li>
+                  <li>• Use the asset modal to approve or reject each audio file</li>
+                </ul>
+              </div>
+
+              {/* Navigation */}
+              <div className="flex justify-between pt-6 border-t border-gray-200">
+                <button
+                  onClick={() => setCurrentStep('audio-generation')}
+                  className="bg-gray-500 text-white px-6 py-2 rounded-md hover:bg-gray-600"
+                >
+                  Back to Audio Generation
+                </button>
+                <button
+                  onClick={() => {
+                    // Check if audio assets are approved before proceeding
+                    const approvedAudio = Object.entries(assets).filter(([key, asset]) => 
+                      asset.type === 'audio' && 
+                      (asset.status === 'approved' || asset.status === 'ready') && // Check for both approved and ready status
+                      (key === 'page1_audio' || key === 'page2_audio')
+                    );
+                    
+                    console.log('🔍 Final Review Check:', {
+                      page1_audio: assets?.page1_audio,
+                      page2_audio: assets?.page2_audio,
+                      approvedAudio: approvedAudio,
+                      approvedCount: approvedAudio.length
+                    });
+                    
+                    if (approvedAudio.length < 2) {
+                      alert(`Please approve Pages 1-2 audio before proceeding. Currently ${approvedAudio.length}/2 audio files are approved.`);
+                      return;
+                    }
+                    
+                    setCurrentStep('payload');
+                  }}
                   className="bg-green-600 text-white px-6 py-2 rounded-md hover:bg-green-700"
                 >
-                  Submit to Remotion →
+                  Continue to Final Review →
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Step 7: Build Payload for Remotion */}
+        {currentStep === 'payload' && assets && storyVariables && currentStoryProject && (
+          <div className="bg-white rounded-lg shadow-sm p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Step 7: Build Payload for Remotion</h2>
+            
+            <div className="space-y-6">
+              
+              {!payload ? (
+                /* Initial Payload Building */
+                <div>
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                    <h3 className="font-medium text-blue-900 mb-2">Ready to Build Payload</h3>
+                    <p className="text-sm text-blue-700">
+                      All assets have been generated and approved. Click below to build the complete payload structure for Remotion video generation.
+                    </p>
+                  </div>
+
+                  {/* Pre-build Summary */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    {/* Story Info */}
+                    <div className="border border-gray-200 rounded-lg p-4">
+                      <h3 className="font-medium text-gray-800 mb-3">📖 Story Information</h3>
+                      <div className="space-y-2 text-sm">
+                        <div><strong>Child:</strong> {storyVariables.childName}</div>
+                        <div><strong>Theme:</strong> {storyVariables.theme}</div>
+                        <div><strong>Main Character:</strong> {storyVariables.mainCharacter.substring(0, 40)}...</div>
+                        <div><strong>Wish Item:</strong> {storyVariables.wishResultItems}</div>
+                        <div><strong>Project ID:</strong> {currentStoryProject.id}</div>
+                      </div>
+                    </div>
+
+                    {/* Asset Readiness */}
+                    <div className="border border-gray-200 rounded-lg p-4">
+                      <h3 className="font-medium text-gray-800 mb-3">✅ Asset Readiness</h3>
+                      <div className="space-y-2 text-sm">
+                        {(['page1', 'page2'] as const).map((page) => {
+                          const imageAsset = assets[`${page}_image` as keyof WishButtonAssets];
+                          const audioAsset = assets[`${page}_audio` as keyof WishButtonAssets];
+                          return (
+                            <div key={page} className="space-y-1">
+                              <div className="flex justify-between">
+                                <span>Page {page.replace('page', '')} Image:</span>
+                                <span className={`text-xs font-bold ${
+                                  (imageAsset.status === 'ready' || imageAsset.status === 'approved') ? 'text-green-600' : 'text-red-600'
+                                }`}>
+                                  {(imageAsset.status === 'ready' || imageAsset.status === 'approved') ? '✓' : '✗'}
+                                </span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span>Page {page.replace('page', '')} Audio:</span>
+                                <span className={`text-xs font-bold ${
+                                  (audioAsset.status === 'ready' || audioAsset.status === 'approved') ? 'text-green-600' : 'text-red-600'
+                                }`}>
+                                  {(audioAsset.status === 'ready' || audioAsset.status === 'approved') ? '✓' : '✗'}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                        <div className="flex justify-between pt-2 border-t">
+                          <span>Background Music:</span>
+                          <span className="text-xs font-bold text-green-600">✓</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Build Button */}
+                  <div className="text-center">
+                    <button
+                      onClick={buildPayload}
+                      className="bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 font-medium text-lg"
+                    >
+                      🏗️ Build Wish Button Payload
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                /* Payload Built - Display Structure */
+                <div>
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+                    <h3 className="font-medium text-green-900 mb-2">🎯 Payload Built Successfully</h3>
+                    <p className="text-sm text-green-700">
+                      Complete payload structure is ready for Remotion video generation. Review the details below and proceed to submit.
+                    </p>
+                  </div>
+
+                  {/* Payload Visual Structure - Similar to Letter Hunt */}
+                  <div className="space-y-6">
+                    
+                    {/* Story Metadata */}
+                    <div className="border border-gray-200 rounded-lg p-4">
+                      <h3 className="font-medium text-gray-800 mb-3">📋 Story Metadata</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <div><strong>Child Name:</strong> {payload.childName}</div>
+                          <div><strong>Theme:</strong> {payload.theme}</div>
+                          <div><strong>Template:</strong> {payload.metadata.template}</div>
+                        </div>
+                        <div>
+                          <div><strong>Version:</strong> {payload.metadata.version}</div>
+                          <div><strong>Project ID:</strong> {payload.metadata.projectId}</div>
+                          <div><strong>Generated:</strong> {new Date(payload.metadata.generatedAt).toLocaleString()}</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Page 1: Title Page */}
+                    <div className="border border-blue-200 rounded-lg p-4" style={{ background: '#f8faff' }}>
+                      <h3 className="font-medium text-blue-900 mb-3 flex items-center">
+                        <span className="bg-blue-100 text-blue-800 text-sm font-medium px-2.5 py-0.5 rounded mr-3">Page 1</span>
+                        Title Page: "A Wish Button for {payload.childName}"
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        
+                        {/* Page 1 Image */}
+                        <div className="border border-gray-200 rounded-lg p-3" 
+                             style={{ background: payload.assets.page1_image.status === 'ready' || payload.assets.page1_image.status === 'approved' ? '#f0f8f0' : '#f9f9f9' }}>
+                          <h4 className="font-medium text-gray-900 mb-2 flex items-center">
+                            🎨 {payload.assets.page1_image.name}
+                            <span className={`ml-2 text-xs font-bold uppercase px-2 py-1 rounded ${
+                              (payload.assets.page1_image.status === 'ready' || payload.assets.page1_image.status === 'approved') ? 'bg-green-100 text-green-800' :
+                              'bg-red-100 text-red-800'
+                            }`}>
+                              {payload.assets.page1_image.status}
+                            </span>
+                          </h4>
+                          {payload.assets.page1_image.url && (
+                            <div className="mb-2">
+                              <img 
+                                src={payload.assets.page1_image.url} 
+                                alt={payload.assets.page1_image.name}
+                                className="w-full h-auto rounded border max-h-32 object-cover"
+                              />
+                            </div>
+                          )}
+                          <div className="text-xs text-gray-600">URL: {payload.assets.page1_image.url || 'Not available'}</div>
+                        </div>
+
+                        {/* Page 1 Audio */}
+                        <div className="border border-gray-200 rounded-lg p-3" 
+                             style={{ background: payload.assets.page1_audio.status === 'ready' || payload.assets.page1_audio.status === 'approved' ? '#f0f8f0' : '#f9f9f9' }}>
+                          <h4 className="font-medium text-gray-900 mb-2 flex items-center">
+                            🎤 {payload.assets.page1_audio.name}
+                            <span className={`ml-2 text-xs font-bold uppercase px-2 py-1 rounded ${
+                              (payload.assets.page1_audio.status === 'ready' || payload.assets.page1_audio.status === 'approved') ? 'bg-green-100 text-green-800' :
+                              'bg-red-100 text-red-800'
+                            }`}>
+                              {payload.assets.page1_audio.status}
+                            </span>
+                          </h4>
+                          {payload.assets.page1_audio.url && (
+                            <div className="mb-2">
+                              <audio controls className="w-full h-8">
+                                <source src={payload.assets.page1_audio.url} type="audio/mpeg" />
+                              </audio>
+                            </div>
+                          )}
+                          <div className="text-xs text-gray-600">URL: {payload.assets.page1_audio.url || 'Not available'}</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Page 2: Character Loves */}
+                    <div className="border border-purple-200 rounded-lg p-4" style={{ background: '#faf8ff' }}>
+                      <h3 className="font-medium text-purple-900 mb-3 flex items-center">
+                        <span className="bg-purple-100 text-purple-800 text-sm font-medium px-2.5 py-0.5 rounded mr-3">Page 2</span>
+                        Character Trait: "{payload.childName} loved {payload.storyVariables.wishResultItems}"
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        
+                        {/* Page 2 Image */}
+                        <div className="border border-gray-200 rounded-lg p-3" 
+                             style={{ background: payload.assets.page2_image.status === 'ready' || payload.assets.page2_image.status === 'approved' ? '#f0f8f0' : '#f9f9f9' }}>
+                          <h4 className="font-medium text-gray-900 mb-2 flex items-center">
+                            🎨 {payload.assets.page2_image.name}
+                            <span className={`ml-2 text-xs font-bold uppercase px-2 py-1 rounded ${
+                              (payload.assets.page2_image.status === 'ready' || payload.assets.page2_image.status === 'approved') ? 'bg-green-100 text-green-800' :
+                              'bg-red-100 text-red-800'
+                            }`}>
+                              {payload.assets.page2_image.status}
+                            </span>
+                          </h4>
+                          {payload.assets.page2_image.url && (
+                            <div className="mb-2">
+                              <img 
+                                src={payload.assets.page2_image.url} 
+                                alt={payload.assets.page2_image.name}
+                                className="w-full h-auto rounded border max-h-32 object-cover"
+                              />
+                            </div>
+                          )}
+                          <div className="text-xs text-gray-600">URL: {payload.assets.page2_image.url || 'Not available'}</div>
+                        </div>
+
+                        {/* Page 2 Audio */}
+                        <div className="border border-gray-200 rounded-lg p-3" 
+                             style={{ background: payload.assets.page2_audio.status === 'ready' || payload.assets.page2_audio.status === 'approved' ? '#f0f8f0' : '#f9f9f9' }}>
+                          <h4 className="font-medium text-gray-900 mb-2 flex items-center">
+                            🎤 {payload.assets.page2_audio.name}
+                            <span className={`ml-2 text-xs font-bold uppercase px-2 py-1 rounded ${
+                              (payload.assets.page2_audio.status === 'ready' || payload.assets.page2_audio.status === 'approved') ? 'bg-green-100 text-green-800' :
+                              'bg-red-100 text-red-800'
+                            }`}>
+                              {payload.assets.page2_audio.status}
+                            </span>
+                          </h4>
+                          {payload.assets.page2_audio.url && (
+                            <div className="mb-2">
+                              <audio controls className="w-full h-8">
+                                <source src={payload.assets.page2_audio.url} type="audio/mpeg" />
+                              </audio>
+                            </div>
+                          )}
+                          <div className="text-xs text-gray-600">URL: {payload.assets.page2_audio.url || 'Not available'}</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Background Music */}
+                    <div className="border border-green-200 rounded-lg p-4" style={{ background: '#f0f8f0' }}>
+                      <h3 className="font-medium text-green-900 mb-3 flex items-center">
+                        <span className="bg-green-100 text-green-800 text-sm font-medium px-2.5 py-0.5 rounded mr-3">Audio</span>
+                        Background Music
+                      </h3>
+                      <div className="border border-gray-200 rounded-lg p-3 bg-white">
+                        <h4 className="font-medium text-gray-900 mb-2 flex items-center">
+                          🎵 {payload.assets.background_music.name}
+                          <span className="ml-2 text-xs font-bold uppercase px-2 py-1 rounded bg-green-100 text-green-800">
+                            {payload.assets.background_music.status}
+                          </span>
+                        </h4>
+                        <div className="text-xs text-gray-600">Pre-approved background music for wish-button template</div>
+                        <div className="text-xs text-gray-600 mt-1">ID: {payload.assets.background_music.id}</div>
+                      </div>
+                    </div>
+
+                    {/* Future Pages Preview */}
+                    <div className="border border-gray-300 rounded-lg p-4" style={{ background: '#f8f8f8' }}>
+                      <h3 className="font-medium text-gray-700 mb-3 flex items-center">
+                        <span className="bg-gray-200 text-gray-700 text-sm font-medium px-2.5 py-0.5 rounded mr-3">Future</span>
+                        Pages 3-9 (Not Yet Implemented)
+                      </h3>
+                      <div className="text-sm text-gray-600">
+                        <p>The complete 9-page story will include:</p>
+                        <ul className="list-disc list-inside mt-2 space-y-1">
+                          <li>Page 3: Discovery of the magical button</li>
+                          <li>Page 4: First wish and button press</li>
+                          <li>Page 5: Wishes appearing everywhere</li>
+                          <li>Page 6: Chaos and overwhelming results</li>
+                          <li>Page 7: Realization and reflection</li>
+                          <li>Page 8: Learning moderation and wisdom</li>
+                          <li>Page 9: Happy ending with lesson learned</li>
+                        </ul>
+                      </div>
+                    </div>
+
+                    {/* JSON Payload Preview */}
+                    <div className="border border-gray-200 rounded-lg p-4">
+                      <h3 className="font-medium text-gray-800 mb-3">📄 JSON Payload Preview</h3>
+                      <div className="bg-gray-50 rounded p-3 text-xs font-mono max-h-64 overflow-y-auto">
+                        <pre className="whitespace-pre-wrap text-gray-700">
+                          {JSON.stringify(payload, null, 2)}
+                        </pre>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Navigation */}
+              <div className="flex justify-between pt-6 border-t border-gray-200">
+                <button
+                  onClick={() => setCurrentStep('audio-review')}
+                  className="bg-gray-500 text-white px-6 py-2 rounded-md hover:bg-gray-600"
+                >
+                  Back to Audio Review
+                </button>
+                {payload && (
+                  <button
+                    onClick={() => setCurrentStep('review')}
+                    className="bg-green-600 text-white px-6 py-2 rounded-md hover:bg-green-700"
+                  >
+                    Continue to Final Review →
+                  </button>
+                )}
               </div>
             </div>
           </div>

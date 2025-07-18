@@ -69,116 +69,52 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   } catch (error) {
     console.error('Error generating wish button audio:', error);
+    
+    // Parse ElevenLabs specific errors
+    let errorMessage = 'Failed to generate audio';
+    let errorDetails = error instanceof Error ? error.message : 'Unknown error';
+    
+    if (error instanceof Error && error.message.includes('ElevenLabs API error: 429')) {
+      errorMessage = 'ElevenLabs API rate limit or system busy';
+      errorDetails = 'The system is experiencing heavy traffic. Please try again in a few minutes. Higher subscriptions have priority.';
+    } else if (error instanceof Error && error.message.includes('ElevenLabs API error')) {
+      errorMessage = 'ElevenLabs API error';
+    }
+    
     return res.status(500).json({
-      error: 'Failed to generate audio',
-      details: error instanceof Error ? error.message : 'Unknown error'
+      error: errorMessage,
+      details: errorDetails,
+      originalError: error instanceof Error ? error.message : 'Unknown error'
     });
   }
 }
 
 async function generateBackgroundMusic(storyVariables: any): Promise<{ jobId: string; status: string }> {
-  // Create a music prompt based on story variables
-  const musicPrompt = `Create a gentle, magical instrumental background music suitable for a children's storybook. 
-  Theme: ${storyVariables.theme}
-  Visual Style: ${storyVariables.visualStyle}
+  // For wish-button template, always use the existing approved background music
+  const WISH_BUTTON_BG_MUSIC_ID = 'a2c42732-d0f3-499a-8c6c-f2afdf0bc6a9';
   
-  The music should be:
-  - Soft and whimsical
-  - Suitable for children ages 3-8
-  - Loopable background music
-  - Approximately 2-3 minutes duration
-  - Magical and enchanting atmosphere
-  - No vocals, instrumental only`;
-
-  const voiceId = VOICE_IDS.narrator; // We'll use text-to-speech for now, but could integrate with music generation APIs
+  console.log('🎵 Using existing approved background music for wish-button:', WISH_BUTTON_BG_MUSIC_ID);
   
-  console.log('🎵 Generating background music with prompt:', musicPrompt.substring(0, 100) + '...');
+  // Get the existing background music asset
+  const { data: existingAsset, error: assetError } = await supabaseAdmin
+    .from('assets')
+    .select('*')
+    .eq('id', WISH_BUTTON_BG_MUSIC_ID)
+    .single();
 
-  // For now, we'll generate a simple music description using TTS
-  // In production, you might want to integrate with specialized music generation APIs like Mubert, Soundful, or Amper
-  const musicDescription = `Gentle magical background music playing softly. This enchanting melody creates a perfect atmosphere for ${storyVariables.childName}'s wish button adventure.`;
-
-  // Generate audio with ElevenLabs (as a placeholder - in production use a music generation service)
-  const audioResponse = await fetch(`${ELEVENLABS_API_URL}/text-to-speech/${voiceId}`, {
-    method: 'POST',
-    headers: {
-      'Accept': 'audio/mpeg',
-      'Content-Type': 'application/json',
-      'xi-api-key': ELEVENLABS_API_KEY!
-    },
-    body: JSON.stringify({
-      text: musicDescription,
-      model_id: 'eleven_monolingual_v1',
-      voice_settings: {
-        stability: 0.8,
-        similarity_boost: 0.3,
-        style: 0.2,
-        use_speaker_boost: false
-      }
-    })
-  });
-
-  if (!audioResponse.ok) {
-    const errorText = await audioResponse.text();
-    throw new Error(`ElevenLabs API error for background music: ${audioResponse.status} - ${errorText}`);
+  if (assetError || !existingAsset) {
+    console.error('❌ Failed to find existing background music asset:', assetError);
+    throw new Error(`Background music asset ${WISH_BUTTON_BG_MUSIC_ID} not found`);
   }
 
-  // Get audio buffer
-  const audioBuffer = await audioResponse.arrayBuffer();
-  const audioBase64 = Buffer.from(audioBuffer).toString('base64');
-  
-  // Create a unique job ID for tracking
-  const jobId = `music_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  console.log('✅ Found existing background music asset:', existingAsset.title || 'Wish Button Background Music');
 
-  // Upload to storage
-  const audioUrl = await uploadAudioToStorage(audioBase64, jobId, 'background_music');
-
-  // For background music, we don't have a specific prompt record, so we'll create an asset directly
-  // First, let's get the project_id from one of the existing prompts
-  const { data: existingPrompts } = await supabaseAdmin
-    .from('prompts')
-    .select('project_id, theme')
-    .eq('metadata->>template', 'wish-button')
-    .limit(1);
-
-  if (existingPrompts && existingPrompts.length > 0) {
-    const existingPrompt = existingPrompts[0];
-    // Create asset record for background music
-    const { data: asset, error: assetError } = await supabaseAdmin
-      .from('assets')
-      .insert({
-        project_id: existingPrompt.project_id,
-        type: 'audio',
-        title: 'background_music',
-        theme: existingPrompt.theme,
-        safe_zone: 'not_applicable',
-        status: 'pending_review',
-        url: audioUrl,
-        metadata: {
-          template: 'wish-button',
-          asset_purpose: 'background_music',
-          generation_method: 'elevenlabs_placeholder',
-          generation_completed_at: new Date().toISOString(),
-          original_prompt: musicPrompt,
-          music_description: musicDescription,
-          story_theme: storyVariables.theme,
-          visual_style: storyVariables.visualStyle,
-          style: 'ambient_music',
-          prompt_id: null, // No specific prompt for background music
-          generation_job_id: jobId
-        }
-      })
-      .select()
-      .single();
-
-    if (assetError) {
-      console.error('Error creating background music asset record:', assetError);
-    }
-  }
+  // Create a job ID for tracking (even though we're using existing asset)
+  const jobId = `existing_bg_music_${Date.now()}`;
 
   return {
     jobId,
-    status: 'completed'
+    status: 'completed' // Already exists and is approved
   };
 }
 
