@@ -271,7 +271,7 @@ export function AssetDetailModal({
             )}
 
             {/* Review Actions */}
-            {!isEditing && asset?.status === 'pending' && (
+            {!isEditing && (asset?.status === 'pending' || asset?.status === 'pending_review') && (
               <div className="flex space-x-2 sm:mr-3">
                 {onApprove && (
                   <button

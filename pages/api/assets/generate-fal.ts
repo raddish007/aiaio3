@@ -131,6 +131,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           file_size_bytes: fileSize,
           // Ensure imageType is explicitly preserved
           imageType: req.body.imageType || promptData?.metadata?.imageType || '',
+          // Ensure page and asset_purpose are set for wish-button assets
+          page: req.body.page || promptData?.metadata?.page,
+          asset_purpose: req.body.page || promptData?.metadata?.asset_purpose, // Use page as asset_purpose for wish-button
+          template: req.body.template || promptData?.metadata?.template,
         };
 
         // For lullaby slideshow assets, ensure correct fields are set
@@ -147,6 +151,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           tags: [style, safeZone].filter(Boolean),
           status: 'pending',
           file_url: supabaseUrl, // Use permanent Supabase URL
+          url: supabaseUrl, // Also set url field for UI compatibility
           prompt: prompt, // Use the provided prompt text
           metadata: metadata,
         };
@@ -195,6 +200,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           tags: [style].filter(Boolean),
           status: 'pending',
           file_url: supabaseUrl, // Use permanent Supabase URL
+          url: supabaseUrl, // Also set url field for UI compatibility
           prompt: prompt, // Use the provided prompt text
           metadata: {
             ...(promptData?.metadata || {}),
@@ -209,6 +215,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             file_size_bytes: fileSize,
             // Ensure imageType is explicitly preserved for audio assets too
             imageType: req.body.imageType || promptData?.metadata?.imageType || '',
+            // Ensure page and asset_purpose are set for wish-button assets
+            page: req.body.page || promptData?.metadata?.page,
+            asset_purpose: req.body.page || promptData?.metadata?.asset_purpose, // Use page as asset_purpose for wish-button
+            template: req.body.template || promptData?.metadata?.template,
           },
         };
       }

@@ -134,6 +134,11 @@ export default function WishButtonRequest() {
     try {
       console.log(`🔄 Refreshing assets for project ${projectId}...`);
       
+      if (!projectId) {
+        console.error('❌ No project ID provided for refresh');
+        return;
+      }
+      
       const { data: dbAssets, error } = await supabase
         .from('assets')
         .select('*')
@@ -145,7 +150,21 @@ export default function WishButtonRequest() {
         return;
       }
 
-      console.log(`Found ${dbAssets?.length || 0} assets in database`, dbAssets);
+      console.log(`Found ${dbAssets?.length || 0} assets in database for project ${projectId}`, dbAssets);
+      
+      if (dbAssets?.length === 0) {
+        console.log('⚠️ No assets found for this project. Checking all wish-button assets...');
+        const { data: allWishButtonAssets, error: allError } = await supabase
+          .from('assets')
+          .select('id, project_id, metadata')
+          .eq('metadata->>template', 'wish-button')
+          .order('created_at', { ascending: false })
+          .limit(5);
+        
+        if (!allError) {
+          console.log('All wish-button assets:', allWishButtonAssets);
+        }
+      }
 
       // Additional debug: check if any assets exist for this project without template filter
       const { data: allProjectAssets, error: allError } = await supabase
@@ -267,9 +286,30 @@ export default function WishButtonRequest() {
     }
   };
 
-  const openAssetModal = (asset: any) => {
-    setSelectedAsset(asset);
-    setIsAssetModalOpen(true);
+  const openAssetModal = async (asset: any) => {
+    try {
+      // Fetch the full asset data from the database
+      const { data: fullAsset, error } = await supabase
+        .from('assets')
+        .select('*')
+        .eq('id', asset.id)
+        .single();
+
+      if (error) {
+        console.error('Error fetching asset for modal:', error);
+        // Fallback to the simplified asset
+        setSelectedAsset(asset);
+      } else {
+        // Use the full asset data from database
+        setSelectedAsset(fullAsset);
+      }
+      setIsAssetModalOpen(true);
+    } catch (error) {
+      console.error('Error opening asset modal:', error);
+      // Fallback to the simplified asset
+      setSelectedAsset(asset);
+      setIsAssetModalOpen(true);
+    }
   };
 
   const closeAssetModal = () => {
@@ -395,6 +435,11 @@ export default function WishButtonRequest() {
         const { data: newProject, error: createError } = await supabase
           .from('content_projects')
           .insert({
+            title: `Wish Button Story for ${child.name}`,
+            theme: child.primary_interest,
+            target_age: `${child.age} years`,
+            duration: 90, // Default duration for wish button stories
+            status: 'planning',
             metadata: {
               template: 'wish-button',
               child_name: child.name,
@@ -582,7 +627,11 @@ export default function WishButtonRequest() {
   };
 
   const generateAllPrompts = async () => {
-    if (!storyVariables || !assets) return;
+    if (!storyVariables || !assets || !currentStoryProject) {
+      console.error('Missing required data for prompt generation:', { storyVariables, assets, currentStoryProject });
+      alert('Missing story context. Please ensure story variables are generated first.');
+      return;
+    }
     
     setGeneratingPrompts(true);
     setCurrentStep('prompts');
@@ -594,6 +643,7 @@ export default function WishButtonRequest() {
       console.log('🎯 Starting prompt generation for Wish Button story');
       console.log('📊 Story variables being sent:', storyVariables);
       console.log('📄 Generating prompts for pages:', pages);
+      console.log('📋 Project ID being sent:', currentStoryProject.id);
       
       const startTime = Date.now();
       
@@ -604,7 +654,8 @@ export default function WishButtonRequest() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           storyVariables,
-          pages
+          pages,
+          projectId: currentStoryProject?.id // Pass the existing project ID
         })
       });
 
@@ -966,7 +1017,7 @@ export default function WishButtonRequest() {
                               )}
                             </p>
                             <p className="text-sm text-gray-600">
-                              Created: {new Date(story.created_at).toLocaleDateString()}
+                              Created: {new Date(story.created_at).toLocaleDateString()} at {new Date(story.created_at).toLocaleTimeString()}
                             </p>
                             {story.metadata?.storyVariables && (
                               <p className="text-sm text-gray-600">
@@ -1391,7 +1442,7 @@ export default function WishButtonRequest() {
                             src={imageAsset.url} 
                             alt={imageAsset.name}
                             className="w-full h-48 object-cover cursor-pointer"
-                            onClick={() => imageAsset.id && openAssetModal({ 
+                            onClick={async () => imageAsset.id && await openAssetModal({ 
                               id: imageAsset.id, 
                               url: imageAsset.url,
                               type: 'image',
@@ -1405,7 +1456,7 @@ export default function WishButtonRequest() {
                             src={imageAsset.url} 
                             alt={imageAsset.name}
                             className="w-full h-48 object-cover cursor-pointer"
-                            onClick={() => imageAsset.id && openAssetModal({ 
+                            onClick={async () => imageAsset.id && await openAssetModal({ 
                               id: imageAsset.id, 
                               url: imageAsset.url,
                               type: 'image',
@@ -1455,10 +1506,10 @@ export default function WishButtonRequest() {
                             {imageAsset.status === 'generating' ? 'Generating...' : 'Regenerate'}
                           </button>
                           
-                          {(imageAsset.status === 'ready' || imageAsset.status === 'pending_review') && imageAsset.id && (
+                          {(imageAsset.status === 'ready' || imageAsset.status === 'pending_review' || imageAsset.status === 'approved') && imageAsset.id && (
                             <button
                               className="flex-1 px-3 py-2 rounded text-sm font-medium bg-green-600 text-white hover:bg-green-700"
-                              onClick={() => openAssetModal({ 
+                              onClick={async () => await openAssetModal({ 
                                 id: imageAsset.id, 
                                 url: imageAsset.url,
                                 type: 'image',
@@ -1541,7 +1592,7 @@ export default function WishButtonRequest() {
                     <span className="font-medium text-blue-900">
                       {Object.values(assets).filter(asset => 
                         asset.type === 'image' && 
-                        (asset.status === 'ready' || asset.status === 'pending_review') &&
+                        (asset.status === 'ready' || asset.status === 'pending_review' || asset.status === 'approved') &&
                         (asset.name.includes('Page 1') || asset.name.includes('Page 2'))
                       ).length}/2
                     </span>
@@ -1579,14 +1630,21 @@ export default function WishButtonRequest() {
                 </button>
                 <button
                   onClick={() => {
-                    const readyImages = Object.values(assets).filter(asset => 
-                      asset.type === 'image' && 
-                      (asset.status === 'ready' || asset.status === 'pending_review') &&
-                      (asset.name.includes('Page 1') || asset.name.includes('Page 2'))
-                    ).length;
+                    console.log('🔍 Debug: Checking assets for audio generation...');
+                    console.log('Current assets:', assets);
+                    console.log('Current story project:', currentStoryProject);
                     
-                    if (readyImages < 2) {
-                      alert(`Please ensure Pages 1-2 images are generated and ready. Currently ${readyImages}/2 images are ready.`);
+                    const readyImages = Object.entries(assets).filter(([key, asset]) => 
+                      asset.type === 'image' && 
+                      (asset.status === 'ready' || asset.status === 'pending_review' || asset.status === 'approved') &&
+                      (key === 'page1_image' || key === 'page2_image')
+                    );
+                    
+                    console.log('Ready images found:', readyImages);
+                    console.log('Ready images count:', readyImages.length);
+                    
+                    if (readyImages.length < 2) {
+                      alert(`Please ensure Pages 1-2 images are generated and ready. Currently ${readyImages.length}/2 images are ready.`);
                       return;
                     }
                     
@@ -2094,8 +2152,8 @@ export default function WishButtonRequest() {
         asset={selectedAsset}
         isOpen={isAssetModalOpen}
         onClose={closeAssetModal}
-        onApprove={selectedAsset?.status === 'pending_review' ? handleAssetApprove : undefined}
-        onReject={selectedAsset?.status === 'pending_review' ? handleAssetReject : undefined}
+        onApprove={(selectedAsset?.status === 'pending' || selectedAsset?.status === 'pending_review') ? handleAssetApprove : undefined}
+        onReject={(selectedAsset?.status === 'pending' || selectedAsset?.status === 'pending_review') ? handleAssetReject : undefined}
       />
     </div>
   );

@@ -28,7 +28,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const { storyVariables, pages }: { storyVariables: StoryVariables; pages: string[] } = req.body;
+    const { storyVariables, pages, projectId }: { storyVariables: StoryVariables; pages: string[]; projectId?: string } = req.body;
 
     if (!storyVariables || !pages || pages.length === 0) {
       return res.status(400).json({ error: 'Missing required fields: storyVariables, pages' });
@@ -49,7 +49,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // Save prompts to database for tracking
     console.log('💾 Saving prompts to database...');
-    await savePromptsToDatabase(storyVariables, generatedPrompts);
+    await savePromptsToDatabase(storyVariables, generatedPrompts, projectId);
 
     console.log('✅ Generated and saved Wish Button story prompts');
 
@@ -229,34 +229,56 @@ Generate a detailed prompt for AI image generation that will create a beautiful,
   return result;
 }
 
-async function savePromptsToDatabase(variables: StoryVariables, prompts: { [key: string]: { image: string; audio: string; safeZone: string } }) {
+async function savePromptsToDatabase(variables: StoryVariables, prompts: { [key: string]: { image: string; audio: string; safeZone: string } }, projectId?: string) {
   try {
-    // Create a project record for this Wish Button story
-    const { data: project, error: projectError } = await supabaseAdmin
-      .from('content_projects')
-      .insert({
-        title: `Wish Button Story - ${variables.childName}`,
-        theme: variables.theme,
-        target_age: '3-5',
-        duration: Object.keys(prompts).length * 30, // Rough estimate: 30 seconds per page
-        status: 'prompts_generated',
-        metadata: {
-          template: 'wish-button',
-          child_name: variables.childName,
-          story_variables: variables,
-          template_type: 'wish-button',
-          pages_count: Object.keys(prompts).length
-        }
-      })
-      .select()
-      .single();
+    let project;
+    
+    if (projectId) {
+      // Use existing project
+      console.log(`📝 Using existing project: ${projectId}`);
+      const { data: existingProject, error: projectError } = await supabaseAdmin
+        .from('content_projects')
+        .select('*')
+        .eq('id', projectId)
+        .single();
+        
+      if (projectError) {
+        console.error('Error fetching existing project:', projectError);
+        throw new Error(`Failed to fetch existing project: ${projectError.message}`);
+      }
+      
+      project = existingProject;
+    } else {
+      // Create a new project record for this Wish Button story
+      console.log('🆕 Creating new project for Wish Button story');
+      const { data: newProject, error: projectError } = await supabaseAdmin
+        .from('content_projects')
+        .insert({
+          title: `Wish Button Story - ${variables.childName}`,
+          theme: variables.theme,
+          target_age: '3-5',
+          duration: Object.keys(prompts).length * 30, // Rough estimate: 30 seconds per page
+          status: 'prompts_generated',
+          metadata: {
+            template: 'wish-button',
+            child_name: variables.childName,
+            story_variables: variables,
+            template_type: 'wish-button',
+            pages_count: Object.keys(prompts).length
+          }
+        })
+        .select()
+        .single();
 
-    if (projectError) {
-      console.error('Error creating project:', projectError);
-      throw new Error(`Failed to create project: ${projectError.message}`);
+      if (projectError) {
+        console.error('Error creating project:', projectError);
+        throw new Error(`Failed to create project: ${projectError.message}`);
+      }
+      
+      project = newProject;
     }
 
-    console.log(`✅ Created project: ${project.id} for child ${variables.childName}`);
+    console.log(`✅ Using project: ${project.id} for child ${variables.childName}`);
 
     // Save individual prompts
     const promptRecords = [];
