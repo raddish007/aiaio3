@@ -409,33 +409,140 @@ export default function WishButtonRequest() {
     try {
       console.log('Loading existing story:', story);
       
+      // Set the current story project first
+      setCurrentStoryProject(story);
+      
       // Set the story variables from the saved project
       if (story.metadata?.storyVariables) {
         setStoryVariables(story.metadata.storyVariables);
+        console.log('✅ Loaded story variables from metadata');
       }
       
-      // Set the current story project
-      setCurrentStoryProject(story);
-      
-      // Load prompts if they exist - DISABLED to force regeneration with new system
-      // if (story.metadata?.generatedPrompts) {
-      //   setGeneratedPrompts(story.metadata.generatedPrompts);
-      // }
-      console.log('🔄 Cached prompts disabled - prompts will be regenerated with new OpenAI Assistant system');
-      
-      // Refresh assets from database for this project
+      // For existing projects, check if they have prompts in metadata
+      // We still want to load existing prompts, just not cache new ones from the old system
+      if (story.metadata?.generatedPrompts) {
+        setGeneratedPrompts(story.metadata.generatedPrompts);
+        console.log('✅ Loaded existing prompts from project metadata');
+      } else {
+        console.log('🔄 No cached prompts found - prompts will be generated with new OpenAI Assistant system');
+      }
+
+      // Refresh assets from database for the UI first
       await refreshAssetsFromDatabase(story.id);
+
+      // Check assets directly from database to determine proper step
+      console.log('🔍 Checking assets from database for step determination...');
+      const { data: dbAssets, error } = await supabase
+        .from('assets')
+        .select('*')
+        .eq('project_id', story.id);
+
+      if (error) {
+        console.error('Error fetching assets for step determination:', error);
+      }
+
+      const wishButtonAssets = dbAssets?.filter(asset => {
+        const metadata = asset.metadata || {};
+        return (
+          metadata.template === 'wish-button' ||
+          metadata.template_context?.template_type === 'wish-button'
+        );
+      }) || [];
+
+      console.log(`📋 Found ${wishButtonAssets.length} wish-button assets in database`);
+
+      // Analyze assets to determine step
+      const imageAssets = wishButtonAssets.filter(asset => 
+        asset.asset_type === 'image' || asset.type === 'image'
+      );
       
-      // Always start at variables step for loaded stories to allow navigation
-      setCurrentStep('variables');
+      const audioAssets = wishButtonAssets.filter(asset => 
+        asset.asset_type === 'audio' || asset.type === 'audio'
+      );
+
+      console.log(`🎨 Image assets: ${imageAssets.length}, Audio assets: ${audioAssets.length}`);
+      console.log('📝 Image asset details:', imageAssets.map(a => ({ id: a.id, status: a.status, url: a.file_url })));
+      console.log('📝 Audio asset details:', audioAssets.map(a => ({ id: a.id, status: a.status, url: a.file_url })));
+
+      // Determine target step based on assets
+      let targetStep = 'variables'; // default
+      
+      const hasStoryVariables = !!(story.metadata?.storyVariables);
+      const hasPrompts = !!(story.metadata?.generatedPrompts);
+      
+      if (audioAssets.length > 0) {
+        targetStep = 'payload'; // Has audio, go to payload page
+      } else if (imageAssets.length > 0) {
+        targetStep = 'audio'; // Has images, go to audio generation
+      } else if (hasPrompts) {
+        targetStep = 'images'; // Has prompts, go to image generation  
+      } else if (hasStoryVariables) {
+        targetStep = 'prompts'; // Has variables, go to prompt generation
+      }
+
+      console.log('📍 Determined target step:', targetStep, {
+        hasStoryVariables,
+        hasPrompts,
+        imageCount: imageAssets.length,
+        audioCount: audioAssets.length,
+        reasoning: audioAssets.length > 0 ? 'Has audio assets' : 
+                  imageAssets.length > 0 ? 'Has image assets' :
+                  hasPrompts ? 'Has prompts' :
+                  hasStoryVariables ? 'Has story variables' : 'Default'
+      });
+      
+      // Update project status if it has assets but is still "planning"
+      if ((imageAssets.length > 0 || audioAssets.length > 0) && story.status === 'planning') {
+        console.log('🔄 Updating project status from planning to completed');
+        await supabase
+          .from('content_projects')
+          .update({ status: 'completed' })
+          .eq('id', story.id);
+      }
+      
+      // Wait longer for React state to update, then set step
+      setTimeout(() => {
+        console.log('🔍 Setting step after delay:', targetStep);
+        setCurrentStep(targetStep);
+        
+        // For projects with assets, ensure we have minimal state to render
+        if (targetStep === 'payload' && (imageAssets.length > 0 || audioAssets.length > 0)) {
+          // If we're going to payload step but don't have React state yet, 
+          // create minimal state from the database assets
+          if (!assets) {
+            console.log('🔧 Creating minimal assets state for payload step');
+            const minimalAssets = {
+              page1_image: imageAssets[0] ? { status: 'approved', url: imageAssets[0].file_url } : null,
+              page2_image: imageAssets[1] ? { status: 'approved', url: imageAssets[1].file_url } : null,
+              page1_audio: audioAssets.find(a => a.status === 'approved') ? { status: 'approved', url: audioAssets.find(a => a.status === 'approved').file_url } : null,
+              page2_audio: audioAssets.filter(a => a.status === 'approved')[1] ? { status: 'approved', url: audioAssets.filter(a => a.status === 'approved')[1].file_url } : null,
+            };
+            setAssets(minimalAssets as any);
+          }
+          
+          // Ensure story variables are set from metadata if not already
+          if (!storyVariables && story.metadata?.storyVariables) {
+            setStoryVariables(story.metadata.storyVariables);
+          }
+        }
+        
+        // Debug the rendering conditions
+        setTimeout(() => {
+          console.log('🔍 Review step rendering debug:', {
+            currentStep: targetStep,
+            hasAssets: !!assets,
+            hasStoryVariables: !!storyVariables,
+            assetKeys: assets ? Object.keys(assets) : 'none',
+            storyVarKeys: storyVariables ? Object.keys(storyVariables) : 'none'
+          });
+        }, 100);
+      }, 1000); // Increased to 1 second
       
     } catch (error) {
       console.error('Error loading existing story:', error);
       alert('Failed to load existing story. Please try again.');
     }
-  };
-
-  const deleteStory = async (storyId: string, storyTitle: string) => {
+  };  const deleteStory = async (storyId: string, storyTitle: string) => {
     if (!confirm(`Are you sure you want to delete "${storyTitle}"? This will also delete all associated assets and cannot be undone.`)) {
       return;
     }
@@ -3251,7 +3358,7 @@ export default function WishButtonRequest() {
         )}
 
         {/* Step 9: Review & Submit */}
-        {currentStep === 'review' && assets && storyVariables && (
+        {currentStep === 'review' && assets && (
           <div className="bg-white rounded-lg shadow-sm p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Step 9: Final Review & Results</h2>
             
