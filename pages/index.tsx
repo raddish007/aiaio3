@@ -13,20 +13,23 @@ export default function Home() {
 
       <div className="min-h-screen bg-white text-black font-sans">
         {/* Header with Logo */}
-        <header className="p-8">
+        <header className="p-8 pb-4">
           <div className="max-w-7xl mx-auto">
-            <Image
-              src="/HippoPolkaLogo.png"
-              alt="Hippo Polka"
-              width={60}
-              height={60}
-              className="w-15 h-15"
-            />
+            <div className="flex items-center">
+              <Image
+                src="/HippoPolkaLogo.png"
+                alt="Hippo Polka"
+                width={80}
+                height={80}
+                className="w-20 h-20"
+              />
+              <span className="ml-4 text-2xl font-bold text-black">Hippo Polka</span>
+            </div>
           </div>
         </header>
 
         {/* Hero Section */}
-        <section className="px-8 py-16 lg:py-24">
+        <section className="px-8 py-8 lg:py-16">
           <div className="max-w-7xl mx-auto">
             <div className="grid lg:grid-cols-2 gap-12 items-center">
               <div className="text-center lg:text-left">
@@ -34,13 +37,13 @@ export default function Home() {
                   For families raising joyful, confident readers.
                 </h1>
                 <p className="text-xl lg:text-2xl mb-8 leading-relaxed">
-                  Personalized videos that spark a love of literacy, reduces screen-time stress, and supports real-life learning.
+                  Personalized videos for toddlers and preschoolers, designed to build early literacy, ease screen-time guilt, and spark real-world play.
                 </p>
                 <Link 
                   href="/register"
                   className="inline-block bg-black text-white px-8 py-4 rounded-lg text-lg font-semibold hover:bg-gray-800 transition-colors duration-200"
                 >
-                  Start Free
+                  Join the Waitlist
                 </Link>
               </div>
               <div className="flex justify-center lg:justify-end">
@@ -62,13 +65,13 @@ export default function Home() {
                 </h2>
                 <div className="space-y-4 text-lg leading-relaxed">
                   <p>
-                    Little kids are wired to think the world revolves around them. That's not a flaw—it's how they learn.
+                  Young kids are naturally self-centered. Not because they’re selfish, but because it’s how their brains are wired to learn.
                   </p>
                   <p>
-                    When content reflects their name, their interests, their little world, it sticks.
+                  That’s why when they hear their name, see their interests, and recognize their world in a story—they light up. And they remember it.
                   </p>
                   <p>
-                    That's why Hippo Polka videos are personalized: kids learn best when they're the center of the story.
+                  Hippo Polka makes learning personal. Every video is built around your child. Because kids learn best when they’re the star of the show.
                   </p>
                 </div>
               </div>
@@ -99,7 +102,7 @@ export default function Home() {
                     Not all screen time is created equal.
                   </p>
                   <p>
-                    Hippo Polka is designed to support your child's development and your sanity with short, personalized videos that feel more like connection time than zone-out time.
+                  Hippo Polka gives you short, personalized videos that support your child’s development and give you a moment to breathe. It’s screen time that feels like quality time.
                   </p>
                   <p className="font-semibold">
                     You can feel good pressing play.
@@ -111,15 +114,15 @@ export default function Home() {
                     </li>
                     <li className="flex items-start">
                       <span className="text-green-600 mr-3 mt-1">✅</span>
-                      <span><strong>Research-backed:</strong> Grounded in what works: personalization, early language exposure, and everyday moments that matter.</span>
+                      <span><strong>Research-backed:</strong> Grounded in what works: personalization, early language exposure, and joyful connection.</span>
                     </li>
                     <li className="flex items-start">
                       <span className="text-green-600 mr-3 mt-1">✅</span>
-                      <span><strong>Parent-supported:</strong> Each video comes with a simple, no-prep idea to help turn viewing into doing—because the real magic happens off screen.</span>
+                      <span><strong>Parent-supported:</strong> Each video comes with one simple idea to help bring the learning to life, because the real magic happens off screen.</span>
                     </li>
                   </ul>
                   <p className="font-semibold mt-6">
-                    It's not a screen-time compromise. It's screen time that works for your family.
+                    This isn't a screen-time compromise. It's screen time that helps your kid grow.
                   </p>
                 </div>
               </div>
@@ -135,7 +138,7 @@ export default function Home() {
                 How It Works
               </h2>
               <p className="text-xl max-w-4xl mx-auto leading-relaxed">
-                Twice a week, Hippo Polka sends you and your child a personalized video—delivered by text and email. No logins, no YouTube rabbit holes. Just smart screen time that fits your day.
+                Twice a week, Hippo Polka sends you and your child a personalized video—delivered by text and email. No logins, no algorithm rabbit holes. Just smart screen time that fits your day.
               </p>
             </div>
 
@@ -158,7 +161,7 @@ export default function Home() {
                 <div className="w-16 h-16 bg-black text-white rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-4">3</div>
                 <h3 className="text-xl font-semibold mb-3">Want More Videos?</h3>
                 <p className="text-lg leading-relaxed">
-                  Your child also gets access to our growing library of enriching, non-personalized videos. Whether you need 3 minutes to prep lunch or 15 to finish a Zoom call, we've got a playlist ready.
+                  Your child also gets access to our growing library of enriching, non-personalized videos. Whether you need 3 minutes to make a sandwich or 15 to finish a call, we've got you..
                 </p>
               </div>
             </div>
@@ -181,7 +184,7 @@ export default function Home() {
                 </h2>
                 <div className="space-y-4 text-lg leading-relaxed">
                   <p>
-                    Hippo Polka is created by Dr. Carla Engelbrecht, a mom who's created more than 200 educational games, apps, stories, and interactive shows for Highlights for Children, PBS Kids, Sesame Street, and Netflix. Her work has helped millions of kids learn through joy, connection, and play. Now, she's bringing the power of personalized entertainment straight to your family.
+                    Hippo Polka is created by Dr. Carla Engelbrecht, a mom and edtech expert who's built more than 200 educational games, apps, stories, and interactive shows for places like PBS Kids, Sesame Street, Highlights for Children, and Netflix. Her work has helped millions of kids learn through joy, connection, and play. Now, she's bringing the power of personalized entertainment straight to your family.
                   </p>
                   <p>
                     Research shows that when young children see themselves in a story, by name, by interest, or by identity, they're more engaged, retain more language, and feel more confident as learners.

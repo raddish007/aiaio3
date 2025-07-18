@@ -8,11 +8,8 @@ interface ChildVideo {
   video_title: string;
   consumer_title?: string;
   consumer_description?: string;
-  template_type: strin            <div className="mt-12 p-6 bg-gray-50 border border-gray-200 rounded-lg">
-              <p className="text-base text-black leading-relaxed">
-                Remember: The goal isn't perfection—it's connection. Every small moment of shared discovery builds {childName}'s confidence and love of learning. You're already doing more than you know to support {childName}'s literacy journey.
-              </p>
-            </div>video_url: string;
+  template_type: string;
+  video_url: string;
   display_image_url?: string;
   is_published: boolean;
 }

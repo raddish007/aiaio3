@@ -142,6 +142,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
         assetData = {
           type: 'image',
+          project_id: promptData?.project_id, // Include project_id from prompt
           theme: promptData?.theme || req.body.theme || 'general',
           tags: [style, safeZone].filter(Boolean),
           status: 'pending',
@@ -189,6 +190,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
         assetData = {
           type: 'audio',
+          project_id: promptData?.project_id, // Include project_id from prompt
           theme: promptData?.theme || req.body.theme || 'general',
           tags: [style].filter(Boolean),
           status: 'pending',

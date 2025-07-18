@@ -6,7 +6,7 @@ export default function ParentResourcesAndrewPage() {
     <ParentResourcesTemplate 
       childName="Andrew"
       childIcon="🐕"
-      primaryColor="#4A90E2"
+      themeColor="#4A90E2"
     />
   );
 }
