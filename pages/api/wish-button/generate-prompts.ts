@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
-import { openai } from '@/lib/ai';
+import StoryPromptAssistant from '@/lib/story-prompt-assistant';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -22,41 +22,130 @@ interface StoryVariables {
   finalScene: string;
 }
 
+interface Child {
+  id: string;
+  name: string;
+  age: number;
+  child_description?: string;
+  pronouns?: string;
+  sidekick_description?: string;
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
-    const { storyVariables, pages, projectId }: { storyVariables: StoryVariables; pages: string[]; projectId?: string } = req.body;
+    const { storyVariables, pages, projectId }: { 
+      storyVariables: StoryVariables; 
+      pages: string[]; 
+      projectId?: string;
+    } = req.body;
 
     if (!storyVariables || !pages || pages.length === 0) {
       return res.status(400).json({ error: 'Missing required fields: storyVariables, pages' });
     }
 
-    console.log(`🎨 Generating illustration prompts for Wish Button story: ${pages.join(', ')}`);
+    console.log(`🎨 Generating OpenAI Assistant prompts for Wish Button story: ${pages.join(', ')}`);
     console.log('📊 Received story variables:', JSON.stringify(storyVariables, null, 2));
 
+    // Get child information from database to retrieve descriptions
+    const childData = await getChildData(storyVariables.childName);
+    
+    console.log('👤 Child data fetched:', childData);
+    
+    if (!childData) {
+      console.error('❌ Child not found:', storyVariables.childName);
+      return res.status(400).json({ 
+        error: 'Child not found in database. Please ensure child profile exists with descriptions.' 
+      });
+    }
+
+    console.log('✅ Child found:', {
+      name: childData.name,
+      hasChildDescription: !!childData.child_description,
+      childDescription: childData.child_description,
+      hasSidekickDescription: !!childData.sidekick_description,
+      sidekickDescription: childData.sidekick_description,
+      pronouns: childData.pronouns
+    });
+
+    // Prepare enhanced context for the OpenAI Assistant
+    const enhancedContext = {
+      // Child Information (from database)
+      childName: storyVariables.childName,
+      childAge: childData.age,
+      childDescription: childData.child_description || `a young child named ${storyVariables.childName}`,
+      pronouns: childData.pronouns || 'he/him',
+      sidekickDescription: childData.sidekick_description || 'a friendly animal companion',
+      
+      // Story Variables
+      theme: storyVariables.theme,
+      wishResultItems: storyVariables.wishResultItems,
+      buttonLocation: storyVariables.buttonLocation,
+      magicButton: storyVariables.magicButton,
+      chaoticActions: storyVariables.chaoticActions,
+      realizationEmotion: storyVariables.realizationEmotion,
+      missedSimpleThing: storyVariables.missedSimpleThing,
+      finalScene: storyVariables.finalScene,
+      
+      // Technical Requirements
+      visualStyle: "children's book illustration in a soft digital painting style, warm pastel color palette, watercolor texture, clean line art, gentle shadows, flat lighting",
+      safeZoneRequirements: {
+        layout: 'story_right_safe' as const,
+        description: 'Right half must be empty for text overlay',
+        textPlacement: 'Right side reserved for story text'
+      },
+      targetAgeRange: '3-5 years'
+    };
+
+    console.log('🧠 Enhanced context prepared:', {
+      childName: enhancedContext.childName,
+      hasChildDescription: !!enhancedContext.childDescription,
+      hasSidekickDescription: !!enhancedContext.sidekickDescription,
+      pronouns: enhancedContext.pronouns,
+      actualChildDescription: enhancedContext.childDescription,
+      actualSidekickDescription: enhancedContext.sidekickDescription
+    });
+
+    console.log('🤖 About to call OpenAI Assistant with context:', enhancedContext);
+
+    // Use OpenAI Assistant to generate prompts
+    const assistant = new StoryPromptAssistant();
     const generatedPrompts: { [key: string]: { image: string; audio: string; safeZone: string } } = {};
 
     // Generate prompts for each requested page
     for (const page of pages) {
-      console.log(`🎯 Generating prompts for ${page}...`);
-      const pagePrompts = await generatePagePrompts(page, storyVariables);
-      generatedPrompts[page] = pagePrompts;
-      console.log(`✅ Generated ${page} prompts - Image: ${pagePrompts.image.length} chars, Audio: ${pagePrompts.audio.length} chars`);
+      const pageNumber = parseInt(page.replace('page', ''));
+      console.log(`🎯 Generating prompts for ${page} (Page ${pageNumber})...`);
+      
+      try {
+        const pagePrompts = await assistant.generatePagePrompts(enhancedContext, pageNumber);
+        generatedPrompts[page] = pagePrompts;
+        console.log(`✅ Generated ${page} prompts - Image: ${pagePrompts.image.length} chars, Audio: ${pagePrompts.audio.length} chars`);
+      } catch (error) {
+        console.error(`❌ Error generating ${page} prompts:`, error);
+        throw new Error(`Failed to generate prompts for ${page}: ${error}`);
+      }
     }
 
     // Save prompts to database for tracking
     console.log('💾 Saving prompts to database...');
     await savePromptsToDatabase(storyVariables, generatedPrompts, projectId);
 
-    console.log('✅ Generated and saved Wish Button story prompts');
+    console.log('✅ Generated and saved OpenAI Assistant Wish Button story prompts');
 
     return res.status(200).json({
       success: true,
       prompts: generatedPrompts,
-      message: `Generated prompts for ${pages.length} page(s)`
+      message: `Generated prompts for ${pages.length} page(s) using OpenAI Assistant`,
+      metadata: {
+        usedAssistant: true,
+        childDescription: enhancedContext.childDescription,
+        sidekickDescription: enhancedContext.sidekickDescription,
+        pronouns: enhancedContext.pronouns
+      }
     });
 
   } catch (error) {
@@ -68,165 +157,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 }
 
-async function generatePagePrompts(page: string, variables: StoryVariables): Promise<{ image: string; audio: string; safeZone: string }> {
-  let pageContent = '';
-  let audioScript = '';
-  let safeZone = 'story_right_safe'; // Default for story pages
+async function getChildData(childName: string): Promise<Child | null> {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('children')
+      .select('id, name, age, child_description, pronouns, sidekick_description')
+      .eq('name', childName)
+      .single();
 
-  // Fixed components for consistency - exactly as specified
-  const mainCharacterBase = "a young boy with messy brown hair, wearing denim overalls and a striped yellow shirt, around 5 years old, friendly expression, barefoot";
-  const visualStyle = "children's book illustration in a soft digital painting style, warm pastel color palette, watercolor texture, clean line art, gentle shadows, flat lighting";
-  const layoutInstruction = "composition anchored to the left side of the image, right half of the image is intentionally empty with a soft, uncluttered pastel background for overlaying text";
+    if (error) {
+      console.error('Error fetching child data:', error);
+      return null;
+    }
 
-  // Define page-specific content based on the Wish Button story structure from spec
-  switch (page) {
-    case 'page1':
-      // Title Page
-      pageContent = `${mainCharacterBase}, standing in a sunny field waving hello, with ${variables.sidekick} by his feet. Storybook title in playful hand-drawn lettering on the right side
-${visualStyle}
-${layoutInstruction}`;
-      audioScript = `${variables.childName} and the Wish Button`;
-      safeZone = 'story_right_safe';
-      break;
-      
-    case 'page2':
-      // Character Trait / Desire
-      pageContent = `${mainCharacterBase}, excitedly talking about how much he loves ${variables.wishResultItems}, imagining ${variables.wishResultItems}, in a cheerful playroom, ${variables.sidekick} sits beside him
-${visualStyle}
-${layoutInstruction}`;
-      audioScript = `${variables.childName} loved ${variables.wishResultItems}. Not just a little—a lot! More ${variables.wishResultItems}, more everything!`;
-      safeZone = 'story_right_safe';
-      break;
-
-    case 'page3':
-      // Discovery of the Wish Button
-      pageContent = `${mainCharacterBase}, discovering a ${variables.magicButton} in ${variables.buttonLocation}, looking curious and amazed, ${variables.sidekick} is nearby looking curious
-${visualStyle}
-${layoutInstruction}`;
-      audioScript = `One day, ${variables.childName} found a shiny button in the ${variables.buttonLocation}. It said: 'PRESS FOR MORE ${variables.wishResultItems.toUpperCase()}.'`;
-      safeZone = 'story_right_safe';
-      break;
-
-    case 'page4':
-      // First Wish Granted
-      pageContent = `${mainCharacterBase}, pressing the button with excitement, surrounded by appearing ${variables.wishResultItems}, with ${variables.sidekick} joining in, POOF effect with magical sparkles
-${visualStyle}
-${layoutInstruction}`;
-      audioScript = `${variables.childName} pressed the button. POOF! A ${variables.wishResultItems.split(' ')[0]} appeared. Then another! And another!`;
-      safeZone = 'story_right_safe';
-      break;
-
-    case 'page5':
-      // It Gets Worse
-      pageContent = `${mainCharacterBase}, looking overwhelmed as dozens of ${variables.wishResultItems} ${variables.chaoticActions}, in a messy living room, ${variables.sidekick} is amid the chaos
-${visualStyle}
-${layoutInstruction}`;
-      audioScript = `But soon, the ${variables.wishResultItems} started to ${variables.chaoticActions}. There were too many! It was too much.`;
-      safeZone = 'story_right_safe';
-      break;
-
-    case 'page6':
-      // The Realization
-      pageContent = `${mainCharacterBase}, sitting in a messy room looking ${variables.realizationEmotion}, thinking sadly, ${variables.sidekick} looking concerned nearby
-${visualStyle}
-${layoutInstruction}`;
-      audioScript = `${variables.childName} looked around. He had everything he wished for. But he felt ${variables.realizationEmotion}. He missed ${variables.missedSimpleThing}.`;
-      safeZone = 'story_right_safe';
-      break;
-
-    case 'page7':
-      // Final Wish
-      pageContent = `${mainCharacterBase}, whispering into the ${variables.magicButton}, glowing light returning to the room, ${variables.sidekick} watching hopefully, magical glow around the button
-${visualStyle}
-${layoutInstruction}`;
-      audioScript = `So he pressed the button one last time. 'I wish things could go back to how they were,' he whispered.`;
-      safeZone = 'story_right_safe';
-      break;
-
-    case 'page8':
-      // Outcome
-      pageContent = `${mainCharacterBase}, sitting quietly with ${variables.sidekick} in ${variables.finalScene}, room calm and warm, just the right amount of ${variables.wishResultItems} around them
-${visualStyle}
-${layoutInstruction}`;
-      audioScript = `Now ${variables.childName} had what he really wanted: just enough. Just right.`;
-      safeZone = 'story_right_safe';
-      break;
-
-    case 'page9':
-      // The End
-      pageContent = `${mainCharacterBase}, peacefully sitting with ${variables.sidekick} in ${variables.finalScene} at sunset, both of them calm and happy, waving goodbye
-${visualStyle}
-${layoutInstruction}`;
-      audioScript = `The End.`;
-      safeZone = 'story_right_safe';
-      break;
-      
-    default:
-      throw new Error(`Unknown page: ${page}`);
+    return data;
+  } catch (error) {
+    console.error('Error in getChildData:', error);
+    return null;
   }
-
-  // Return the exact spec-based prompts without AI generation
-  return {
-    image: pageContent,
-    audio: audioScript,
-    safeZone
-  };
-}
-
-async function generateDetailedImagePrompt(pageDescription: string, variables: StoryVariables, safeZone: string): Promise<string> {
-  const promptGenerationRequest = `Create a detailed illustration prompt for a children's storybook page.
-
-Story Context:
-- Theme: ${variables.theme}
-- Visual Style: ${variables.visualStyle}
-- Main Character: ${variables.mainCharacter}
-- Sidekick: ${variables.sidekick}
-- Target Age: 3-5 years old
-- Safe Zone: ${safeZone} (${safeZone === 'right_safe' ? 'RIGHT THIRD OF IMAGE MUST BE COMPLETELY EMPTY for text overlay' : safeZone === 'center_safe' ? 'Center area should be clear for title text' : 'Follow safe zone requirements'})
-
-Page Description: ${pageDescription}
-
-CRITICAL SAFE ZONE REQUIREMENTS:
-${safeZone === 'right_safe' ? 
-  '- The RIGHT THIRD (33%) of the image MUST be completely empty - no characters, objects, or visual elements\n- All story elements must be contained in the LEFT TWO-THIRDS of the image\n- This creates space for text overlay on the right side' :
-  safeZone === 'center_safe' ?
-  '- Center area should have space for title text overlay\n- Visual elements can frame the center but leave space for text' :
-  '- Follow standard composition guidelines for the specified safe zone'
-}
-
-Requirements:
-- ${variables.visualStyle} art style
-- Bright, warm, cheerful colors appropriate for ${variables.theme} theme
-- Child-friendly and safe imagery (ages 3-5)
-- Clear composition suitable for storybook layout with proper safe zone compliance
-- ${variables.theme} theme elements integrated naturally
-- Character consistency: ${variables.mainCharacter} and ${variables.sidekick}
-- MUST respect safe zone requirements for text placement
-
-Generate a detailed prompt for AI image generation that will create a beautiful, engaging illustration for this storybook page in ${variables.visualStyle} while strictly following the safe zone requirements.`;
-
-  console.log('🤖 Sending to OpenAI:', promptGenerationRequest.substring(0, 200) + '...');
-
-  const completion = await openai.chat.completions.create({
-    model: 'gpt-4',
-    messages: [
-      {
-        role: 'system',
-        content: 'You are an expert children\'s book illustrator who creates detailed prompts for AI image generation. You understand the critical importance of safe zones for text overlay and always include specific spatial instructions in your prompts. Focus on creating vivid, age-appropriate, and thematically consistent artwork that respects layout requirements.'
-      },
-      {
-        role: 'user',
-        content: promptGenerationRequest
-      }
-    ],
-    max_tokens: 800,
-    temperature: 0.7,
-  });
-
-  const result = completion.choices[0]?.message?.content || pageDescription;
-  console.log('🎨 AI generated prompt length:', result.length, 'chars');
-  
-  return result;
 }
 
 async function savePromptsToDatabase(variables: StoryVariables, prompts: { [key: string]: { image: string; audio: string; safeZone: string } }, projectId?: string) {

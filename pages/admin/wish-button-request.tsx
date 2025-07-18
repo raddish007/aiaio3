@@ -1,13 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '@/lib/supabase';
 import AdminHeader from '@/components/AdminHeader';
 import { AssetDetailModal } from '@/components/assets/AssetModal/AssetDetailModal';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import { User } from '@supabase/supabase-js';
 
 interface Child {
   id: string;
@@ -15,6 +11,9 @@ interface Child {
   age: number;
   primary_interest: string;
   theme?: string;
+  child_description?: string;
+  pronouns?: string;
+  sidekick_description?: string;
 }
 
 interface StoryVariables {
@@ -122,6 +121,7 @@ interface WishButtonPayload {
 
 export default function WishButtonRequest() {
   const router = useRouter();
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [children, setChildren] = useState<Child[]>([]);
   const [selectedChild, setSelectedChild] = useState<Child | null>(null);
@@ -145,8 +145,23 @@ export default function WishButtonRequest() {
   const [isAssetModalOpen, setIsAssetModalOpen] = useState(false);
 
   useEffect(() => {
-    fetchChildren();
+    checkAuth();
   }, []);
+
+  const checkAuth = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        router.push('/login');
+        return;
+      }
+      setUser(user);
+      fetchChildren();
+    } catch (error) {
+      console.error('Auth error:', error);
+      router.push('/login');
+    }
+  };
 
   const fetchChildren = async () => {
     try {
@@ -402,10 +417,11 @@ export default function WishButtonRequest() {
       // Set the current story project
       setCurrentStoryProject(story);
       
-      // Load prompts if they exist
-      if (story.metadata?.generatedPrompts) {
-        setGeneratedPrompts(story.metadata.generatedPrompts);
-      }
+      // Load prompts if they exist - DISABLED to force regeneration with new system
+      // if (story.metadata?.generatedPrompts) {
+      //   setGeneratedPrompts(story.metadata.generatedPrompts);
+      // }
+      console.log('🔄 Cached prompts disabled - prompts will be regenerated with new OpenAI Assistant system');
       
       // Refresh assets from database for this project
       await refreshAssetsFromDatabase(story.id);
@@ -934,6 +950,11 @@ export default function WishButtonRequest() {
         setGeneratedPrompts(data.prompts);
         setPromptProgress({ current: pages.length, total: pages.length, currentPage: 'Complete!' });
         
+        // Save the generated prompts to the project metadata for persistence
+        if (currentStoryProject) {
+          await updateProjectWithPrompts(currentStoryProject.id, data.prompts);
+        }
+        
         // Stay on prompts step to show results - don't auto-advance
         // User can manually proceed to images when ready
       } else {
@@ -954,13 +975,52 @@ export default function WishButtonRequest() {
     }
   };
 
+  const updateProjectWithPrompts = async (projectId: string, prompts: any) => {
+    try {
+      console.log('💾 Saving generated prompts to project metadata...');
+      const { error } = await supabase
+        .from('content_projects')
+        .update({
+          metadata: {
+            ...currentStoryProject?.metadata,
+            generatedPrompts: prompts,
+            lastPromptsGenerated: new Date().toISOString(),
+            promptGenerationMethod: 'openai-assistant'
+          }
+        })
+        .eq('id', projectId);
+
+      if (error) {
+        console.error('❌ Error saving prompts to project:', error);
+      } else {
+        console.log('✅ Prompts saved to project metadata');
+      }
+    } catch (error) {
+      console.error('❌ Error in updateProjectWithPrompts:', error);
+    }
+  };
+
   const generateAllImages = async () => {
-    if (!storyVariables || !assets) return;
+    if (!storyVariables || !assets || !currentStoryProject || !generatedPrompts) {
+      console.error('Missing required data for image generation:', { 
+        storyVariables: !!storyVariables, 
+        assets: !!assets, 
+        currentStoryProject: !!currentStoryProject,
+        generatedPrompts: !!generatedPrompts
+      });
+      alert('Missing required data for image generation. Please ensure story variables and prompts are generated first.');
+      return;
+    }
     
     setCurrentStep('images');
     
     try {
       console.log('🎨 Starting batch image generation...');
+      console.log('📊 Sending current data:', {
+        projectId: currentStoryProject.id,
+        storyVariables: Object.keys(storyVariables),
+        generatedPrompts: Object.keys(generatedPrompts)
+      });
       
       // Process images in smaller batches to avoid overwhelming the API
       const allPages = ['page1', 'page2', 'page3', 'page4', 'page5', 'page6', 'page7', 'page8', 'page9'];
@@ -975,7 +1035,10 @@ export default function WishButtonRequest() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             pages: batch,
-            batchSize: batchSize
+            batchSize: batchSize,
+            projectId: currentStoryProject.id,
+            storyVariables: storyVariables,
+            generatedPrompts: generatedPrompts
           })
         });
 
@@ -1314,6 +1377,18 @@ export default function WishButtonRequest() {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
           <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show loading while checking authentication
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Checking authentication...</p>
         </div>
       </div>
     );
