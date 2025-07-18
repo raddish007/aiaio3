@@ -13,6 +13,9 @@ interface Child {
   primary_interest: string;
   parent_id: string;
   age: number;
+  child_description?: string | null;
+  pronouns?: string | null;
+  sidekick_description?: string | null;
   metadata?: {
     additional_themes?: string;
     icon?: string;
@@ -44,7 +47,10 @@ export default function ManageAccounts() {
     age: 5,
     birthMonth: '',
     additionalThemes: '',
-    icon: ''
+    icon: '',
+    childDescription: '',
+    pronouns: 'he/him',
+    sidekickDescription: ''
   });
   const [editChild, setEditChild] = useState({
     name: '',
@@ -52,7 +58,10 @@ export default function ManageAccounts() {
     age: 5,
     birthMonth: '',
     additionalThemes: '',
-    icon: ''
+    icon: '',
+    childDescription: '',
+    pronouns: 'he/him',
+    sidekickDescription: ''
   });
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -60,6 +69,19 @@ export default function ManageAccounts() {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const router = useRouter();
+
+  // Helper function to reset child form state
+  const resetChildFormState = () => ({
+    name: '',
+    theme: 'dinosaurs',
+    age: 5,
+    birthMonth: '',
+    additionalThemes: '',
+    icon: '',
+    childDescription: '',
+    pronouns: 'he/him',
+    sidekickDescription: ''
+  });
 
   const themes = [
     'dogs', 'cats', 'dinosaurs', 'trucks', 'superheroes', 'princesses', 
@@ -162,6 +184,9 @@ export default function ManageAccounts() {
           primary_interest: newChild.theme,
           parent_id: selectedParent.id,
           age: newChild.age,
+          child_description: newChild.childDescription || null,
+          pronouns: newChild.pronouns || 'he/him',
+          sidekick_description: newChild.sidekickDescription || null,
           metadata: {
             additional_themes: newChild.additionalThemes,
             icon: newChild.icon,
@@ -182,7 +207,10 @@ export default function ManageAccounts() {
         age: 5,
         birthMonth: '',
         additionalThemes: '',
-        icon: ''
+        icon: '',
+        childDescription: '',
+        pronouns: 'he/him',
+        sidekickDescription: ''
       });
       setShowAddChildForm(false);
       
@@ -204,7 +232,10 @@ export default function ManageAccounts() {
       age: child.age,
       birthMonth: child.metadata?.birth_month || '',
       additionalThemes: child.metadata?.additional_themes || '',
-      icon: child.metadata?.icon || ''
+      icon: child.metadata?.icon || '',
+      childDescription: child.child_description || '',
+      pronouns: child.pronouns || 'he/him',
+      sidekickDescription: child.sidekick_description || ''
     });
     setShowEditChildForm(true);
   };
@@ -226,6 +257,9 @@ export default function ManageAccounts() {
           name: editChild.name,
           primary_interest: editChild.theme,
           age: editChild.age,
+          child_description: editChild.childDescription || null,
+          pronouns: editChild.pronouns || 'he/him',
+          sidekick_description: editChild.sidekickDescription || null,
           metadata: {
             additional_themes: editChild.additionalThemes,
             icon: editChild.icon,
@@ -241,14 +275,7 @@ export default function ManageAccounts() {
       setMessage(`Child "${editChild.name}" updated successfully`);
       
       // Reset form
-      setEditChild({
-        name: '',
-        theme: 'dinosaurs',
-        age: 5,
-        birthMonth: '',
-        additionalThemes: '',
-        icon: ''
-      });
+      setEditChild(resetChildFormState());
       setShowEditChildForm(false);
       setEditingChild(null);
       
@@ -582,22 +609,15 @@ export default function ManageAccounts() {
 
         {/* Add Child Modal */}
         {showAddChildForm && selectedParent && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-8 max-w-md w-full mx-4">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
+            <div className="bg-white rounded-lg p-8 max-w-md w-full mx-4 my-8 max-h-[90vh] overflow-y-auto">
               <div className="flex justify-between items-center mb-6">
                 <h3 className="text-lg font-semibold text-gray-900">Add Child to {selectedParent.email}</h3>
                 <button
                   onClick={() => {
                     setShowAddChildForm(false);
                     setSelectedParent(null);
-                    setNewChild({
-                      name: '',
-                      theme: 'dinosaurs',
-                      age: 5,
-                      birthMonth: '',
-                      additionalThemes: '',
-                      icon: ''
-                    });
+                    setNewChild(resetChildFormState());
                   }}
                   className="text-gray-400 hover:text-gray-600"
                 >
@@ -718,20 +738,66 @@ export default function ManageAccounts() {
                   </div>
                 </div>
 
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Child Description
+                  </label>
+                  <textarea
+                    value={newChild.childDescription}
+                    onChange={(e) => setNewChild(prev => ({ ...prev, childDescription: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="A young boy with messy brown hair and light skin, wearing denim overalls and a striped yellow shirt, smiling and wearing blue canvas shoes"
+                    rows={3}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Describe what the child looks like for image generation prompts
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Pronouns
+                  </label>
+                  <div className="flex space-x-4">
+                    {['he/him', 'she/her', 'they/them'].map((pronoun) => (
+                      <label key={pronoun} className="flex items-center">
+                        <input
+                          type="radio"
+                          name="pronouns"
+                          value={pronoun}
+                          checked={newChild.pronouns === pronoun}
+                          onChange={(e) => setNewChild(prev => ({ ...prev, pronouns: e.target.value }))}
+                          className="mr-2"
+                        />
+                        <span className="text-sm text-gray-700">{pronoun}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Sidekick Description
+                  </label>
+                  <textarea
+                    value={newChild.sidekickDescription}
+                    onChange={(e) => setNewChild(prev => ({ ...prev, sidekickDescription: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="A floppy-eared golden retriever puppy with a red collar, expressive eyes, fluffy fur, and a playful posture"
+                    rows={3}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Describe the child's sidekick character for video generation
+                  </p>
+                </div>
+
                 <div className="flex justify-end space-x-3 pt-4">
                   <button
                     type="button"
                     onClick={() => {
                       setShowAddChildForm(false);
                       setSelectedParent(null);
-                      setNewChild({
-                        name: '',
-                        theme: 'dinosaurs',
-                        age: 5,
-                        birthMonth: '',
-                        additionalThemes: '',
-                        icon: ''
-                      });
+                      setNewChild(resetChildFormState());
                     }}
                     className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
                   >
@@ -752,22 +818,15 @@ export default function ManageAccounts() {
 
         {/* Edit Child Modal */}
         {showEditChildForm && editingChild && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-8 max-w-md w-full mx-4">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
+            <div className="bg-white rounded-lg p-8 max-w-md w-full mx-4 my-8 max-h-[90vh] overflow-y-auto">
               <div className="flex justify-between items-center mb-6">
                 <h3 className="text-lg font-semibold text-gray-900">Edit Child: {editingChild.name}</h3>
                 <button
                   onClick={() => {
                     setShowEditChildForm(false);
                     setEditingChild(null);
-                    setEditChild({
-                      name: '',
-                      theme: 'dinosaurs',
-                      age: 5,
-                      birthMonth: '',
-                      additionalThemes: '',
-                      icon: ''
-                    });
+                    setEditChild(resetChildFormState());
                   }}
                   className="text-gray-400 hover:text-gray-600"
                 >
@@ -888,20 +947,66 @@ export default function ManageAccounts() {
                   </div>
                 </div>
 
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Child Description
+                  </label>
+                  <textarea
+                    value={editChild.childDescription}
+                    onChange={(e) => setEditChild(prev => ({ ...prev, childDescription: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="A young boy with messy brown hair and light skin, wearing denim overalls and a striped yellow shirt, smiling and wearing blue canvas shoes"
+                    rows={3}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Describe what the child looks like for image generation prompts
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Pronouns
+                  </label>
+                  <div className="flex space-x-4">
+                    {['he/him', 'she/her', 'they/them'].map((pronoun) => (
+                      <label key={pronoun} className="flex items-center">
+                        <input
+                          type="radio"
+                          name="editPronouns"
+                          value={pronoun}
+                          checked={editChild.pronouns === pronoun}
+                          onChange={(e) => setEditChild(prev => ({ ...prev, pronouns: e.target.value }))}
+                          className="mr-2"
+                        />
+                        <span className="text-sm text-gray-700">{pronoun}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Sidekick Description
+                  </label>
+                  <textarea
+                    value={editChild.sidekickDescription}
+                    onChange={(e) => setEditChild(prev => ({ ...prev, sidekickDescription: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="A floppy-eared golden retriever puppy with a red collar, expressive eyes, fluffy fur, and a playful posture"
+                    rows={3}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Describe the child's sidekick character for video generation
+                  </p>
+                </div>
+
                 <div className="flex justify-end space-x-3 pt-4">
                   <button
                     type="button"
                     onClick={() => {
                       setShowEditChildForm(false);
                       setEditingChild(null);
-                      setEditChild({
-                        name: '',
-                        theme: 'dinosaurs',
-                        age: 5,
-                        birthMonth: '',
-                        additionalThemes: '',
-                        icon: ''
-                      });
+                      setEditChild(resetChildFormState());
                     }}
                     className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
                   >

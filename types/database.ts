@@ -206,6 +206,7 @@ export type Database = {
       children: {
         Row: {
           age: number
+          child_description: string | null
           created_at: string | null
           id: string
           metadata: Json | null
@@ -213,10 +214,13 @@ export type Database = {
           parent_id: string
           primary_interest: string
           profile_photo_url: string | null
+          pronouns: string | null
+          sidekick_description: string | null
           updated_at: string | null
         }
         Insert: {
           age: number
+          child_description?: string | null
           created_at?: string | null
           id?: string
           metadata?: Json | null
@@ -224,10 +228,13 @@ export type Database = {
           parent_id: string
           primary_interest: string
           profile_photo_url?: string | null
+          pronouns?: string | null
+          sidekick_description?: string | null
           updated_at?: string | null
         }
         Update: {
           age?: number
+          child_description?: string | null
           created_at?: string | null
           id?: string
           metadata?: Json | null
@@ -235,6 +242,8 @@ export type Database = {
           parent_id?: string
           primary_interest?: string
           profile_photo_url?: string | null
+          pronouns?: string | null
+          sidekick_description?: string | null
           updated_at?: string | null
         }
         Relationships: [
