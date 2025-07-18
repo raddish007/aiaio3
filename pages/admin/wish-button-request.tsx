@@ -167,7 +167,7 @@ export default function WishButtonRequest() {
   const handleChildSelect = (child: Child) => {
     setSelectedChild(child);
     setCurrentStep('stories');
-    fetchPreviousStories(child);
+    fetchPreviousStories(child, false);
   };
 
   // New function to refresh assets from database
@@ -346,21 +346,44 @@ export default function WishButtonRequest() {
     }
   };
 
-  const fetchPreviousStories = async (child: Child) => {
+  const fetchPreviousStories = async (child: Child, forceRefresh = false) => {
     try {
-      const { data, error } = await supabase
+      console.log(`🔍 Fetching previous stories for child: ${child.name} (ID: ${child.id})${forceRefresh ? ' [FORCE REFRESH]' : ''}`);
+      
+      // Add timestamp to force cache bust
+      const timestamp = Date.now();
+      
+      let query = supabase
         .from('content_projects')
         .select('*')
         .eq('metadata->>template', 'wish-button')
         .eq('metadata->>child_name', child.name)
         .order('created_at', { ascending: false });
+      
+      // Force fresh data by adding a harmless filter that doesn't change results
+      if (forceRefresh) {
+        console.log('🔄 Adding cache-busting measures...');
+        query = query.neq('id', '00000000-0000-0000-0000-000000000000'); // This will never match but forces fresh query
+      }
+
+      const { data, error } = await query;
 
       if (error) {
         console.warn('Previous stories not available:', error.message);
         setPreviousStories([]);
         return;
       }
+      
+      console.log(`📚 Found ${data?.length || 0} previous stories for ${child.name} (timestamp: ${timestamp}):`, data?.map(s => ({ id: s.id.substring(0, 8), title: s.title, created: s.created_at })));
+      
+      // Log full IDs for debugging
+      console.log('📋 Full story IDs in result:', data?.map(s => s.id));
+      
       setPreviousStories(data || []);
+      
+      // Extra logging to verify state change
+      console.log(`🔍 Set previousStories state to ${data?.length || 0} items`);
+      
     } catch (error) {
       console.error('Error fetching previous stories:', error);
       setPreviousStories([]);
@@ -387,18 +410,80 @@ export default function WishButtonRequest() {
       // Refresh assets from database for this project
       await refreshAssetsFromDatabase(story.id);
       
-      // Move to the appropriate step based on what's available
-      if (story.metadata?.generatedPrompts) {
-        setCurrentStep('images'); // Skip to images since prompts are already generated
-      } else if (story.metadata?.storyVariables) {
-        setCurrentStep('variables'); // Show variables but allow progression to prompts
-      } else {
-        setCurrentStep('variables'); // Start fresh with variables
-      }
+      // Always start at variables step for loaded stories to allow navigation
+      setCurrentStep('variables');
       
     } catch (error) {
       console.error('Error loading existing story:', error);
       alert('Failed to load existing story. Please try again.');
+    }
+  };
+
+  const deleteStory = async (storyId: string, storyTitle: string) => {
+    if (!confirm(`Are you sure you want to delete "${storyTitle}"? This will also delete all associated assets and cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      console.log(`🗑️ Deleting story ${storyId} and its assets via API...`);
+      console.log(`🔍 Story ID type: ${typeof storyId}, length: ${storyId.length}`);
+      
+      // Call the admin API endpoint that uses service role permissions
+      const response = await fetch('/api/admin/delete-story', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ storyId }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error('❌ API Error:', response.status, data);
+        throw new Error(data.error || `Server error: ${response.status}`);
+      }
+
+      if (!data.success) {
+        console.error('❌ API returned unsuccessful response:', data);
+        throw new Error(data.error || 'Deletion failed');
+      }
+
+      console.log('✅ Successfully deleted story via API:', data);
+      
+      // Refresh the previous stories list with aggressive cache busting
+      if (selectedChild) {
+        console.log(`🔄 Refreshing previous stories list for ${selectedChild.name} with force refresh...`);
+        
+        // Add a delay to ensure database changes are committed
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Force a complete refresh with cache busting
+        await fetchPreviousStories(selectedChild, true);
+        console.log(`✅ Refreshed previous stories list with force refresh`);
+        
+        // Double-check by calling again after another delay
+        setTimeout(async () => {
+          console.log('🔄 Double-checking stories list after additional delay...');
+          await fetchPreviousStories(selectedChild, true);
+        }, 2000);
+      }
+      
+      // If the deleted story was the currently loaded one, reset the state
+      if (currentStoryProject?.id === storyId) {
+        console.log('🗑️ Deleted story was currently loaded, resetting state...');
+        setCurrentStoryProject(null);
+        setStoryVariables(null);
+        setGeneratedPrompts(null);
+        setAssets(null);
+        setCurrentStep('stories');
+      }
+      
+      alert(`Story deleted successfully! Removed project and ${data.deletedAssets} assets.`);
+      
+    } catch (error) {
+      console.error('💥 Error deleting story:', error);
+      alert(`Failed to delete story: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
@@ -1154,6 +1239,75 @@ export default function WishButtonRequest() {
     return emojis[theme.toLowerCase()] || emojis.default;
   };
 
+  // Helper function to determine which steps are completed
+  const getCompletedSteps = () => {
+    const completed = new Set(['child']); // Child selection is always completed when we have a selected child
+    
+    if (selectedChild) {
+      completed.add('stories'); // Stories step is completed when we have a selected child
+    }
+    
+    if (storyVariables) {
+      completed.add('variables'); // Variables are generated
+    }
+    
+    if (generatedPrompts) {
+      completed.add('prompts'); // Prompts are generated
+    }
+    
+    if (assets) {
+      // Check if any images are generated/ready
+      const imageKeys = ['page1_image', 'page2_image', 'page3_image', 'page4_image', 'page5_image', 'page6_image', 'page7_image', 'page8_image', 'page9_image'];
+      const hasImages = imageKeys.some(key => {
+        const asset = assets[key as keyof WishButtonAssets];
+        return asset && (asset.status === 'ready' || asset.status === 'approved' || asset.status === 'pending_review' || asset.url);
+      });
+      
+      if (hasImages) {
+        completed.add('images');
+        completed.add('image-review');
+      }
+      
+      // Check if any audio is generated/ready
+      const audioKeys = ['page1_audio', 'page2_audio', 'page3_audio', 'page4_audio', 'page5_audio', 'page6_audio', 'page7_audio', 'page8_audio', 'page9_audio'];
+      const hasAudio = audioKeys.some(key => {
+        const asset = assets[key as keyof WishButtonAssets];
+        return asset && (asset.status === 'ready' || asset.status === 'approved' || asset.status === 'pending_review' || asset.url);
+      });
+      
+      if (hasAudio) {
+        completed.add('audio');
+        completed.add('audio-generation');
+        completed.add('audio-review');
+      }
+    }
+    
+    if (payload) {
+      completed.add('payload');
+      completed.add('review');
+    }
+    
+    return completed;
+  };
+
+  // Helper function to check if a step can be navigated to
+  const canNavigateToStep = (stepKey: string) => {
+    const completedSteps = getCompletedSteps();
+    
+    // Always allow navigation to completed steps
+    if (completedSteps.has(stepKey)) {
+      return true;
+    }
+    
+    // Allow navigation to the next logical step based on completion
+    const stepOrder = ['child', 'stories', 'variables', 'prompts', 'images', 'image-review', 'audio', 'audio-generation', 'audio-review', 'payload', 'review'];
+    const currentIndex = stepOrder.indexOf(currentStep);
+    const targetIndex = stepOrder.indexOf(stepKey);
+    
+    // Allow navigation to current step or one step ahead
+    return targetIndex <= currentIndex + 1;
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -1189,23 +1343,98 @@ export default function WishButtonRequest() {
               { key: 'audio-review', label: 'Review Audio', icon: '🎧' },
               { key: 'payload', label: 'Build Payload', icon: '📦' },
               { key: 'review', label: 'Final Review', icon: '🎬' }
-            ].map((step, index) => (
-              <div key={step.key} className="flex items-center">
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium ${
-                  currentStep === step.key 
-                    ? 'bg-blue-600 text-white' 
-                    : index <= ['child', 'stories', 'variables', 'prompts', 'images', 'image-review', 'audio', 'audio-generation', 'audio-review', 'payload', 'review'].indexOf(currentStep)
-                    ? 'bg-green-500 text-white'
-                    : 'bg-gray-200 text-gray-600'
-                }`}>
-                  {step.icon}
+            ].map((step, index) => {
+              const completedSteps = getCompletedSteps();
+              const isCompleted = completedSteps.has(step.key);
+              const isCurrent = currentStep === step.key;
+              const canNavigate = canNavigateToStep(step.key);
+              
+              return (
+                <div key={step.key} className="flex items-center">
+                  <button
+                    onClick={() => canNavigate ? setCurrentStep(step.key) : null}
+                    disabled={!canNavigate}
+                    className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium transition-colors ${
+                      isCurrent 
+                        ? 'bg-blue-600 text-white shadow-lg' 
+                        : isCompleted
+                        ? 'bg-green-500 text-white hover:bg-green-600'
+                        : canNavigate
+                        ? 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                        : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    } ${canNavigate ? 'cursor-pointer' : ''}`}
+                    title={isCompleted ? `${step.label} (Completed)` : canNavigate ? step.label : `${step.label} (Not available yet)`}
+                  >
+                    {isCompleted && !isCurrent ? '✓' : step.icon}
+                  </button>
+                  <span className={`ml-2 text-sm font-medium ${
+                    isCurrent ? 'text-blue-600' : isCompleted ? 'text-green-600' : 'text-gray-600'
+                  }`}>
+                    {step.label}
+                  </span>
+                  {index < 10 && <div className={`w-8 h-px mx-4 ${
+                    isCompleted ? 'bg-green-300' : 'bg-gray-300'
+                  }`}></div>}
                 </div>
-                <span className="ml-2 text-sm font-medium text-gray-600">{step.label}</span>
-                {index < 10 && <div className="w-8 h-px bg-gray-300 mx-4"></div>}
-              </div>
-            ))}
+              );
+            })}
           </div>
+          
+          {/* Progress Information */}
+          {(storyVariables || generatedPrompts || assets) && (
+            <div className="mt-4 text-sm text-gray-600 bg-gray-50 rounded-lg p-3">
+              <div className="flex items-center space-x-4">
+                {currentStoryProject && (
+                  <span>📁 Project: {currentStoryProject.id.substring(0, 8)}...</span>
+                )}
+                {storyVariables && (
+                  <span>✅ Variables: {storyVariables.childName}</span>
+                )}
+                {generatedPrompts && (
+                  <span>✅ Prompts: {Object.keys(generatedPrompts).length} pages</span>
+                )}
+                {assets && (
+                  <span>🎨 Assets: {Object.values(assets).filter(asset => asset.status === 'ready' || asset.status === 'approved').length} ready</span>
+                )}
+              </div>
+            </div>
+          )}
         </div>
+
+        {/* Current Story Context Card */}
+        {currentStoryProject && (
+          <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-medium text-blue-900">
+                  📖 Currently Working On: {selectedChild?.name}'s Wish Button Story
+                </h3>
+                <div className="text-sm text-blue-700 mt-1 space-x-4">
+                  <span>🆔 Project: {currentStoryProject.id.substring(0, 8)}...</span>
+                  {storyVariables && (
+                    <>
+                      <span>🎭 Theme: {storyVariables.theme}</span>
+                      <span>✨ Wish Item: {storyVariables.wishResultItems}</span>
+                    </>
+                  )}
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  // Reset to fresh state
+                  setCurrentStoryProject(null);
+                  setStoryVariables(null);
+                  setGeneratedPrompts(null);
+                  setAssets(null);
+                  setCurrentStep('stories');
+                }}
+                className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+              >
+                🔄 Start Fresh
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Step 1: Child Selection */}
         {currentStep === 'child' && (
@@ -1275,36 +1504,60 @@ export default function WishButtonRequest() {
                   </h3>
                   
                   <div className="space-y-3">
-                    {previousStories.map((story, index) => (
-                      <div key={story.id} className="bg-gray-50 border border-gray-200 rounded p-4">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <p className="font-medium text-gray-900">
-                              Story #{index + 1}
-                              {story.metadata?.storyVariables?.theme && (
-                                <span className="text-sm text-gray-600 ml-2">({story.metadata.storyVariables.theme})</span>
-                              )}
-                            </p>
-                            <p className="text-sm text-gray-600">
-                              Created: {new Date(story.created_at).toLocaleDateString()} at {new Date(story.created_at).toLocaleTimeString()}
-                            </p>
-                            {story.metadata?.storyVariables && (
-                              <p className="text-sm text-gray-600">
-                                Character: {story.metadata.storyVariables.mainCharacter?.substring(0, 50)}...
-                              </p>
-                            )}
-                          </div>
-                          <div className="flex space-x-2">
-                            <button 
-                              onClick={() => loadExistingStory(story)}
-                              className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 text-sm font-medium"
-                            >
-                              Load & Continue
-                            </button>
+                    {previousStories.map((story, index) => {
+                      const hasVariables = !!story.metadata?.storyVariables;
+                      const hasPrompts = !!story.metadata?.generatedPrompts;
+                      const createdDate = new Date(story.created_at).toLocaleDateString();
+                      const createdTime = new Date(story.created_at).toLocaleTimeString();
+                      const theme = story.metadata?.storyVariables?.theme || story.theme || 'Unknown';
+                      
+                      return (
+                        <div key={story.id} className="bg-gray-50 border border-gray-200 rounded p-4">
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1">
+                              <h4 className="font-medium text-gray-900 mb-2">
+                                Story #{index + 1} - {theme} Theme
+                              </h4>
+                              <div className="text-sm text-gray-600 space-y-1">
+                                <p>📅 Created: {createdDate} at {createdTime}</p>
+                                <p>🆔 Project ID: {story.id.substring(0, 8)}...</p>
+                                {hasVariables && story.metadata.storyVariables && (
+                                  <p>🎭 Character: {story.metadata.storyVariables.mainCharacter?.substring(0, 50)}...</p>
+                                )}
+                              </div>
+                              
+                              {/* Progress Indicators */}
+                              <div className="mt-3 flex items-center space-x-4 text-xs">
+                                <span className={`px-2 py-1 rounded ${hasVariables ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+                                  {hasVariables ? '✅' : '⏳'} Variables
+                                </span>
+                                <span className={`px-2 py-1 rounded ${hasPrompts ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+                                  {hasPrompts ? '✅' : '⏳'} Prompts
+                                </span>
+                                <span className="px-2 py-1 rounded bg-blue-100 text-blue-700">
+                                  📊 Status: {story.status}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="ml-4 flex space-x-2">
+                              <button
+                                onClick={() => loadExistingStory(story)}
+                                className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 text-sm font-medium"
+                              >
+                                Resume Story
+                              </button>
+                              <button
+                                onClick={() => deleteStory(story.id, `Story #${index + 1} - ${theme} Theme`)}
+                                className="bg-red-600 text-white px-3 py-2 rounded hover:bg-red-700 text-sm font-medium"
+                                title="Delete this story and all its assets"
+                              >
+                                🗑️
+                              </button>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -1436,6 +1689,26 @@ export default function WishButtonRequest() {
                     {generatingPrompts ? 'Generating...' : 'Generate Story Prompts'}
                   </button>
                 </div>
+                
+                {/* Navigation for loaded stories */}
+                {generatedPrompts && (
+                  <div className="mt-4 pt-4 border-t border-gray-200">
+                    <div className="flex justify-between">
+                      <button
+                        onClick={() => setCurrentStep('stories')}
+                        className="bg-gray-500 text-white px-6 py-2 rounded-md hover:bg-gray-600"
+                      >
+                        ← Back to Stories
+                      </button>
+                      <button
+                        onClick={() => setCurrentStep('prompts')}
+                        className="bg-green-600 text-white px-6 py-2 rounded-md hover:bg-green-700"
+                      >
+                        View Prompts →
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             ) : null}
             </div>
