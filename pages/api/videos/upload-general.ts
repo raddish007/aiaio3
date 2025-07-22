@@ -158,8 +158,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Use provided display image URL or generate a placeholder thumbnail
     const thumbnailUrl = displayImageUrl || `https://${process.env.AWS_S3_VIDEO_BUCKET}.s3.${process.env.AWS_REGION}.amazonaws.com/thumbnails/${timestamp}_thumb.jpg`;
 
-          // Create entry in child_approved_videos table for manual upload
-      console.log('📝 Creating child_approved_videos entry for manual upload...');
+          // Create entry in child_approved_videos table for manual upload (pending review)
+      console.log('📝 Creating child_approved_videos entry for manual upload (pending review)...');
       
       const insertData = {
         video_generation_job_id: null,
@@ -174,11 +174,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         child_age: parseInt(ageRange.split('-')[0]) || 3, // Use min age from range
         child_theme: theme || 'general',
         personalization_level: 'generic',
-        approval_status: 'approved',
-        metadata_status: 'approved',
+        approval_status: 'pending_review',
+        metadata_status: 'pending',
         submitted_by: user.id,
-        reviewed_by: user.id,
-        reviewed_at: new Date().toISOString(),
+        reviewed_by: null,
+        reviewed_at: null,
         duration_seconds: duration,
         template_type: 'general',
         template_data: {
@@ -186,7 +186,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           ageRange: ageRange,
           tags: tags,
           uploadedVia: 'general-video-upload',
-          parentTip: parentTip
+          parentTip: parentTip,
+          requiresReview: true
         }
       };
       
@@ -203,7 +204,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       throw new Error(`Database error: ${dbError.message}`);
     }
 
-    console.log('✅ Video entry created:', videoEntry.id);
+    console.log('✅ Video entry created for review:', videoEntry.id);
 
     // Clean up temporary file
     fs.unlinkSync(file.filepath);

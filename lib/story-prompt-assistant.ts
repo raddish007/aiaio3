@@ -211,7 +211,7 @@ IMAGE_PROMPT: [complete detailed image prompt]
 AUDIO_SCRIPT: [exact audio script text]
 SAFE_ZONE: story_right_safe`;
 
-      console.log('📝 Sending message to assistant:', userMessage);
+      console.log('📝 Sending message to assistant:', userMessage.substring(0, 200) + '...');
       
       // Create message with page context
       await openai.beta.threads.messages.create(thread.id, {
@@ -219,30 +219,52 @@ SAFE_ZONE: story_right_safe`;
         content: userMessage
       });
 
+      console.log('🏃 Running assistant...');
+      
       // Run the assistant
       const run = await openai.beta.threads.runs.create(thread.id, {
         assistant_id: assistantId
       });
 
+      console.log(`⏳ Waiting for assistant run completion, initial status: ${run.status}`);
+
       // Wait for completion
       let runStatus = await openai.beta.threads.runs.retrieve(thread.id, run.id);
+      let attempts = 0;
+      const maxAttempts = 30; // 30 seconds max wait
       
-      while (runStatus.status === 'in_progress' || runStatus.status === 'queued') {
+      while ((runStatus.status === 'in_progress' || runStatus.status === 'queued') && attempts < maxAttempts) {
         await new Promise(resolve => setTimeout(resolve, 1000));
         runStatus = await openai.beta.threads.runs.retrieve(thread.id, run.id);
+        attempts++;
+        console.log(`⏳ Assistant run status: ${runStatus.status} (attempt ${attempts}/${maxAttempts})`);
       }
+
+      console.log(`🏁 Assistant run final status: ${runStatus.status}`);
 
       if (runStatus.status === 'completed') {
         // Get the assistant's response
         const messages = await openai.beta.threads.messages.list(thread.id);
         const assistantMessage = messages.data[0];
         
+        console.log('📨 Assistant response received, parsing...');
+        
         if (assistantMessage.role === 'assistant' && assistantMessage.content[0].type === 'text') {
           const response = assistantMessage.content[0].text.value;
-          return this.parseAssistantResponse(response);
+          console.log('🔍 Assistant raw response:', response.substring(0, 300) + '...');
+          const parsed = this.parseAssistantResponse(response);
+          console.log('✅ Successfully parsed assistant response');
+          return parsed;
+        } else {
+          console.error('❌ Assistant message format unexpected:', assistantMessage);
+          throw new Error('Assistant response format is unexpected');
         }
       }
 
+      console.error(`❌ Assistant run failed with status: ${runStatus.status}`);
+      if (runStatus.last_error) {
+        console.error('❌ Run error details:', runStatus.last_error);
+      }
       throw new Error(`Assistant run failed with status: ${runStatus.status}`);
 
     } catch (error) {
@@ -264,20 +286,37 @@ SAFE_ZONE: story_right_safe`;
 
   private parseAssistantResponse(response: string): PagePrompts {
     try {
+      console.log('🔍 Parsing assistant response, length:', response.length);
+      
       // Parse the structured response from the assistant
       const imageMatch = response.match(/IMAGE_PROMPT:\s*([\s\S]*?)(?=AUDIO_SCRIPT:|$)/);
       const audioMatch = response.match(/AUDIO_SCRIPT:\s*([\s\S]*?)(?=SAFE_ZONE:|$)/);
       const safeZoneMatch = response.match(/SAFE_ZONE:\s*(.*?)$/);
 
+      console.log('🔍 Parsing results:', {
+        hasImageMatch: !!imageMatch,
+        hasAudioMatch: !!audioMatch,
+        hasSafeZoneMatch: !!safeZoneMatch
+      });
+
       if (!imageMatch || !audioMatch) {
-        throw new Error('Could not parse assistant response properly');
+        console.error('❌ Could not parse assistant response. Raw response:', response);
+        throw new Error('Could not parse assistant response properly - missing IMAGE_PROMPT or AUDIO_SCRIPT');
       }
 
-      return {
+      const result = {
         image: imageMatch[1].trim(),
         audio: audioMatch[1].trim(),
         safeZone: safeZoneMatch ? safeZoneMatch[1].trim() : 'story_right_safe'
       };
+
+      console.log('✅ Parsed response:', {
+        imageLength: result.image.length,
+        audioLength: result.audio.length,
+        safeZone: result.safeZone
+      });
+
+      return result;
 
     } catch (error) {
       console.error('❌ Error parsing assistant response:', error);

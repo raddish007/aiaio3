@@ -116,6 +116,7 @@ Each value must be a simple text string, NOT an object or array. Age-appropriate
     const storyVariables = {
       ...aiStoryVariables,
       childName: childData.name,
+      pronouns: childData.pronouns || 'they/them',
       theme: theme,
       mainCharacter: childData.child_description || `${childData.name}, a friendly and curious child`,
       sidekick: childData.sidekick_description || 'a loyal and magical companion'
@@ -123,8 +124,9 @@ Each value must be a simple text string, NOT an object or array. Age-appropriate
 
     console.log('✅ Wish Button story variables generated successfully:', {
       aiGenerated: Object.keys(aiStoryVariables),
-      fromDatabase: ['mainCharacter', 'sidekick'],
-      childName: childData.name
+      fromDatabase: ['mainCharacter', 'sidekick', 'pronouns'],
+      childName: childData.name,
+      pronouns: childData.pronouns || 'they/them'
     });
     
     res.status(200).json({ success: true, storyVariables });
