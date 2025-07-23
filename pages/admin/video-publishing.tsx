@@ -517,6 +517,42 @@ export default function VideoPublishing() {
       // Get current user
       const { data: { user } } = await supabase.auth.getUser();
       
+      // First, check for existing active assignments and archive them
+      console.log(`🔍 Checking for existing assignments for video ${assignment.video_id}...`);
+      
+      const { data: existingAssignments, error: checkError } = await supabase
+        .from('video_assignments')
+        .select('id, assignment_type, child_id, status')
+        .eq('video_id', assignment.video_id)
+        .eq('is_active', true);
+      
+      if (checkError) {
+        console.error('Error checking existing assignments:', checkError);
+        throw checkError;
+      }
+      
+      // Archive existing assignments to prevent conflicts
+      if (existingAssignments && existingAssignments.length > 0) {
+        console.log(`🗄️ Archiving ${existingAssignments.length} existing assignment(s)...`);
+        
+        const { error: archiveError } = await supabase
+          .from('video_assignments')
+          .update({ 
+            status: 'archived',
+            is_active: false,
+            archived_at: new Date().toISOString()
+          })
+          .eq('video_id', assignment.video_id)
+          .eq('is_active', true);
+          
+        if (archiveError) {
+          console.error('Error archiving existing assignments:', archiveError);
+          throw archiveError;
+        }
+        
+        console.log('✅ Existing assignments archived');
+      }
+      
       // Create assignments for all target children
       const assignments = [];
       const today = new Date().toISOString().split('T')[0];
@@ -566,6 +602,8 @@ export default function VideoPublishing() {
       }
 
       if (assignments.length > 0) {
+        console.log(`📝 Creating ${assignments.length} new assignment(s)...`);
+        
         const { error } = await supabase
           .from('video_assignments')
           .insert(assignments);
@@ -578,7 +616,12 @@ export default function VideoPublishing() {
           .update({ is_published: true })
           .eq('id', assignment.video_id);
         
-        alert(`Video published successfully to ${assignments.length} children!`);
+        const targetDescription = assignment.assignment_type === 'individual' ? 
+          children.find(c => c.id === assignment.child_id)?.name || 'specific child' :
+          assignment.assignment_type === 'general' ? 'all children' : 
+          `${assignments.length} children`;
+          
+        alert(`Video published successfully to ${targetDescription}!`);
         await fetchData(); // Refresh the data
       }
     } catch (error) {
