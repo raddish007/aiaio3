@@ -1,1 +1,0 @@
-export { AssetDetailModal } from './AssetDetailModal';

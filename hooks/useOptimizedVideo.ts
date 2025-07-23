@@ -1,5 +1,8 @@
 import { useMemo } from 'react';
-import { getOptimizedVideoUrl, isCloudFrontConfigured } from '@/lib/video-cdn';
+
+// Simple hook for consumer app
+const getOptimizedVideoUrl = (url: string) => url;
+const isCloudFrontConfigured = () => false;
 
 /**
  * Hook to get optimized video URL using CloudFront CDN

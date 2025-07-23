@@ -1,58 +1,34 @@
 {
-  "name": "aiaio-platform",
+  "name": "hippopolka-consumer",
   "version": "1.0.0",
-  "description": "AI-powered personalized video content platform for children",
+  "description": "HippoPolka - Personalized video content platform for families",
   "main": "index.js",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "remotion": "remotion",
-    "remotion:preview": "cd remotion && remotion preview src/index.ts",
-    "remotion:render": "cd remotion && remotion render",
-    "remotion:lambda": "cd remotion && remotion lambda functions deploy",
-    "db:generate": "supabase gen types typescript --local > types/database.ts",
-    "db:push": "supabase db push",
-    "db:reset": "supabase db reset"
+    "deploy:vercel": "vercel --prod",
+    "deploy:staging": "vercel"
   },
   "dependencies": {
-    "@aws-sdk/client-lambda": "^3.450.0",
-    "@aws-sdk/client-s3": "^3.844.0",
-    "@aws-sdk/client-ses": "^3.450.0",
-    "@aws-sdk/s3-request-presigner": "^3.844.0",
-    "@fal-ai/client": "^1.5.0",
     "@headlessui/react": "^1.7.17",
     "@heroicons/react": "^2.0.18",
-    "@hookform/resolvers": "^3.3.2",
-    "@remotion/cli": "^4.0.322",
-    "@remotion/lambda": "^4.0.322",
-    "@remotion/player": "^4.0.322",
-    "@remotion/renderer": "^4.0.322",
-    "@remotion/transitions": "^4.0.323",
     "@supabase/supabase-js": "^2.38.0",
     "@tailwindcss/forms": "^0.5.10",
     "@tailwindcss/typography": "^0.5.16",
-    "@types/formidable": "^3.4.5",
-    "@types/uuid": "^10.0.0",
     "autoprefixer": "^10.4.16",
     "axios": "^1.6.0",
     "clsx": "^2.0.0",
     "date-fns": "^2.30.0",
-    "dotenv": "^17.2.0",
-    "formidable": "^3.5.4",
-    "get-audio-duration": "^4.0.1",
     "lucide-react": "^0.292.0",
     "next": "^14.2.30",
-    "openai": "^4.20.0",
     "postcss": "^8.4.31",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-hook-form": "^7.47.0",
     "tailwindcss": "^3.3.0",
-    "typescript": "^5.2.0",
-    "uuid": "^11.1.0",
-    "zod": "^3.22.4"
+    "typescript": "^5.2.0"
   },
   "devDependencies": {
     "@types/node": "^20.8.0",
@@ -60,16 +36,15 @@
     "@types/react-dom": "^18.2.0",
     "eslint": "^8.51.0",
     "eslint-config-next": "14.0.0",
-    "prettier": "^3.0.3",
-    "supabase": "^1.100.0"
+    "prettier": "^3.0.3"
   },
   "keywords": [
-    "video-generation",
-    "personalized-content",
-    "children",
-    "ai",
-    "remotion"
+    "personalized-videos",
+    "children-education",
+    "family-content",
+    "reading",
+    "hippopolka"
   ],
-  "author": "AIAIO Team",
+  "author": "HippoPolka Team",
   "license": "MIT"
 }

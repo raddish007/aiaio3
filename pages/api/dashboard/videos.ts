@@ -1,6 +1,8 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { supabase } from '@/lib/supabase';
-import { getOptimizedVideoUrlServer } from '@/lib/video-cdn';
+
+// Simple video URL optimization for consumer app
+const getOptimizedVideoUrlServer = (url: string) => url;
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {

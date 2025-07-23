@@ -1,0 +1,63 @@
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+
+export function middleware(request: NextRequest) {
+  const url = request.nextUrl.clone();
+  const hostname = request.headers.get('host') || '';
+  
+  console.log('Consumer Middleware - Host:', hostname);
+  console.log('Consumer Middleware - URL:', url.pathname);
+  
+  // Redirect any admin routes to the admin subdomain
+  if (url.pathname.startsWith('/admin')) {
+    console.log('Redirecting admin route to admin subdomain');
+    return NextResponse.redirect('https://admin.hippopolka.com' + url.pathname);
+  }
+  
+  // App subdomain handling  
+  if (hostname.includes('app.hippopolka.com')) {
+    console.log('App subdomain detected');
+    
+    // Redirect root to dashboard
+    if (url.pathname === '/') {
+      url.pathname = '/dashboard';
+      return NextResponse.redirect(url);
+    }
+    
+    return NextResponse.next();
+  }
+  
+  // Main domain handling (hippopolka.com, www.hippopolka.com)
+  if (hostname.includes('hippopolka.com') && !hostname.includes('app.')) {
+    console.log('Main domain detected - serving marketing pages');
+    return NextResponse.next();
+  }
+  
+  // Development environment - allow everything except admin
+  if (hostname.includes('localhost') || hostname.includes('127.0.0.1') || hostname.includes('vercel.app')) {
+    console.log('Development environment');
+    
+    // Still redirect admin routes in development
+    if (url.pathname.startsWith('/admin')) {
+      console.log('Redirecting admin route in development');
+      return NextResponse.redirect('https://admin.hippopolka.com' + url.pathname);
+    }
+    
+    return NextResponse.next();
+  }
+  
+  return NextResponse.next();
+}
+
+export const config = {
+  matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - api (API routes)
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     */
+    '/((?!api|_next/static|_next/image|favicon.ico).*)',
+  ],
+};

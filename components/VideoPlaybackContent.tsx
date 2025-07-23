@@ -2,7 +2,13 @@ import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import VideoPlayer from '@/components/VideoPlayer';
-import { getOptimizedVideoUrl } from '@/lib/video-cdn';
+
+// Simple video URL optimization
+const getOptimizedVideoUrl = (url: string) => {
+  // For consumer app, just return the original URL
+  // CDN optimization is handled by the admin system
+  return url;
+};
 
 interface VideoPlaybackContentProps {
   videoId?: string;
