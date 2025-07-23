@@ -104,6 +104,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         .eq('approval_status', 'approved')
         .eq('is_active', true)
         .eq('video_assignments.child_id', childId)
+        .eq('video_assignments.is_active', true)
         .in('video_assignments.status', ['published', 'pending'])
         .order('created_at', { ascending: false });
 
@@ -121,6 +122,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         .eq('approval_status', 'approved')
         .eq('is_active', true)
         .is('video_assignments.child_id', null)
+        .eq('video_assignments.is_active', true)
         .in('video_assignments.status', ['published', 'pending'])
         .or(`personalization_level.eq.generic,personalization_level.eq.theme_specific.and.child_theme.eq.${child.primary_interest}`)
         .order('created_at', { ascending: false });
