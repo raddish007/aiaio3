@@ -62,6 +62,23 @@ export default function AddChild() {
     }
     
     try {
+      // Randomly assign a HippoPolka icon
+      const hippoIcons = [
+        'icon_bear.png',
+        'icon_cat.png',
+        'icon_dinosaur.png',
+        'icon_fox.png',
+        'icon_guitar.png',
+        'icon_owl.png',
+        'icon_panda.png',
+        'icon_pencil.png',
+        'icon_penguin.png',
+        'icon_rocket.png',
+        'icon_soccer.png',
+        'icon_truck.png'
+      ];
+      const randomIcon = hippoIcons[Math.floor(Math.random() * hippoIcons.length)];
+      
       // Create child record
       const childData = {
         parent_id: user!.id,
@@ -72,6 +89,7 @@ export default function AddChild() {
           pronouns: formData.pronouns,
           interests: formData.interests,
           additionalInfo: formData.additionalInfo,
+          icon: randomIcon,
           created_at: new Date().toISOString()
         }
       };

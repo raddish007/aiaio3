@@ -197,12 +197,7 @@ export default function Dashboard() {
                     </div>
                   </div>
                 )}
-                <Link
-                  href="/add-child"
-                  className="bg-black text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-800 transition-colors"
-                >
-                  + Add Child
-                </Link>
+
                 <div className="flex space-x-4">
                   <Link
                     href="/account-management"

@@ -163,22 +163,22 @@ export default function AccountManagement() {
                   <div key={child.id} className="border border-black/10 p-8 hover:border-black/20 transition-colors">
                     <div className="flex items-start space-x-6">
                       {/* Child Avatar */}
-                      <div className="w-20 h-20 bg-black/5 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden">
+                      <div className="w-24 h-24 bg-black/5 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden">
                         {child.metadata?.icon ? (
                           <Image
                             src={`/${child.metadata.icon}`}
                             alt={`${child.name}'s icon`}
-                            width={64}
-                            height={64}
-                            className="object-cover w-full h-full"
+                            width={80}
+                            height={80}
+                            className="object-contain w-full h-full"
                           />
                         ) : (
                           <Image
                             src="/icon_bear.png"
                             alt={`${child.name}'s icon`}
-                            width={64}
-                            height={64}
-                            className="object-cover w-full h-full"
+                            width={80}
+                            height={80}
+                            className="object-contain w-full h-full"
                           />
                         )}
                       </div>
@@ -200,13 +200,13 @@ export default function AccountManagement() {
               </div>
             ) : (
               <div className="text-center py-16">
-                <div className="w-20 h-20 bg-black/5 rounded-full flex items-center justify-center mx-auto mb-6 overflow-hidden">
+                <div className="w-24 h-24 bg-black/5 rounded-full flex items-center justify-center mx-auto mb-6 overflow-hidden">
                   <Image
                     src="/icon_bear.png"
                     alt="No children"
-                    width={64}
-                    height={64}
-                    className="object-cover w-full h-full opacity-30"
+                    width={80}
+                    height={80}
+                    className="object-contain w-full h-full opacity-30"
                   />
                 </div>
                 <h3 className="text-lg font-medium text-black mb-2">No children added yet</h3>
