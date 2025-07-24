@@ -18,7 +18,13 @@ export function middleware(request: NextRequest) {
   if (hostname.includes('app.hippopolka.com')) {
     console.log('App subdomain detected');
     
-    // Rewrite all requests to /app directory
+    // Handle authentication pages - don't rewrite these
+    if (url.pathname === '/signin' || url.pathname === '/register' || url.pathname.startsWith('/register/')) {
+      console.log('Auth page detected - not rewriting');
+      return NextResponse.next();
+    }
+    
+    // Rewrite all other requests to /app directory
     if (url.pathname === '/') {
       // Root path goes to dashboard
       url.pathname = '/app/dashboard';
