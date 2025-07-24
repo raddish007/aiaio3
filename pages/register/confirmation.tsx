@@ -219,60 +219,17 @@ export default function Confirmation() {
         <div className="px-8 py-8">
           <div className="max-w-4xl mx-auto text-center">
             <div className="mb-12">
-              <div className="text-6xl mb-6">🎉</div>
               <h1 className="text-4xl lg:text-5xl font-black mb-6 leading-tight">
                 Great news! You're getting your first 2 months of Hippo Polka totally free.
               </h1>
-              <p className="text-2xl text-gray-700 mb-12 max-w-3xl mx-auto">
+              <p className="text-2xl text-gray-700 mb-8 max-w-3xl mx-auto">
                 No credit card needed right now—we're just thrilled to have you try it.
                 <br/><br/>
-                Your first personalized video will arrive in the next day or so. We're a small team and review everything to make sure it's ready to go!
+                Your first personalized video will arrive in the next day or so. We're a small team and review everything to make sure it's perfect for your child!
               </p>
-            </div>
-
-            {/* Summary Card */}
-            <div className="bg-gray-50 rounded-3xl p-8 mb-12 text-left max-w-2xl mx-auto">
-              <h2 className="text-2xl font-bold mb-6">Here's what we're setting up for you:</h2>
-              <div className="space-y-4">
-                <div className="flex justify-between">
-                  <span className="font-medium">Parent:</span>
-                  <span>{registrationData.parentName}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="font-medium">Email:</span>
-                  <span>{registrationData.email}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="font-medium">Child:</span>
-                  <span>{registrationData.childName}, {registrationData.age} years old</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="font-medium">Pronouns:</span>
-                  <span>{registrationData.pronouns}</span>
-                </div>
-                {registrationData.interests.length > 0 && (
-                  <div className="flex justify-between">
-                    <span className="font-medium">Interests:</span>
-                    <span>{registrationData.interests.join(', ')}</span>
-                  </div>
-                )}
-                {registrationData.additionalInfo && (
-                  <div className="pt-4 border-t border-gray-200">
-                    <span className="font-medium">Special notes:</span>
-                    <p className="mt-2 text-gray-700">{registrationData.additionalInfo}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Image Section */}
-            <div className="flex justify-center mb-12">
-              <div className="w-full max-w-md aspect-video bg-gray-100 rounded-3xl flex items-center justify-center border-2 border-gray-200">
-                <span className="text-gray-500 text-center">
-                  [Confirmation Image Placeholder]<br/>
-                  Happy family celebrating
-                </span>
-              </div>
+              <p className="text-xl text-gray-600 mb-12 max-w-3xl mx-auto">
+                Have more than one child? You can add them next.
+              </p>
             </div>
 
             {/* Call to Action */}
@@ -289,11 +246,16 @@ export default function Confirmation() {
               </Link>
             </div>
 
-            {/* Additional Info */}
-            <div className="mt-16 pt-8 border-t border-gray-200">
-              <p className="text-gray-600">
-                Questions? Email us at <a href="mailto:hello@hippopolka.com" className="text-black font-medium hover:underline">hello@hippopolka.com</a>
-              </p>
+            {/* Image Section */}
+            <div className="flex justify-center mt-12">
+              <div className="relative w-full max-w-2xl aspect-video rounded-3xl overflow-hidden shadow-xl">
+                <Image
+                  src="/marketing/kid-coloring-dog.png"
+                  alt="Child happily coloring with personalized content"
+                  fill
+                  className="object-cover"
+                />
+              </div>
             </div>
           </div>
         </div>

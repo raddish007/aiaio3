@@ -115,42 +115,55 @@ export default function Register() {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
 
-      <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+      <div className="min-h-screen bg-white text-black font-sans">
         {/* Header */}
-        <div className="sm:mx-auto sm:w-full sm:max-w-md">
-          <Link href="/" className="flex justify-center items-center mb-8">
-            <Image
-              src="/HippoPolkaLogo.png"
-              alt="Hippo Polka"
-              width={60}
-              height={60}
-              className="w-15 h-15"
-            />
-            <span className="ml-3 text-2xl font-bold text-black">Hippo Polka</span>
-          </Link>
-          
-          <h2 className="text-center text-3xl font-extrabold text-gray-900 mb-4">
-            Let's Get Started! 🎉
-          </h2>
-          <p className="text-center text-lg text-gray-700 mb-2">
-            You're about to give your child something magical—personalized videos that spark a love of reading.
-          </p>
-          <p className="text-center text-sm text-gray-600 mb-6">
-            Step 1 of 3: Tell us about you
-          </p>
-          
-          <div className="text-center mb-4">
-            <span className="text-sm text-gray-600">
-              Already have an account?{' '}
-              <Link href="/signin" className="font-medium text-black hover:underline">
-                Sign in instead
+        <header className="p-8 pb-4">
+          <div className="max-w-7xl mx-auto">
+            <div className="flex items-center justify-between">
+              <Link href="/" className="flex items-center">
+                <Image
+                  src="/HippoPolkaLogo.png"
+                  alt="Hippo Polka"
+                  width={80}
+                  height={80}
+                  className="w-20 h-20"
+                />
+                <span className="ml-4 text-2xl font-bold text-black">Hippo Polka</span>
               </Link>
-            </span>
+              <div className="flex items-center space-x-4">
+                <Link href="/signin" className="text-gray-600 hover:text-black transition-colors">
+                  Sign In
+                </Link>
+              </div>
+            </div>
           </div>
-        </div>
+        </header>
 
-        <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-          <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+        {/* Main Content */}
+        <div className="px-8 py-8">
+          <div className="max-w-md mx-auto">
+            <h2 className="text-center text-3xl font-extrabold text-gray-900 mb-4">
+              Let's Get Started!
+            </h2>
+            <p className="text-center text-lg text-gray-700 mb-2">
+              You're about to give your child something magical—personalized videos that spark a love of reading.
+            </p>
+            <p className="text-center text-sm text-gray-500 mb-4">
+              We respect your privacy and will never share your information with third parties.
+            </p>
+            <p className="text-center text-sm text-gray-600 mb-6">
+              Step 1 of 3: Tell us about you
+            </p>
+          
+            <div className="text-center mb-4">
+              <span className="text-sm text-gray-600">
+                Already have an account?{' '}
+                <Link href="/signin" className="font-medium text-black hover:underline">
+                  Sign in instead
+                </Link>
+              </span>
+            </div>
+
             <form className="space-y-6" onSubmit={handleSubmit}>
               <div>
                 <label htmlFor="firstName" className="block text-sm font-medium text-gray-700">

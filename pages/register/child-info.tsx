@@ -19,8 +19,8 @@ export default function ChildInfo() {
 
   // Interest options
   const interestOptions = [
-    'Dinosaurs', 'Space', 'Animals', 'Cars', 'Princesses', 'Superheroes',
-    'Music', 'Art', 'Sports', 'Books', 'Nature', 'Cooking', 'Dancing'
+    'Dinosaurs', 'Space', 'Ocean', 'Wild Animals', 'Dogs', 'Cats', 
+    'Trucks', 'Trains', 'Princesses', 'Superheroes'
   ];
 
   useEffect(() => {
@@ -269,11 +269,13 @@ export default function ChildInfo() {
 
               {/* Image Section */}
               <div className="flex justify-center">
-                <div className="w-full max-w-md aspect-square bg-gray-100 rounded-3xl flex items-center justify-center border-2 border-gray-200">
-                  <span className="text-gray-500 text-center">
-                    [Child Info Image Placeholder]<br/>
-                    Happy child with personalized content
-                  </span>
+                <div className="relative w-full max-w-md aspect-video rounded-3xl overflow-hidden shadow-xl">
+                  <Image
+                    src="/marketing/mom-kid-screen.png"
+                    alt="Mother and child enjoying personalized content together"
+                    fill
+                    className="object-cover"
+                  />
                 </div>
               </div>
             </div>

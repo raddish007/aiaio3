@@ -30,12 +30,6 @@ export default function Home() {
                 <Link href="/signin" className="text-gray-600 hover:text-black transition-colors">
                   Sign In
                 </Link>
-                <Link 
-                  href="/register"
-                  className="bg-black text-white px-6 py-2 rounded-full font-semibold hover:bg-gray-800 transition-colors"
-                >
-                  Start Free
-                </Link>
               </div>
             </div>
           </div>
@@ -130,7 +124,7 @@ export default function Home() {
                   Hippo Polka videos use <strong className="font-semibold">repetition, predictability, and personalization</strong>—exactly how little kids actually learn. Each joyful minute builds real reading skills.
                 </p>
                 <p className="text-[20px] lg:text-[26px] font-light mb-16 leading-[1.4]">
-                  And because we understand the "one more video" battle, we give you simple ways to transition from each video into <strong className="font-semibold">real-life learning moments together</strong>.
+                  And because we understand the "just one more video" battle, we give you simple ways to transition from each video into <strong className="font-semibold">real-life learning moments together</strong>.
                 </p>
               </div>
               
@@ -155,7 +149,7 @@ export default function Home() {
             <div className="grid lg:grid-cols-2 gap-16 items-center">
               <div>
                 <h2 className="text-[32px] lg:text-[48px] font-black mb-8 leading-[1.2] lg:leading-[1.3]">
-                  Created by a Mom Who's Helped Millions of Kids Learn
+                  Created by a Mom and EdTech Expert
                 </h2>
                 
                 <div className="space-y-6 text-[16px] lg:text-[18px] leading-[1.5]">
@@ -226,7 +220,7 @@ export default function Home() {
                   <span className="ml-4 text-2xl font-bold text-white">Hippo Polka</span>
                 </div>
                 <p className="text-gray-300 text-lg leading-relaxed max-w-md">
-                  Personalized videos that spark a love of reading. Screen time that actually builds literacy skills.
+                  Personalized videos that spark a love of reading.
                 </p>
               </div>
 
@@ -234,6 +228,7 @@ export default function Home() {
               <div>
                 <h3 className="text-white font-semibold text-lg mb-4">Company</h3>
                 <ul className="space-y-3">
+                  <li><Link href="/signin" className="text-gray-300 hover:text-white transition-colors">Sign In</Link></li>
                   <li><Link href="/about" className="text-gray-300 hover:text-white transition-colors">About Us</Link></li>
                   <li><Link href="/how-it-works" className="text-gray-300 hover:text-white transition-colors">How It Works</Link></li>
                   <li><Link href="/careers" className="text-gray-300 hover:text-white transition-colors">Careers</Link></li>
@@ -247,7 +242,6 @@ export default function Home() {
                 <ul className="space-y-3">
                   <li><Link href="/faq" className="text-gray-300 hover:text-white transition-colors">FAQ</Link></li>
                   <li><Link href="/contact" className="text-gray-300 hover:text-white transition-colors">Contact Us</Link></li>
-                  <li><Link href="/help" className="text-gray-300 hover:text-white transition-colors">Help Center</Link></li>
                   <li><Link href="/privacy" className="text-gray-300 hover:text-white transition-colors">Privacy Policy</Link></li>
                   <li><Link href="/terms" className="text-gray-300 hover:text-white transition-colors">Terms of Service</Link></li>
                 </ul>
@@ -260,14 +254,6 @@ export default function Home() {
                 <p className="text-gray-400 text-sm">
                   © 2025 Hippo Polka. All rights reserved.
                 </p>
-                <div className="flex space-x-6 mt-4 md:mt-0">
-                  <Link href="/signin" className="text-gray-400 hover:text-white transition-colors text-sm">
-                    Sign In
-                  </Link>
-                  <a href="mailto:hello@hippopolka.com" className="text-gray-400 hover:text-white transition-colors text-sm">
-                    hello@hippopolka.com
-                  </a>
-                </div>
               </div>
             </div>
           </div>
