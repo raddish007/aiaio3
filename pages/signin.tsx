@@ -32,8 +32,8 @@ export default function SignIn() {
       }
 
       if (data.user) {
-        // Redirect to dashboard or appropriate page
-        router.push('/dashboard');
+        // Redirect to app subdomain dashboard
+        window.location.href = 'https://app.hippopolka.com/dashboard';
       }
     } catch (error) {
       console.error('Sign in error:', error);

@@ -55,7 +55,7 @@ export default function ChildVideos() {
   const checkUser = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
-      router.push('/login');
+      router.push('/signin');
       return;
     }
     setUser(user);
@@ -119,7 +119,7 @@ export default function ChildVideos() {
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
-    router.push('/');
+          router.push('/dashboard');
   };
 
   const handleBackToDashboard = () => {

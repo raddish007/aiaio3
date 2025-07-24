@@ -27,7 +27,7 @@ export default function Home() {
                 <span className="ml-4 text-2xl font-bold text-black">Hippo Polka</span>
               </div>
               <div className="flex items-center space-x-4">
-                <Link href="/signin" className="text-gray-600 hover:text-black transition-colors">
+                <Link href="https://app.hippopolka.com/signin" className="text-gray-600 hover:text-black transition-colors">
                   Sign In
                 </Link>
               </div>
@@ -228,7 +228,7 @@ export default function Home() {
               <div>
                 <h3 className="text-white font-semibold text-lg mb-4">Company</h3>
                 <ul className="space-y-3">
-                  <li><Link href="/signin" className="text-gray-300 hover:text-white transition-colors">Sign In</Link></li>
+                  <li><Link href="https://app.hippopolka.com/signin" className="text-gray-300 hover:text-white transition-colors">Sign In</Link></li>
                   <li><Link href="/about" className="text-gray-300 hover:text-white transition-colors">About Us</Link></li>
                   <li><Link href="/how-it-works" className="text-gray-300 hover:text-white transition-colors">How It Works</Link></li>
                   <li><Link href="/careers" className="text-gray-300 hover:text-white transition-colors">Careers</Link></li>

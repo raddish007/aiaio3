@@ -173,7 +173,7 @@ export default function Register() {
                 <span className="ml-4 text-2xl font-bold text-black">Hippo Polka</span>
               </Link>
               <div className="flex items-center space-x-4">
-                <Link href="/signin" className="text-gray-600 hover:text-black transition-colors">
+                <Link href="https://app.hippopolka.com/signin" className="text-gray-600 hover:text-black transition-colors">
                   Sign In
                 </Link>
               </div>
@@ -200,7 +200,7 @@ export default function Register() {
             <div className="text-center mb-4">
               <span className="text-sm text-gray-600">
                 Already have an account?{' '}
-                <Link href="/signin" className="font-medium text-black hover:underline">
+                <Link href="https://app.hippopolka.com/signin" className="font-medium text-black hover:underline">
                   Sign in instead
                 </Link>
               </span>
@@ -366,7 +366,7 @@ export default function Register() {
                   © 2025 Hippo Polka. All rights reserved.
                 </p>
                 <div className="flex space-x-6 mt-4 md:mt-0">
-                  <Link href="/signin" className="text-gray-400 hover:text-white transition-colors text-sm">
+                  <Link href="https://app.hippopolka.com/signin" className="text-gray-400 hover:text-white transition-colors text-sm">
                     Sign In
                   </Link>
                   <a href="mailto:hello@hippopolka.com" className="text-gray-400 hover:text-white transition-colors text-sm">

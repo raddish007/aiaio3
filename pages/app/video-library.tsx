@@ -31,7 +31,7 @@ export default function VideoLibrary() {
       // Get the current session
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        router.push('/login');
+        router.push('/signin');
         return;
       }
       // For demo purposes, we'll create some sample videos

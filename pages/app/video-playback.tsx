@@ -10,7 +10,7 @@ export default function VideoPlayback() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    router.push('/login');
+    router.push('/signin');
   };
 
   const handleBackClick = () => {

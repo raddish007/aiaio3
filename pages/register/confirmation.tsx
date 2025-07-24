@@ -216,7 +216,7 @@ export default function Confirmation() {
               </p>
               
               <Link 
-                href="/dashboard"
+                href="https://app.hippopolka.com/dashboard"
                 className="inline-block bg-black text-white px-12 py-4 rounded-full text-xl font-bold hover:bg-gray-800 transition-all duration-300 transform hover:scale-105 shadow-lg"
               >
                 Go to Your Dashboard
@@ -290,7 +290,7 @@ export default function Confirmation() {
                   © 2025 Hippo Polka. All rights reserved.
                 </p>
                 <div className="flex space-x-6 mt-4 md:mt-0">
-                  <Link href="/signin" className="text-gray-400 hover:text-white transition-colors text-sm">
+                  <Link href="https://app.hippopolka.com/signin" className="text-gray-400 hover:text-white transition-colors text-sm">
                     Sign In
                   </Link>
                   <a href="mailto:hello@hippopolka.com" className="text-gray-400 hover:text-white transition-colors text-sm">

@@ -54,7 +54,7 @@ export default function Dashboard() {
     const { data: { user } } = await supabase.auth.getUser();
     
     if (!user) {
-      router.push('/login');
+      router.push('/signin');
       return;
     }
 
@@ -120,7 +120,7 @@ export default function Dashboard() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    router.push('/login');
+    router.push('/signin');
   };
 
   const getInterestEmoji = (interest: string) => {
@@ -197,6 +197,12 @@ export default function Dashboard() {
                     </div>
                   </div>
                 )}
+                <Link
+                  href="/add-child"
+                  className="bg-black text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-800 transition-colors"
+                >
+                  + Add Child
+                </Link>
                 <div className="flex space-x-4">
                   <Link
                     href="/account-management"
@@ -317,7 +323,13 @@ export default function Dashboard() {
                 <span className="text-3xl">👶</span>
               </div>
               <h3 className="text-lg font-medium text-gray-900 mb-2">No children found</h3>
-              <p className="text-gray-600">Add a child to get started.</p>
+              <p className="text-gray-600 mb-6">Add a child to get started with personalized videos.</p>
+              <Link
+                href="/add-child"
+                className="inline-block bg-black text-white px-6 py-3 rounded-full text-lg font-bold hover:bg-gray-800 transition-all duration-300 transform hover:scale-105 shadow-lg"
+              >
+                Add Your First Child
+              </Link>
             </div>
           )}
         </div>

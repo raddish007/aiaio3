@@ -92,7 +92,7 @@ export default function About() {
                   © 2025 Hippo Polka. All rights reserved.
                 </p>
                 <div className="flex space-x-6 mt-4 md:mt-0">
-                  <Link href="/signin" className="text-gray-400 hover:text-white transition-colors text-sm">
+                  <Link href="https://app.hippopolka.com/signin" className="text-gray-400 hover:text-white transition-colors text-sm">
                     Sign In
                   </Link>
                   <a href="mailto:hello@hippopolka.com" className="text-gray-400 hover:text-white transition-colors text-sm">

@@ -13,6 +13,7 @@ interface Child {
   primary_interest?: string;
   profile_photo_url?: string;
   created_at: string;
+  metadata?: any;
 }
 
 export default function AccountManagement() {
@@ -30,7 +31,7 @@ export default function AccountManagement() {
     const { data: { user } } = await supabase.auth.getUser();
     
     if (!user) {
-      router.push('/login');
+      router.push('/signin');
       return;
     }
 
@@ -61,7 +62,7 @@ export default function AccountManagement() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    router.push('/login');
+    router.push('/signin');
   };
 
   if (loading) {
@@ -140,9 +141,20 @@ export default function AccountManagement() {
         {/* Children Tab */}
         {activeTab === 'children' && (
           <div>
-            <div className="mb-8">
-              <h2 className="text-xl font-light text-black mb-2">Family Members</h2>
-              <p className="text-black/60 text-sm">Your children's profiles and preferences</p>
+            <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
+              <div>
+                <h2 className="text-xl font-light text-black mb-2">Family Members</h2>
+                <p className="text-black/60 text-sm">Your children's profiles and preferences</p>
+              </div>
+              <Link
+                href="/add-child"
+                className="inline-flex items-center px-4 py-2 bg-black text-white text-sm font-medium rounded-md hover:bg-gray-800 transition-colors"
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                </svg>
+                Add Child
+              </Link>
             </div>
 
             {children.length > 0 ? (
@@ -151,22 +163,22 @@ export default function AccountManagement() {
                   <div key={child.id} className="border border-black/10 p-8 hover:border-black/20 transition-colors">
                     <div className="flex items-start space-x-6">
                       {/* Child Avatar */}
-                      <div className="w-16 h-16 bg-black/5 rounded-full flex items-center justify-center flex-shrink-0">
-                        {child.icon ? (
+                      <div className="w-20 h-20 bg-black/5 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden">
+                        {child.metadata?.icon ? (
                           <Image
-                            src={`/${child.icon}`}
+                            src={`/${child.metadata.icon}`}
                             alt={`${child.name}'s icon`}
-                            width={40}
-                            height={40}
-                            className="object-contain"
+                            width={64}
+                            height={64}
+                            className="object-cover w-full h-full"
                           />
                         ) : (
                           <Image
                             src="/icon_bear.png"
                             alt={`${child.name}'s icon`}
-                            width={40}
-                            height={40}
-                            className="object-contain"
+                            width={64}
+                            height={64}
+                            className="object-cover w-full h-full"
                           />
                         )}
                       </div>
@@ -188,19 +200,28 @@ export default function AccountManagement() {
               </div>
             ) : (
               <div className="text-center py-16">
-                <div className="w-20 h-20 bg-black/5 rounded-full flex items-center justify-center mx-auto mb-6">
+                <div className="w-20 h-20 bg-black/5 rounded-full flex items-center justify-center mx-auto mb-6 overflow-hidden">
                   <Image
                     src="/icon_bear.png"
                     alt="No children"
-                    width={50}
-                    height={50}
-                    className="object-contain opacity-30"
+                    width={64}
+                    height={64}
+                    className="object-cover w-full h-full opacity-30"
                   />
                 </div>
                 <h3 className="text-lg font-medium text-black mb-2">No children added yet</h3>
-                <p className="text-black/60 max-w-md mx-auto">
+                <p className="text-black/60 max-w-md mx-auto mb-6">
                   Children profiles will appear here once they are added to your account
                 </p>
+                <Link
+                  href="/add-child"
+                  className="inline-flex items-center px-6 py-3 bg-black text-white text-base font-medium rounded-md hover:bg-gray-800 transition-colors"
+                >
+                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                  </svg>
+                  Add Your First Child
+                </Link>
               </div>
             )}
           </div>

@@ -18,13 +18,17 @@ export function middleware(request: NextRequest) {
   if (hostname.includes('app.hippopolka.com')) {
     console.log('App subdomain detected');
     
-    // Redirect root to dashboard
+    // Rewrite all requests to /app directory
     if (url.pathname === '/') {
-      url.pathname = '/dashboard';
-      return NextResponse.redirect(url);
+      // Root path goes to dashboard
+      url.pathname = '/app/dashboard';
+    } else {
+      // All other paths get prefixed with /app
+      url.pathname = `/app${url.pathname}`;
     }
     
-    return NextResponse.next();
+    console.log('Rewriting to:', url.pathname);
+    return NextResponse.rewrite(url);
   }
   
   // Main domain handling (hippopolka.com, www.hippopolka.com)

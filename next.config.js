@@ -49,6 +49,22 @@ const nextConfig = {
       },
     ];
   },
+
+  async rewrites() {
+    return [
+      // App subdomain rewrites
+      {
+        source: '/app/:path*',
+        destination: '/app/:path*',
+        has: [
+          {
+            type: 'host',
+            value: 'app.hippopolka.com',
+          },
+        ],
+      },
+    ];
+  },
 };
 
 module.exports = nextConfig;
