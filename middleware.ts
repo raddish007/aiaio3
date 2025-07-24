@@ -18,6 +18,15 @@ export function middleware(request: NextRequest) {
   if (hostname.includes('app.hippopolka.com')) {
     console.log('App subdomain detected');
     
+    // Handle static assets - don't rewrite these
+    if (url.pathname.startsWith('/HippoPolkaLogo') || 
+        url.pathname.startsWith('/icon_') || 
+        url.pathname.startsWith('/marketing/') ||
+        url.pathname === '/favicon.ico') {
+      console.log('Static asset detected - not rewriting');
+      return NextResponse.next();
+    }
+    
     // Handle authentication pages - don't rewrite these
     if (url.pathname === '/signin' || url.pathname === '/register' || url.pathname.startsWith('/register/')) {
       console.log('Auth page detected - not rewriting');
