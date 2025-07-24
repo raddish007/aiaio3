@@ -163,12 +163,11 @@ export default function Dashboard() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center py-4 space-y-4 sm:space-y-0">
               <div className="flex items-center space-x-4">
-                <Image
+                <img
                   src="/HippoPolkaLogo.png"
                   alt="Hippo and Dog Logo"
                   width={60}
                   height={60}
-                  priority
                   className="flex-shrink-0"
                 />
                 <h1 className="text-xl sm:text-2xl font-bold text-black truncate">Hippo Polka Beta</h1>
@@ -223,7 +222,7 @@ export default function Dashboard() {
             <div className="mb-8">
               <div className="flex items-center space-x-4">
                 {(selectedChild.metadata?.icon) ? (
-                  <Image
+                  <img
                     src={`/${selectedChild.metadata.icon}`}
                     alt={`${selectedChild.name}'s icon`}
                     width={60}

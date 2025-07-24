@@ -165,7 +165,7 @@ export default function AccountManagement() {
                       {/* Child Avatar */}
                       <div className="w-24 h-24 bg-black/5 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden">
                         {child.metadata?.icon ? (
-                          <Image
+                          <img
                             src={`/${child.metadata.icon}`}
                             alt={`${child.name}'s icon`}
                             width={80}
@@ -173,7 +173,7 @@ export default function AccountManagement() {
                             className="object-contain w-full h-full"
                           />
                         ) : (
-                          <Image
+                          <img
                             src="/icon_bear.png"
                             alt={`${child.name}'s icon`}
                             width={80}
@@ -201,7 +201,7 @@ export default function AccountManagement() {
             ) : (
               <div className="text-center py-16">
                 <div className="w-24 h-24 bg-black/5 rounded-full flex items-center justify-center mx-auto mb-6 overflow-hidden">
-                  <Image
+                  <img
                     src="/icon_bear.png"
                     alt="No children"
                     width={80}
