@@ -54,14 +54,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(500).json({ error: 'Failed to fetch videos', details: allVideosError.message });
     }
 
-    // Filter for child-specific videos (assigned to this child)
+    // Filter for child-specific videos (created for this specific child)
     const childSpecificVideos = (allVideosRaw || []).filter(video =>
+      video.child_id === childId && // Video was created for this child
       Array.isArray(video.video_assignments) &&
       video.video_assignments.some((a: any) => a.child_id === childId)
     );
 
-    // Filter for general videos (assigned to all children)
+    // Filter for general videos (intentionally created for all children)
     const generalVideos = (allVideosRaw || []).filter(video =>
+      video.personalization_level === 'generic' && // Intentionally generic
       Array.isArray(video.video_assignments) &&
       video.video_assignments.some((a: any) => a.child_id === null)
     );
@@ -69,7 +71,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Filter for theme-specific videos (matching child's theme)
     const themeVideos = (allVideosRaw || []).filter(video =>
       video.personalization_level === 'theme_specific' &&
-      video.child_theme === child.primary_interest
+      video.child_theme === child.primary_interest &&
+      Array.isArray(video.video_assignments) &&
+      video.video_assignments.some((a: any) => a.child_id === null || a.child_id === childId)
     );
 
 
