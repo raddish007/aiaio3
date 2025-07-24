@@ -14,6 +14,7 @@ export default function Register() {
     password: ''
   });
   const [emailError, setEmailError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -27,84 +28,125 @@ export default function Register() {
     if (name === 'email' && emailError) {
       setEmailError('');
     }
-  };
-
-  const checkEmailExists = async (email: string): Promise<boolean> => {
-    try {
-      const { data, error } = await supabase
-        .from('users')
-        .select('email')
-        .eq('email', email.toLowerCase())
-        .single();
-      
-      if (error && error.code !== 'PGRST116') {
-        // PGRST116 is "row not found" which is what we want
-        console.error('Email check error:', error);
-        return false;
-      }
-      
-      return !!data; // Return true if user exists
-    } catch (error) {
-      console.error('Email check error:', error);
-      return false;
+    
+    // Clear password error when user starts typing
+    if (name === 'password' && passwordError) {
+      setPasswordError('');
     }
   };
+
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setEmailError('');
+    setPasswordError('');
     
-    // Check if email already exists
-    const emailExists = await checkEmailExists(formData.email);
-    if (emailExists) {
-      setEmailError('An account with this email already exists. Please sign in instead.');
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      setEmailError('Please enter a valid email address.');
       setIsLoading(false);
       return;
     }
     
+    // Validate password length
+    if (formData.password.length < 6) {
+      setPasswordError('Password must be at least 6 characters long.');
+      setIsLoading(false);
+      return;
+    }
+    
+    // Note: Supabase Auth will handle duplicate email errors automatically
+    // No need to check manually as it will return an appropriate error
+    
     try {
-      // Save email as a lead immediately in case they don't complete registration
-      const leadData = {
-        email: formData.email.toLowerCase(),
-        first_name: formData.firstName,
-        last_name: formData.lastName,
-        status: 'step_1_complete',
-        source: 'registration_flow',
-        created_at: new Date().toISOString(),
-        metadata: {
-          step_completed: 1,
-          user_agent: navigator.userAgent,
-          referrer: document.referrer || null
+      // Create user account immediately as a lead
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+        options: {
+          data: {
+            full_name: `${formData.firstName} ${formData.lastName}`,
+          }
         }
-      };
+      });
 
-      const { error: leadError } = await supabase
-        .from('leads')
-        .upsert(leadData, { 
-          onConflict: 'email',
-          ignoreDuplicates: false 
-        });
-
-      if (leadError) {
-        console.error('Lead save error:', leadError);
-        // Don't block the flow if lead saving fails
+      if (authError) {
+        console.error('Auth error:', authError);
+        setEmailError('Error creating account. Please try again.');
+        setIsLoading(false);
+        return;
       }
 
-      // Store parent info in localStorage for the next step
-      localStorage.setItem('parentInfo', JSON.stringify(formData));
-      
-      // Navigate to child info step
-      router.push('/register/child-info');
+      if (authData.user) {
+        // Simple user record creation - no complex logic
+        try {
+          const { error: userError } = await supabase
+            .from('users')
+            .insert({
+              id: authData.user.id,
+              email: formData.email.toLowerCase(),
+              name: `${formData.firstName} ${formData.lastName}`,
+              role: 'parent',
+              metadata: {
+                step_completed: 1,
+                user_agent: navigator.userAgent,
+                referrer: document.referrer || null,
+                lead_source: 'registration_flow',
+                registration_status: 'lead',
+                is_lead: true
+              }
+            });
+
+          if (userError) {
+            console.error('User record creation error:', userError);
+            // Try upsert as fallback
+            const { error: upsertError } = await supabase
+              .from('users')
+              .upsert({
+                id: authData.user.id,
+                email: formData.email.toLowerCase(),
+                name: `${formData.firstName} ${formData.lastName}`,
+                role: 'parent',
+                metadata: {
+                  step_completed: 1,
+                  user_agent: navigator.userAgent,
+                  referrer: document.referrer || null,
+                  lead_source: 'registration_flow',
+                  registration_status: 'lead',
+                  is_lead: true
+                }
+              }, { onConflict: 'id' });
+
+            if (upsertError) {
+              console.error('User record upsert error:', upsertError);
+            } else {
+              console.log('User record created via upsert');
+            }
+          } else {
+            console.log('User record created successfully');
+          }
+        } catch (error) {
+          console.error('User creation failed:', error);
+        }
+        
+        // Store parent info in localStorage for the next step
+        localStorage.setItem('parentInfo', JSON.stringify({
+          ...formData,
+          userId: authData.user.id
+        }));
+        
+        // Navigate to child info step
+        router.push('/register/child-info');
+      }
       
     } catch (error) {
       console.error('Registration step 1 error:', error);
-      // Still proceed even if lead saving fails
-      localStorage.setItem('parentInfo', JSON.stringify(formData));
-      router.push('/register/child-info');
+      setEmailError('An unexpected error occurred. Please try again.');
+      setIsLoading(false);
     }
-    
-    setIsLoading(false);
   };
 
   return (
@@ -215,6 +257,7 @@ export default function Register() {
                     className={`appearance-none block w-full px-3 py-2 border rounded-md placeholder-gray-400 focus:outline-none focus:ring-black focus:border-black sm:text-sm ${
                       emailError ? 'border-red-300' : 'border-gray-300'
                     }`}
+                    placeholder="your.email@example.com"
                   />
                   {emailError && (
                     <p className="mt-2 text-sm text-red-600">{emailError}</p>
@@ -235,9 +278,18 @@ export default function Register() {
                     required
                     value={formData.password}
                     onChange={handleInputChange}
-                    className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-black focus:border-black sm:text-sm"
+                    className={`appearance-none block w-full px-3 py-2 border rounded-md placeholder-gray-400 focus:outline-none focus:ring-black focus:border-black sm:text-sm ${
+                      passwordError ? 'border-red-300' : 'border-gray-300'
+                    }`}
+                    placeholder="At least 6 characters"
                   />
+                  {passwordError && (
+                    <p className="mt-2 text-sm text-red-600">{passwordError}</p>
+                  )}
                 </div>
+                {!passwordError && (
+                  <p className="mt-1 text-xs text-gray-500">Must be at least 6 characters long</p>
+                )}
               </div>
 
               <div>

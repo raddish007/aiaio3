@@ -54,24 +54,26 @@ export default function ChildInfo() {
     }
     
     try {
-      // Update lead status to show they completed step 2
-      const { error: leadUpdateError } = await supabase
-        .from('leads')
+      // Update user metadata to show they completed step 2
+      const { error: userUpdateError } = await supabase
+        .from('users')
         .update({
-          status: 'step_2_complete',
           metadata: {
             step_completed: 2,
             child_name: formData.childName,
             child_age: formData.age,
             child_interests: formData.interests,
-            updated_at: new Date().toISOString()
+            updated_at: new Date().toISOString(),
+            lead_source: 'registration_flow',
+            registration_status: 'step_2_complete',
+            is_lead: true
           }
         })
-        .eq('email', parentData.email.toLowerCase());
+        .eq('id', parentData.userId);
 
-      if (leadUpdateError) {
-        console.error('Lead update error:', leadUpdateError);
-        // Don't block the flow if lead update fails
+      if (userUpdateError) {
+        console.error('User update error:', userUpdateError);
+        // Don't block the flow if user update fails
       }
 
       // Store child data with parent data for the final confirmation step
@@ -82,7 +84,7 @@ export default function ChildInfo() {
       };
       localStorage.setItem('registrationData', JSON.stringify(completeData));
       
-      // Navigate to confirmation (where we'll actually create the account)
+      // Navigate to confirmation (where we'll actually create the child record and convert the user)
       router.push('/register/confirmation');
       
     } catch (error) {

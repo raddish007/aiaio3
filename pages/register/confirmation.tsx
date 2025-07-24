@@ -34,96 +34,73 @@ export default function Confirmation() {
     setError('');
 
     try {
-      // First, create the parent user account
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: data.email,
-        password: data.password,
-        options: {
-          data: {
-            full_name: `${data.firstName} ${data.lastName}`,
-          }
-        }
-      });
+      // The user account was already created in step 1, so we just need to:
+      // 1. Create the child record
+      // 2. Update the user status to 'trial'
 
-      if (authError) {
-        console.error('Auth error:', authError);
-        setError('Error creating account. Please try again.');
+      // Create child record
+      const childData = {
+        parent_id: data.userId,
+        name: data.childName,
+        age: parseInt(data.age),
+        primary_interest: data.interests[0] || 'Other',
+        metadata: {
+          pronouns: data.pronouns,
+          interests: data.interests,
+          additionalInfo: data.additionalInfo
+        }
+      };
+
+      const { error: childError } = await supabase
+        .from('children')
+        .insert(childData);
+
+      if (childError) {
+        console.error('Child creation error:', childError);
+        setError('Error saving child information. Please try again.');
         setIsCreatingAccount(false);
         return;
       }
 
-      if (authData.user) {
-        // Create user record in our users table
-        const { error: userError } = await supabase
-          .from('users')
-          .insert({
-            id: authData.user.id,
-            email: data.email,
-            name: `${data.firstName} ${data.lastName}`,
-            role: 'parent',
-            subscription_status: 'trial'
-          });
+      // Update user subscription_status to 'trial'
+      const now = new Date();
 
-        if (userError) {
-          console.error('User creation error:', userError);
-        }
-
-        // Create child record
-        const childData = {
-          parent_id: authData.user.id,
-          name: data.childName,
-          age: parseInt(data.age),
-          primary_interest: data.interests[0] || 'Other',
+      const { error: userUpdateError } = await supabase
+        .from('users')
+        .update({
+          subscription_status: 'trial',
           metadata: {
-            pronouns: data.pronouns,
-            interests: data.interests,
-            additionalInfo: data.additionalInfo
+            step_completed: 3,
+            full_registration_complete: true,
+            child_name: data.childName,
+            child_age: data.age,
+            child_interests: data.interests,
+            lead_source: 'registration_flow',
+            registration_status: 'converted',
+            converted_at: now.toISOString(),
+            trial_started_at: now.toISOString(),
+            is_lead: false
           }
-        };
+        })
+        .eq('id', data.userId);
 
-        const { error: childError } = await supabase
-          .from('children')
-          .insert(childData);
-
-        if (childError) {
-          console.error('Child creation error:', childError);
-          setError('Error saving child information. Please try again.');
-          setIsCreatingAccount(false);
-          return;
-        }
-
-        // Update lead status to show they fully converted
-        const { error: leadConvertError } = await supabase
-          .from('leads')
-          .update({
-            status: 'converted',
-            user_id: authData.user.id,
-            converted_at: new Date().toISOString(),
-            metadata: {
-              step_completed: 3,
-              full_registration_complete: true,
-              child_name: data.childName,
-              child_age: data.age,
-              child_interests: data.interests
-            }
-          })
-          .eq('email', data.email.toLowerCase());
-
-        if (leadConvertError) {
-          console.error('Lead conversion update error:', leadConvertError);
-          // Don't block the flow if lead update fails
-        }
-
-        // Success!
-        setAccountCreated(true);
+      if (userUpdateError) {
+        console.error('User subscription status update error:', userUpdateError);
+        setError('Error updating account status. Please try again.');
         setIsCreatingAccount(false);
-        
-        // Clean up localStorage
-        setTimeout(() => {
-          localStorage.removeItem('registrationData');
-          localStorage.removeItem('parentInfo');
-        }, 2000);
+        return;
       }
+
+      // Success!
+      setAccountCreated(true);
+      setIsCreatingAccount(false);
+      
+      // Clean up localStorage
+      setTimeout(() => {
+        localStorage.removeItem('registrationData');
+        localStorage.removeItem('parentInfo');
+      }, 2000);
+
     } catch (error) {
       console.error('Registration error:', error);
       setError('An unexpected error occurred. Please try again.');
